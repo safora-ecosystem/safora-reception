@@ -1,26 +1,39 @@
 import { createRootRoute, createRoute, createRouter } from "@tanstack/react-router"
 import { ClipboardList, DoorOpen, LifeBuoy, LogOut, MessagesSquare, Settings } from "lucide-react"
 import { RootLayout } from "./root-layout"
+import { LoginPage } from "@/routes/login-page"
 import { StatistikaPage } from "@/routes/statistika-page"
 import { CalendarPage } from "@/routes/calendar-page"
 import { PlaceholderPage } from "@/routes/placeholder-page"
 
-const rootRoute = createRootRoute({ component: RootLayout })
+const rootRoute = createRootRoute()
+
+const loginRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/login",
+  component: LoginPage,
+})
+
+const appLayoutRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  id: "app",
+  component: RootLayout,
+})
 
 const statistikaRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => appLayoutRoute,
   path: "/",
   component: StatistikaPage,
 })
 
 const calendarRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => appLayoutRoute,
   path: "/calendar",
   component: CalendarPage,
 })
 
 const guestsRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => appLayoutRoute,
   path: "/guests",
   component: () => (
     <PlaceholderPage
@@ -32,7 +45,7 @@ const guestsRoute = createRoute({
 })
 
 const requestsRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => appLayoutRoute,
   path: "/requests",
   component: () => (
     <PlaceholderPage
@@ -44,7 +57,7 @@ const requestsRoute = createRoute({
 })
 
 const chatRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => appLayoutRoute,
   path: "/chat",
   component: () => (
     <PlaceholderPage title="Suhbat" description="Mehmonlar bilan yozishmalar." icon={MessagesSquare} />
@@ -52,7 +65,7 @@ const chatRoute = createRoute({
 })
 
 const settingsRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => appLayoutRoute,
   path: "/settings",
   component: () => (
     <PlaceholderPage
@@ -64,7 +77,7 @@ const settingsRoute = createRoute({
 })
 
 const helpRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => appLayoutRoute,
   path: "/help",
   component: () => (
     <PlaceholderPage title="Yordam" description="Qo'llanma va yordam markazi." icon={LifeBuoy} />
@@ -72,7 +85,7 @@ const helpRoute = createRoute({
 })
 
 const logoutRoute = createRoute({
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => appLayoutRoute,
   path: "/logout",
   component: () => (
     <PlaceholderPage
@@ -85,14 +98,17 @@ const logoutRoute = createRoute({
 })
 
 const routeTree = rootRoute.addChildren([
-  statistikaRoute,
-  calendarRoute,
-  guestsRoute,
-  requestsRoute,
-  chatRoute,
-  settingsRoute,
-  helpRoute,
-  logoutRoute,
+  loginRoute,
+  appLayoutRoute.addChildren([
+    statistikaRoute,
+    calendarRoute,
+    guestsRoute,
+    requestsRoute,
+    chatRoute,
+    settingsRoute,
+    helpRoute,
+    logoutRoute,
+  ]),
 ])
 
 export const router = createRouter({
