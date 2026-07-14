@@ -1,110 +1,182 @@
+import { useQuery } from "@tanstack/react-query"
 import { Plus } from "lucide-react"
+import { Link } from "@tanstack/react-router"
 import { PageLayout } from "@/components/layout/page-layout"
 import { DoorIn, DoorOut } from "@/components/shared/icons"
 import { ChatPanel } from "@/components/shared/chat-panel"
 import { StatCard, StatGrid } from "@/components/shared/stat-card"
-import { WeeklyOccupancy } from "@/components/shared/weekly-occupancy"
+import { WeeklyOccupancy, type DayOccupancy } from "@/components/shared/weekly-occupancy"
 import { Button } from "@/components/ui/button"
-import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { listBookings, listRooms, type Booking } from "@/lib/api"
 import { cn } from "@/lib/utils"
 
-type Snapshot = { label: string; value: string; unit?: string; hint?: string; hero?: boolean }
-
-const todaySnapshot: Snapshot[] = [
-  { label: "Band xonalar", value: "29", unit: "/ 40", hint: "72% bandlik", hero: true },
-  { label: "Bugungi kirishlar", value: "12", hint: "3 tasi hali kutilmoqda" },
-  { label: "Bugungi chiqishlar", value: "8", hint: "2 tasi kechikkan" },
-  { label: "Bo'sh xonalar", value: "11", hint: "2 tasi tozalanmoqda" },
+const WEEKDAYS: Array<{ label: string; full: string }> = [
+  { label: "Du", full: "Dushanba" },
+  { label: "Se", full: "Seshanba" },
+  { label: "Ch", full: "Chorshanba" },
+  { label: "Pa", full: "Payshanba" },
+  { label: "Ju", full: "Juma" },
+  { label: "Sh", full: "Shanba" },
+  { label: "Ya", full: "Yakshanba" },
 ]
 
-type Activity = {
+function localDateIso(d: Date): string {
+  return d.toLocaleDateString("en-CA")
+}
+
+const bookingDate = (isoDateTime: string) => isoDateTime.slice(0, 10)
+
+function weeklyOccupancy(bookings: Booking[], totalRooms: number): { days: DayOccupancy[]; todayIndex: number } {
+  const now = new Date()
+  const monday = new Date(now)
+  monday.setDate(now.getDate() - ((now.getDay() + 6) % 7))
+
+  const days = WEEKDAYS.map((weekday, i) => {
+    const day = new Date(monday)
+    day.setDate(monday.getDate() + i)
+    const iso = localDateIso(day)
+    const occupiedRooms = new Set(
+      bookings
+        .filter(
+          (b) =>
+            b.status !== "cancelled" &&
+            bookingDate(b.checkInDate) <= iso &&
+            bookingDate(b.checkOutDate) > iso,
+        )
+        .map((b) => b.room.id),
+    )
+    const value = totalRooms > 0 ? Math.round((occupiedRooms.size / totalRooms) * 100) : 0
+    return { ...weekday, value }
+  })
+
+  return { days, todayIndex: (now.getDay() + 6) % 7 }
+}
+
+type Movement = {
   type: "in" | "out"
-  name: string
-  room: string
-  time: string
-  status: string
-  tone: "ok" | "wait" | "late"
+  booking: Booking
+  done: boolean
 }
 
-const todayActivity: Activity[] = [
-  { type: "in", name: "Karimov Aziz", room: "204", time: "14:00", status: "Kutilmoqda", tone: "wait" },
-  { type: "out", name: "Yusupova Dilnoza", room: "112", time: "12:00", status: "Bajarildi", tone: "ok" },
-  { type: "in", name: "Rahimov Bek", room: "301", time: "15:30", status: "Kutilmoqda", tone: "wait" },
-  { type: "out", name: "Ismoilov Jasur", room: "208", time: "11:00", status: "Kechikkan", tone: "late" },
-  { type: "in", name: "Sobirova Malika", room: "115", time: "16:00", status: "Kutilmoqda", tone: "wait" },
-]
-
-const toneClass: Record<Activity["tone"], string> = {
-  ok: "text-success",
-  wait: "text-neutral-500",
-  late: "text-warning",
-}
+const toneClass = { done: "text-success", pending: "text-neutral-500" }
 
 export function StatistikaPage() {
+  const rooms = useQuery({ queryKey: ["rooms"], queryFn: listRooms })
+  const bookings = useQuery({ queryKey: ["bookings"], queryFn: listBookings })
+
+  const loaded = rooms.isSuccess && bookings.isSuccess
+  const today = localDateIso(new Date())
+
+  const totalRooms = rooms.data?.length ?? 0
+  const allBookings = bookings.data ?? []
+
+  const occupiedNow = new Set(
+    allBookings.filter((b) => b.status === "checked_in").map((b) => b.room.id),
+  ).size
+  const occupancyPct = totalRooms > 0 ? Math.round((occupiedNow / totalRooms) * 100) : 0
+
+  const arrivals: Movement[] = allBookings
+    .filter((b) => bookingDate(b.checkInDate) === today && (b.status === "booked" || b.status === "checked_in"))
+    .map((b) => ({ type: "in", booking: b, done: b.status === "checked_in" }))
+  const departures: Movement[] = allBookings
+    .filter((b) => bookingDate(b.checkOutDate) === today && (b.status === "checked_in" || b.status === "checked_out"))
+    .map((b) => ({ type: "out", booking: b, done: b.status === "checked_out" }))
+  const movements = [...arrivals, ...departures].sort((a, b) => Number(a.done) - Number(b.done))
+
+  const week = weeklyOccupancy(allBookings, totalRooms)
+
+  const snapshot = [
+    {
+      label: "Band xonalar",
+      value: String(occupiedNow),
+      unit: `/ ${totalRooms}`,
+      hint: `${occupancyPct}% bandlik`,
+      hero: true,
+    },
+    {
+      label: "Bugungi kirishlar",
+      value: String(arrivals.length),
+      hint: `${arrivals.filter((m) => !m.done).length} tasi kutilmoqda`,
+    },
+    {
+      label: "Bugungi chiqishlar",
+      value: String(departures.length),
+      hint: `${departures.filter((m) => !m.done).length} tasi kutilmoqda`,
+    },
+    {
+      label: "Bo'sh xonalar",
+      value: String(Math.max(totalRooms - occupiedNow, 0)),
+      hint: "hozirgi holat",
+    },
+  ]
+
   return (
     <PageLayout
       title="Statistika"
       description="Bugungi bandlik, kirish va chiqishlar bir ko'rinishda."
       actions={
-        <Button size="lg" className="rounded-full">
-          <Plus strokeWidth={2} />
-          Yangi bron
+        <Button size="lg" className="rounded-full" asChild>
+          <Link to="/calendar">
+            <Plus strokeWidth={2} />
+            Yangi bron
+          </Link>
         </Button>
       }
     >
       <div className="flex flex-col gap-4">
         <StatGrid>
-          {todaySnapshot.map((s) => (
+          {snapshot.map((s) => (
             <StatCard
               key={s.label}
               label={s.label}
-              value={s.value}
+              value={loaded ? s.value : "—"}
               unit={s.unit}
-              hint={s.hint}
+              hint={loaded ? s.hint : "yuklanmoqda…"}
               hero={s.hero}
             />
           ))}
         </StatGrid>
 
-        {}
+        {/* Ihcham operatsion qator: bandlik chart'i · suhbatlar · bugungi harakat. Desktop-first
+            (front-desk): xl'da 3 ustun, undan tor ekranda ustma-ust. */}
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)]">
-          <WeeklyOccupancy />
+          <WeeklyOccupancy days={week.days} todayIndex={week.todayIndex} />
 
           <ChatPanel />
 
-          {}
           <Card>
             <CardHeader>
               <CardTitle>Bugungi harakat</CardTitle>
-              <CardAction>
-                <Button variant="ghost" size="sm" className="text-neutral-500">
-                  Barchasi
-                </Button>
-              </CardAction>
             </CardHeader>
             <CardContent>
-              <ul className="divide-hairline">
-                {todayActivity.map((a, i) => {
-                  const Icon = a.type === "in" ? DoorIn : DoorOut
-                  return (
-                    <li key={i} className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
-                      <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-neutral-100 text-neutral-500">
-                        <Icon className="size-[1.125rem]" strokeWidth={1.75} />
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium text-neutral-900">{a.name}</p>
-                        <p className="text-xs text-neutral-500">
-                          {a.type === "in" ? "Kirish" : "Chiqish"} · {a.room}-xona
+              {movements.length === 0 ? (
+                <p className="py-8 text-center text-sm text-neutral-500">
+                  {loaded ? "Bugun kirish yoki chiqish yo'q." : "Yuklanmoqda…"}
+                </p>
+              ) : (
+                <ul className="divide-hairline">
+                  {movements.map((m) => {
+                    const Icon = m.type === "in" ? DoorIn : DoorOut
+                    return (
+                      <li key={`${m.type}-${m.booking.id}`} className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
+                        <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-neutral-100 text-neutral-500">
+                          <Icon className="size-[1.125rem]" strokeWidth={1.75} />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium text-neutral-900">{m.booking.guestName}</p>
+                          <p className="text-xs text-neutral-500">
+                            {m.type === "in" ? "Kirish" : "Chiqish"} · {m.booking.room.number}-xona
+                          </p>
+                        </div>
+                        <p className={cn("shrink-0 text-xs", m.done ? toneClass.done : toneClass.pending)}>
+                          {m.done ? "Bajarildi" : "Kutilmoqda"}
                         </p>
-                      </div>
-                      <div className="shrink-0 text-right">
-                        <p className="text-sm font-medium text-neutral-800 tabular-nums">{a.time}</p>
-                        <p className={cn("text-xs", toneClass[a.tone])}>{a.status}</p>
-                      </div>
-                    </li>
-                  )
-                })}
-              </ul>
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
             </CardContent>
           </Card>
         </div>

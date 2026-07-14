@@ -1,10 +1,12 @@
-import { createRootRoute, createRoute, createRouter } from "@tanstack/react-router"
-import { ClipboardList, DoorOpen, LifeBuoy, LogOut, MessagesSquare, Settings } from "lucide-react"
+import { createRootRoute, createRoute, createRouter, redirect } from "@tanstack/react-router"
+import { ClipboardList, DoorOpen, LifeBuoy, MessagesSquare, Settings } from "lucide-react"
 import { RootLayout } from "./root-layout"
 import { LoginPage } from "@/routes/login-page"
 import { StatistikaPage } from "@/routes/statistika-page"
 import { CalendarPage } from "@/routes/calendar-page"
 import { PlaceholderPage } from "@/routes/placeholder-page"
+import { staffLogout } from "@/lib/api"
+import { isAuthed } from "@/lib/auth"
 
 const rootRoute = createRootRoute()
 
@@ -17,6 +19,9 @@ const loginRoute = createRoute({
 const appLayoutRoute = createRoute({
   getParentRoute: () => rootRoute,
   id: "app",
+  beforeLoad: () => {
+    if (!isAuthed()) throw redirect({ to: "/login" })
+  },
   component: RootLayout,
 })
 
@@ -87,14 +92,11 @@ const helpRoute = createRoute({
 const logoutRoute = createRoute({
   getParentRoute: () => appLayoutRoute,
   path: "/logout",
-  component: () => (
-    <PlaceholderPage
-      title="Chiqish"
-      description="Tizimdan chiqish."
-      icon={LogOut}
-      note="Chiqish oqimi autentifikatsiya ulangach shu yerda ishlaydi."
-    />
-  ),
+  beforeLoad: async () => {
+    await staffLogout()
+    throw redirect({ to: "/login" })
+  },
+  component: () => null,
 })
 
 const routeTree = rootRoute.addChildren([

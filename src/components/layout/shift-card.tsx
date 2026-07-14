@@ -4,6 +4,13 @@ import { api } from "@/lib/api"
 import { cn } from "@/lib/utils"
 import { uzDate, uzTime } from "@/lib/datetime"
 
+function shiftLabel(now: Date): string {
+  const hour = now.getHours()
+  if (hour >= 6 && hour < 14) return "Tonggi smena"
+  if (hour >= 14 && hour < 22) return "Kunduzgi smena"
+  return "Tungi smena"
+}
+
 export function ShiftCard() {
   const [now, setNow] = useState(() => new Date())
   useEffect(() => {
@@ -30,8 +37,7 @@ export function ShiftCard() {
       />
       <p className="text-2xl leading-none font-semibold tracking-tight tabular-nums">{uzTime(now)}</p>
       <p className="mt-1.5 text-xs text-white/55">{uzDate(now)}</p>
-      {}
-      <p className="mt-1.5 text-xs text-white/55">Tonggi smena</p>
+      <p className="mt-1.5 text-xs text-white/55">{shiftLabel(now)}</p>
     </div>
   )
 }

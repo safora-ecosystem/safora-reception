@@ -3,6 +3,8 @@ import { useNavigate } from "@tanstack/react-router"
 import { ArrowRight, Eye, EyeOff, Lock, Mail } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { ApiError, staffLogin } from "@/lib/api"
+import { saveSession } from "@/lib/auth"
 
 function Field({
   label,
@@ -27,10 +29,28 @@ function Field({
 export function LoginPage() {
   const navigate = useNavigate()
   const [showPassword, setShowPassword] = useState(false)
+  const [staffHandle, setStaffHandle] = useState("")
+  const [password, setPassword] = useState("")
+  const [temporary, setTemporary] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  function handleSubmit(event: FormEvent) {
+  async function handleSubmit(event: FormEvent) {
     event.preventDefault()
-    navigate({ to: "/" })
+    setSubmitting(true)
+    setError(null)
+    try {
+      const session = await staffLogin(staffHandle, password)
+      saveSession(session, temporary)
+      navigate({ to: "/" })
+    } catch (err) {
+      setError(
+        err instanceof ApiError && err.status !== 401
+          ? err.message
+          : "Login yoki parol noto'g'ri",
+      )
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -49,6 +69,8 @@ export function LoginPage() {
                 type="email"
                 required
                 autoComplete="email"
+                value={staffHandle}
+                onChange={(e) => setStaffHandle(e.target.value)}
                 placeholder="user@domain.com"
                 className="h-14 rounded-lg border border-border bg-white pl-12 text-base placeholder:text-neutral-300"
               />
@@ -75,6 +97,8 @@ export function LoginPage() {
                 type={showPassword ? "text" : "password"}
                 required
                 autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
                 className="h-14 rounded-lg border border-border bg-white pr-12 pl-12 text-base placeholder:text-neutral-300"
               />
@@ -95,12 +119,24 @@ export function LoginPage() {
 
           {}
           <label className="flex w-fit cursor-pointer items-center gap-2.5 text-sm text-neutral-600 select-none">
-            <input type="checkbox" name="guest_session" className="size-4 cursor-pointer accent-brand-500" />
+            <input
+              type="checkbox"
+              name="guest_session"
+              checked={temporary}
+              onChange={(e) => setTemporary(e.target.checked)}
+              className="size-4 cursor-pointer accent-brand-500"
+            />
             Vaqtinchalik sessiya
           </label>
 
-          <Button type="submit" className="h-14 w-full rounded-lg text-base font-semibold">
-            Kirish
+          {error && <p className="text-sm text-destructive">{error}</p>}
+
+          <Button
+            type="submit"
+            disabled={submitting}
+            className="h-14 w-full rounded-lg text-base font-semibold"
+          >
+            {submitting ? "Kirilmoqda…" : "Kirish"}
             <ArrowRight className="size-5" strokeWidth={2} />
           </Button>
         </form>

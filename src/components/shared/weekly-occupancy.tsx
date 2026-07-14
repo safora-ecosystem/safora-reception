@@ -8,20 +8,11 @@ import {
 } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 
-type DayOccupancy = { label: string; full: string; value: number }
+export type DayOccupancy = { label: string; full: string; value: number }
 
-const week: DayOccupancy[] = [
-  { label: "Du", full: "Dushanba", value: 65 },
-  { label: "Se", full: "Seshanba", value: 71 },
-  { label: "Ch", full: "Chorshanba", value: 68 },
-  { label: "Pa", full: "Payshanba", value: 72 },
-  { label: "Ju", full: "Juma", value: 83 },
-  { label: "Sh", full: "Shanba", value: 90 },
-  { label: "Ya", full: "Yakshanba", value: 61 },
-]
-const todayIndex = 3
+type WeeklyOccupancyProps = { days: DayOccupancy[]; todayIndex: number }
 
-export function WeeklyOccupancy() {
+export function WeeklyOccupancy({ days: week, todayIndex }: WeeklyOccupancyProps) {
   return (
     <Card>
       <CardHeader>

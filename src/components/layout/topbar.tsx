@@ -2,8 +2,11 @@ import { Bell, MessageSquare, Search } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { getSession } from "@/lib/auth"
 
 export function Topbar() {
+  const user = getSession()?.user
+  const initial = (user?.name ?? "?").trim().charAt(0).toUpperCase()
   return (
     <header className="flex h-[4.5rem] shrink-0 items-center gap-3 rounded-panel border border-border bg-white px-4">
       {}
@@ -46,11 +49,11 @@ export function Topbar() {
 
         <div className="flex items-center gap-2.5 pr-1">
           <Avatar size="lg">
-            <AvatarFallback>O</AvatarFallback>
+            <AvatarFallback>{initial}</AvatarFallback>
           </Avatar>
           <div className="hidden leading-tight sm:block">
-            <p className="text-[0.9375rem] font-medium text-neutral-900">Odilov Jamshid</p>
-            <p className="text-sm text-neutral-500">o.jamshid@safora.uz</p>
+            <p className="text-[0.9375rem] font-medium text-neutral-900">{user?.name ?? "Xodim"}</p>
+            <p className="text-sm text-neutral-500">{user?.staffHandle ?? ""}</p>
           </div>
         </div>
       </div>

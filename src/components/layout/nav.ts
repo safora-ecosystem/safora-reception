@@ -21,7 +21,7 @@ export const navItems: NavItem[] = [
   { to: "/", label: "Statistika", icon: LayoutDashboard },
   { to: "/calendar", label: "Kalendar", icon: CalendarDays },
   { to: "/guests", label: "Mehmonlar", icon: DoorOpen },
-  { to: "/requests", label: "So'rovlar", icon: ClipboardList, badge: "3" },
+  { to: "/requests", label: "So'rovlar", icon: ClipboardList },
   { to: "/chat", label: "Suhbat", icon: MessagesSquare },
 ]
 
