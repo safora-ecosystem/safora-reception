@@ -93,7 +93,12 @@ export const listRooms = () => api<Room[]>("/rooms")
 export const listBookings = () => api<Booking[]>("/bookings")
 
 export function staffLogin(staffHandle: string, password: string): Promise<Session> {
-  return api<Session>("/auth/login", { method: "POST", body: { staffHandle, password } })
+  // `panel` — bu reception paneli: backend faqat role=reception hisobiga sessiya beradi,
+  // owner/manager o'z paneliga yo'naltiriladi (403 + havola).
+  return api<Session>("/auth/login", {
+    method: "POST",
+    body: { staffHandle, password, panel: "reception" },
+  })
 }
 
 export async function staffLogout(): Promise<void> {
