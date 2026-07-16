@@ -92,6 +92,19 @@ export type Booking = {
 export const listRooms = () => api<Room[]>("/rooms")
 export const listBookings = () => api<Booking[]>("/bookings")
 
+// ── Platforma e'loni ────────────────────────────────────────────────────────
+
+/** E'lonning og'irligi — banner rangini va ohangini shu belgilaydi. */
+export type NoticeLevel = "info" | "warning" | "maintenance"
+
+/** Platformadan kelgan e'lon. `null` = e'lon yo'q, o'chiq, yoki resepshnga qaratilmagan. */
+export type PanelNotice = { level: NoticeLevel; message: string; updatedAt: string } | null
+
+/** Admin panelidagi Sozlamalar → Panel e'loni shu yerga yozadi. Endpoint ommaviy: token
+    talab qilmaydi, chunki texnik ishlar paytida odam aynan **kira olmay** turib sababini
+    bilishi kerak. */
+export const getPanelNotice = () => api<PanelNotice>("/platform/notice?panel=reception")
+
 export function staffLogin(
   staffHandle: string,
   password: string,

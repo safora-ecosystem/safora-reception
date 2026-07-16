@@ -1,32 +1,32 @@
 import {
-  LayoutDashboard,
-  CalendarDays,
-  MessagesSquare,
-  ClipboardList,
-  DoorOpen,
-  Settings,
-  LifeBuoy,
-  LogOut,
-} from "lucide-react"
-import type { LucideIcon } from "lucide-react"
+  Analytics02Icon,
+  Calendar02Icon,
+  HelpCircleIcon,
+  Logout03Icon,
+  Message02Icon,
+  Settings02Icon,
+  SparklesIcon,
+  UserStar01Icon,
+} from "@hugeicons/core-free-icons"
+import type { IconData } from "@/components/ui/icon"
 
 export type NavItem = {
   to: string
   label: string
-  icon: LucideIcon
+  icon: IconData
   badge?: string
 }
 
 export const navItems: NavItem[] = [
-  { to: "/", label: "Statistika", icon: LayoutDashboard },
-  { to: "/calendar", label: "Kalendar", icon: CalendarDays },
-  { to: "/guests", label: "Mehmonlar", icon: DoorOpen },
-  { to: "/requests", label: "So'rovlar", icon: ClipboardList },
-  { to: "/chat", label: "Suhbat", icon: MessagesSquare },
+  { to: "/", label: "Statistika", icon: Analytics02Icon },
+  { to: "/calendar", label: "Kalendar", icon: Calendar02Icon },
+  { to: "/guests", label: "Mehmonlar", icon: UserStar01Icon },
+  { to: "/requests", label: "So'rovlar", icon: SparklesIcon },
+  { to: "/chat", label: "Suhbat", icon: Message02Icon },
 ]
 
 export const systemNavItems: NavItem[] = [
-  { to: "/settings", label: "Sozlamalar", icon: Settings },
-  { to: "/help", label: "Yordam", icon: LifeBuoy },
-  { to: "/logout", label: "Chiqish", icon: LogOut },
+  { to: "/settings", label: "Sozlamalar", icon: Settings02Icon },
+  { to: "/help", label: "Yordam", icon: HelpCircleIcon },
+  { to: "/logout", label: "Chiqish", icon: Logout03Icon },
 ]

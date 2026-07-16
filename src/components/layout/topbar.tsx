@@ -1,5 +1,6 @@
-import { Bell, MessageSquare, Search } from "lucide-react"
+import { Message02Icon, NotificationBubbleIcon, Search01Icon } from "@hugeicons/core-free-icons"
 import { Button } from "@/components/ui/button"
+import { Icon } from "@/components/ui/icon"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { getSession } from "@/lib/auth"
@@ -11,7 +12,8 @@ export function Topbar() {
     <header className="flex h-[4.5rem] shrink-0 items-center gap-3 rounded-panel border border-border bg-white px-4">
       {}
       <div className="relative w-full max-w-lg">
-        <Search
+        <Icon
+          icon={Search01Icon}
           className="pointer-events-none absolute top-1/2 left-4 size-[1.125rem] -translate-y-1/2 text-neutral-400"
           strokeWidth={1.75}
         />
@@ -33,7 +35,7 @@ export function Topbar() {
           aria-label="Suhbat"
           className="rounded-full bg-white"
         >
-          <MessageSquare className="size-[1.125rem] text-neutral-500" strokeWidth={1.75} />
+          <Icon icon={Message02Icon} className="size-[1.125rem] text-neutral-500" strokeWidth={1.75} />
         </Button>
         <Button
           variant="outline"
@@ -41,7 +43,11 @@ export function Topbar() {
           aria-label="Bildirishnomalar"
           className="relative rounded-full bg-white"
         >
-          <Bell className="size-[1.125rem] text-neutral-500" strokeWidth={1.75} />
+          <Icon
+            icon={NotificationBubbleIcon}
+            className="size-[1.125rem] text-neutral-500"
+            strokeWidth={1.75}
+          />
           <span className="absolute top-2 right-2 size-1.5 rounded-full bg-primary ring-2 ring-white" />
         </Button>
 

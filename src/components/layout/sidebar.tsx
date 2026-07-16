@@ -1,4 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router"
+import { Icon } from "@/components/ui/icon"
 import { cn } from "@/lib/utils"
 import { navItems, systemNavItems, type NavItem } from "./nav"
 import { ShiftCard } from "./shift-card"
@@ -12,11 +13,10 @@ function SectionLabel({ children }: { children: string }) {
 }
 
 function NavRow({ item, active }: { item: NavItem; active: boolean }) {
-  const Icon = item.icon
-
   const body = (
     <>
       <Icon
+        icon={item.icon}
         className={cn("size-[1.125rem] shrink-0", active ? "text-primary" : "text-neutral-500")}
         strokeWidth={1.75}
       />
