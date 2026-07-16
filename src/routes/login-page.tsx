@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ApiError, staffLogin } from "@/lib/api"
 import { saveSession } from "@/lib/auth"
+import { Turnstile, turnstileEnabled } from "@/components/shared/turnstile"
 
 function Field({
   label,
@@ -34,13 +35,15 @@ export function LoginPage() {
   const [temporary, setTemporary] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null)
+  const [turnstileReset, setTurnstileReset] = useState(0)
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
     setSubmitting(true)
     setError(null)
     try {
-      const session = await staffLogin(staffHandle, password)
+      const session = await staffLogin(staffHandle, password, turnstileToken)
       saveSession(session, temporary)
       navigate({ to: "/" })
     } catch (err) {
@@ -49,6 +52,7 @@ export function LoginPage() {
           ? err.message
           : "Login yoki parol noto'g'ri",
       )
+      setTurnstileReset((n) => n + 1)
       setSubmitting(false)
     }
   }
@@ -129,11 +133,13 @@ export function LoginPage() {
             Vaqtinchalik sessiya
           </label>
 
+          <Turnstile onToken={setTurnstileToken} resetSignal={turnstileReset} />
+
           {error && <p className="text-sm text-destructive">{error}</p>}
 
           <Button
             type="submit"
-            disabled={submitting}
+            disabled={submitting || (turnstileEnabled && !turnstileToken)}
             className="h-14 w-full rounded-lg text-base font-semibold"
           >
             {submitting ? "Kirilmoqda…" : "Kirish"}
