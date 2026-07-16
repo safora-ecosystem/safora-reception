@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query"
 import { api } from "@/lib/api"
 import { cn } from "@/lib/utils"
 import { uzDate, uzTime } from "@/lib/datetime"
+import { VersionTag } from "./version-tag"
 
 function shiftLabel(now: Date): string {
   const hour = now.getHours()
@@ -37,7 +38,11 @@ export function ShiftCard() {
       />
       <p className="text-2xl leading-none font-semibold tracking-tight tabular-nums">{uzTime(now)}</p>
       <p className="mt-1.5 text-xs text-white/55">{uzDate(now)}</p>
-      <p className="mt-1.5 text-xs text-white/55">{shiftLabel(now)}</p>
+      {}
+      <p className="mt-1.5 flex items-baseline justify-between gap-2 text-xs text-white/55">
+        <span>{shiftLabel(now)}</span>
+        <VersionTag className="shrink-0 text-white/40" />
+      </p>
     </div>
   )
 }
