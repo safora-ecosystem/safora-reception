@@ -6,7 +6,7 @@ import {
   type CalendarRange,
   type ReservationCalendarHandle,
 } from "@/components/calendar"
-import { useMockCalendarData } from "@/lib/calendar-data"
+import { useApiCalendarData, useMockCalendarData } from "@/lib/calendar-data"
 import { CtaButton } from "@/components/shared/cta-button"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -36,12 +36,16 @@ function useStressParam(): number {
 
 export function CalendarPage() {
   const stress = useStressParam()
-  const data = useMockCalendarData(stress)
+  const apiMode = useMemo(() => new URLSearchParams(window.location.search).has("api"), [])
   const calRef = useRef<ReservationCalendarHandle>(null)
   const [view, setView] = useState<ViewKey>("hafta")
 
   const dayWidth = (VIEW_MODES.find((v) => v.key === view) ?? VIEW_MODES[1]).dayWidth
   const range = useMemo<CalendarRange>(() => ({ start: addDays(todayIso(), -RANGE_BACK), days: RANGE_DAYS }), [])
+
+  const mock = useMockCalendarData(stress)
+  const apiData = useApiCalendarData(range, { enabled: apiMode })
+  const data = apiMode ? apiData : mock
 
   return (
     <div className="flex h-full min-h-0 flex-col">
