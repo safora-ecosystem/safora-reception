@@ -1,0 +1,101 @@
+import type { ReactNode } from "react"
+
+
+export type CalendarStatus = "booked" | "checked_in" | "checked_out" | "cancelled"
+
+export interface CalendarPayment {
+  total: number
+  paid: number
+}
+
+export interface CalendarRoom {
+  id: string
+  label: string
+  group?: string
+  sublabel?: string
+  order?: number
+}
+
+export interface CalendarBooking {
+  id: string
+  roomId: string
+  start: string
+  end: string
+  status: CalendarStatus
+  label: string
+  sublabel?: string
+  payment?: CalendarPayment
+  meta?: Record<string, unknown>
+}
+
+export interface CalendarRange {
+  start: string
+  days: number
+}
+
+export interface StatusVisual {
+  bar: string
+  text?: string
+  hidden?: boolean
+}
+
+export type StatusConfig = Record<CalendarStatus, StatusVisual>
+
+export interface CalendarLabels {
+  weekdaysShort: string[]
+  months: string[]
+  nights: (n: number) => string
+  money: (amount: number) => string
+  today: string
+  emptyTitle: string
+  emptyHint: string
+  newBooking: string
+  checkIn: string
+  checkOut: string
+  cancel: string
+  guestName: string
+  guestPhone: string
+  save: string
+  close: string
+  paid: string
+  unpaid: string
+  of: string
+}
+
+export interface CalendarDraft {
+  roomId: string
+  start: string
+  end: string
+}
+
+export interface CalendarCreateInput extends CalendarDraft {
+  guestName: string
+  guestPhone?: string
+}
+
+export interface ReservationCalendarProps {
+  rooms: CalendarRoom[]
+  bookings: CalendarBooking[]
+  range: CalendarRange
+  today?: string
+
+  dayWidth?: number
+  rowHeight?: number
+  railWidth?: number
+  headerHeight?: number
+  groupByFloor?: boolean
+  overscan?: number
+  statusConfig?: Partial<StatusConfig>
+  labels?: Partial<CalendarLabels>
+
+  onCreateBooking?: (input: CalendarCreateInput) => void | Promise<void>
+  onCheckIn?: (id: string) => void | Promise<void>
+  onCheckOut?: (id: string) => void | Promise<void>
+  onCancel?: (id: string) => void | Promise<void>
+  onSelectBooking?: (booking: CalendarBooking) => void
+  onMoveBooking?: (id: string, next: CalendarDraft) => void | Promise<void>
+
+  isLoading?: boolean
+  error?: ReactNode
+  className?: string
+}
