@@ -13,7 +13,7 @@ interface CalendarBarProps {
   labels: CalendarLabels
   today: string
   selected: boolean
-  onSelect: (booking: CalendarBooking, rect: DOMRect) => void
+  onSelect: (booking: CalendarBooking) => void
 }
 
 function fmtDay(iso: string, labels: CalendarLabels): string {
@@ -57,7 +57,7 @@ function CalendarBarImpl({ booking, rect, rowTop, rowHeight, visual, labels, tod
   return (
     <button
       type="button"
-      onClick={(e) => onSelect(booking, e.currentTarget.getBoundingClientRect())}
+      onClick={() => onSelect(booking)}
       title={title}
       aria-label={title}
       className={cn(

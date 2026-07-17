@@ -76,6 +76,8 @@ export type Room = {
   number: string
   type: string
   floor: number | null
+  /** Decimal backend'da — string yoki number bo'lib kelishi mumkin. */
+  rate?: number | string
 }
 
 export type Booking = {
@@ -86,11 +88,48 @@ export type Booking = {
   checkInDate: string
   checkOutDate: string
   status: BookingStatus
+  /** Decimal(12,2) — string/number. Kalendar to'lov indikatori uchun. */
+  totalAmount?: number | string
+  paidAmount?: number | string
   room: { id: string; number: string }
 }
 
 export const listRooms = () => api<Room[]>("/rooms")
-export const listBookings = () => api<Booking[]>("/bookings")
+
+/** Kalendar oynasi bo'yicha bron ro'yxati. Parametrsiz (statistika) = butun ro'yxat. */
+export const listBookings = (from?: string, to?: string) => {
+  const qs = new URLSearchParams()
+  if (from) qs.set("from", from)
+  if (to) qs.set("to", to)
+  const q = qs.toString()
+  return api<Booking[]>(`/bookings${q ? `?${q}` : ""}`)
+}
+
+export type CreateBookingBody = {
+  roomId: string
+  guestName: string
+  guestPhone?: string
+  checkInDate: string
+  checkOutDate: string
+  totalAmount: number
+}
+
+export const createBooking = (body: CreateBookingBody) => api<Booking>("/bookings", { method: "POST", body })
+export const checkInBooking = (id: string) => api<Booking>(`/bookings/${id}/check-in`, { method: "PATCH" })
+export const checkOutBooking = (id: string) => api<Booking>(`/bookings/${id}/check-out`, { method: "PATCH" })
+export const cancelBooking = (id: string) => api<Booking>(`/bookings/${id}/cancel`, { method: "PATCH" })
+
+// ── Mehmonxona brendi ───────────────────────────────────────────────────────
+
+/** Kirgan xodim biriktirilgan mehmonxonaning panel brendi (GET /hotel). `longLogoUrl` yo'q
+    bo'lsa (yoki hali yuklanmagan) panel Safora logotipiga tushadi. */
+export type HotelBranding = {
+  name: string
+  logoUrl: string | null
+  longLogoUrl: string | null
+}
+
+export const getHotelBranding = () => api<HotelBranding>("/hotel")
 
 // ── Platforma e'loni ────────────────────────────────────────────────────────
 

@@ -63,7 +63,7 @@ const toneClass = { done: "text-success", pending: "text-neutral-500" }
 
 export function StatistikaPage() {
   const rooms = useQuery({ queryKey: ["rooms"], queryFn: listRooms })
-  const bookings = useQuery({ queryKey: ["bookings"], queryFn: listBookings })
+  const bookings = useQuery({ queryKey: ["bookings"], queryFn: () => listBookings() })
 
   const loaded = rooms.isSuccess && bookings.isSuccess
   const today = localDateIso(new Date())

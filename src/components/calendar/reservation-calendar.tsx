@@ -3,7 +3,7 @@ import { useVirtualizer } from "@tanstack/react-virtual"
 import { cn } from "@/lib/utils"
 import { CalendarBar } from "./calendar-bar"
 import { CalendarCreateDialog } from "./calendar-create-dialog"
-import { CalendarDetailPopover, type DetailSelection } from "./calendar-detail-popover"
+import { CalendarDetailModal, type DetailSelection } from "./calendar-detail-modal"
 import { CalendarGridLayer } from "./calendar-grid-layer"
 import { CalendarHeader } from "./calendar-header"
 import { CalendarRail } from "./calendar-rail"
@@ -12,7 +12,7 @@ import { resolveLabels } from "./labels"
 import { resolveStatusConfig } from "./status-config"
 import { useCalendarDrag } from "./use-calendar-drag"
 import { useBookingIndex, useLanes } from "./use-lanes"
-import type { CalendarBooking, CalendarDraft, ReservationCalendarProps } from "./types"
+import type { CalendarBooking, CalendarDraft, CalendarRoom, ReservationCalendarProps } from "./types"
 
 
 const GROUP_HEIGHT = 30
@@ -66,9 +66,9 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
 
     const lanes = useLanes(rooms, groupByFloor, collapsed)
     const bookingIndex = useBookingIndex(bookings, originDay, dayWidth, bodyWidth, statusConfig)
-    const roomLabelById = useMemo(() => {
-      const m = new Map<string, string>()
-      for (const r of rooms) m.set(r.id, r.label)
+    const roomsById = useMemo(() => {
+      const m = new Map<string, CalendarRoom>()
+      for (const r of rooms) m.set(r.id, r)
       return m
     }, [rooms])
 
@@ -90,13 +90,14 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
     const totalHeight = rowVirtualizer.getTotalSize()
 
     const handleSelect = useCallback(
-      (b: CalendarBooking, rect: DOMRect) => {
-        setSelected({ booking: b, rect, roomLabel: roomLabelById.get(b.roomId) ?? "" })
+      (b: CalendarBooking) => {
+        const room = roomsById.get(b.roomId)
+        setSelected({ booking: b, roomLabel: room?.label ?? "", roomSublabel: room?.sublabel })
         onSelectBooking?.(b)
       },
-      [onSelectBooking, roomLabelById],
+      [onSelectBooking, roomsById],
     )
-    const closeSelected = useCallback(() => setSelected((s) => (s ? null : s)), [])
+    const closeSelected = useCallback(() => setSelected(null), [])
 
     const dragConfig = useMemo(
       () => ({ scrollRef, overlayRef, originDay, days: range.days, dayWidth, rowHeight, railWidth, bookings, onCommit: setCreateDraft }),
@@ -133,7 +134,6 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
         ) : (
           <div
             ref={scrollRef}
-            onScroll={closeSelected}
             className="app-scroll relative min-h-0 flex-1 overflow-auto overscroll-contain"
           >
             <div
@@ -227,7 +227,7 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
           </div>
         )}
 
-        <CalendarDetailPopover
+        <CalendarDetailModal
           selection={selected}
           labels={labels}
           onClose={closeSelected}
@@ -238,7 +238,7 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
 
         <CalendarCreateDialog
           draft={createDraft}
-          roomLabel={createDraft ? (roomLabelById.get(createDraft.roomId) ?? "") : ""}
+          roomLabel={createDraft ? (roomsById.get(createDraft.roomId)?.label ?? "") : ""}
           bookings={bookings}
           labels={labels}
           onClose={() => setCreateDraft(null)}

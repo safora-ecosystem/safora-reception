@@ -47,6 +47,13 @@ export interface CalendarLabels {
   nights: (n: number) => string
   money: (amount: number) => string
   statusText: Record<CalendarStatus, string>
+  checkInTime: string
+  checkOutTime: string
+  nightsWord: string
+  guest: string
+  phone: string
+  stay: string
+  payment: string
   today: string
   emptyTitle: string
   emptyHint: string
