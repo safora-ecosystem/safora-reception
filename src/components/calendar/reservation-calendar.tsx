@@ -1,4 +1,13 @@
-import { Fragment, forwardRef, useCallback, useImperativeHandle, useMemo, useRef, useState } from "react"
+import {
+  Fragment,
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from "react"
 import { useVirtualizer } from "@tanstack/react-virtual"
 import { cn } from "@/lib/utils"
 import { CalendarBar } from "./calendar-bar"
@@ -7,7 +16,7 @@ import { CalendarDetailModal, type DetailSelection } from "./calendar-detail-mod
 import { CalendarGridLayer } from "./calendar-grid-layer"
 import { CalendarHeader } from "./calendar-header"
 import { CalendarRail } from "./calendar-rail"
-import { addDays, epochDay, todayColumn } from "./geometry"
+import { addDays, epochDay, isoFromEpochDay, todayColumn } from "./geometry"
 import { resolveLabels } from "./labels"
 import { resolveStatusConfig } from "./status-config"
 import { useCalendarDrag } from "./use-calendar-drag"
@@ -19,6 +28,8 @@ const GROUP_HEIGHT = 30
 
 export interface ReservationCalendarHandle {
   openCreate: (roomId?: string, start?: string) => void
+  scrollToday: () => void
+  scrollByViewport: (dir: -1 | 1) => void
 }
 
 export const ReservationCalendar = forwardRef<ReservationCalendarHandle, ReservationCalendarProps>(
@@ -89,6 +100,40 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
     const virtualItems = rowVirtualizer.getVirtualItems()
     const totalHeight = rowVirtualizer.getTotalSize()
 
+    const focusDateRef = useRef(today)
+    const scrollToDate = useCallback(
+      (iso: string, align: "start" | "center" = "start") => {
+        const el = scrollRef.current
+        if (!el) return
+        const x = (epochDay(iso) - originDay) * dayWidth
+        el.scrollLeft =
+          align === "center" ? Math.max(0, x + dayWidth / 2 - el.clientWidth / 2) : Math.max(0, x - dayWidth)
+      },
+      [originDay, dayWidth],
+    )
+    const scrollByViewport = useCallback((dir: -1 | 1) => {
+      const el = scrollRef.current
+      if (el) el.scrollBy({ left: dir * el.clientWidth * 0.85, behavior: "smooth" })
+    }, [])
+    const handleScroll = useCallback(() => {
+      const el = scrollRef.current
+      if (!el) return
+      focusDateRef.current = isoFromEpochDay(originDay + Math.floor((el.scrollLeft + el.clientWidth / 2) / dayWidth))
+    }, [originDay, dayWidth])
+
+    const initedRef = useRef(false)
+    useEffect(() => {
+      if (initedRef.current || todayCol < 0) return
+      initedRef.current = true
+      scrollToDate(today, "center")
+    }, [todayCol, today, scrollToDate])
+    const prevDwRef = useRef(dayWidth)
+    useEffect(() => {
+      if (prevDwRef.current === dayWidth) return
+      prevDwRef.current = dayWidth
+      scrollToDate(focusDateRef.current, "center")
+    }, [dayWidth, scrollToDate])
+
     const handleSelect = useCallback(
       (b: CalendarBooking) => {
         const room = roomsById.get(b.roomId)
@@ -114,8 +159,10 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
           const s = start ?? (todayCol >= 0 ? today : range.start)
           setCreateDraft({ roomId: rid, start: s, end: addDays(s, 1) })
         },
+        scrollToday: () => scrollToDate(today, "center"),
+        scrollByViewport,
       }),
-      [rooms, today, todayCol, range.start],
+      [rooms, today, todayCol, range.start, scrollToDate, scrollByViewport],
     )
 
     const showEmpty = !isLoading && !error && rooms.length === 0
@@ -134,6 +181,7 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
         ) : (
           <div
             ref={scrollRef}
+            onScroll={handleScroll}
             className="app-scroll relative min-h-0 flex-1 overflow-auto overscroll-contain"
           >
             <div

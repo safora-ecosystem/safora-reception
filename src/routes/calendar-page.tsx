@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from "react"
+import { useMemo, useRef, useState } from "react"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import {
   ReservationCalendar,
@@ -9,20 +9,23 @@ import {
 import { useMockCalendarData } from "@/lib/calendar-data"
 import { CtaButton } from "@/components/shared/cta-button"
 import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 
 
-const RANGE_DAYS = 28
+const VIEW_MODES = [
+  { key: "kun", label: "Kun", dayWidth: 96 },
+  { key: "hafta", label: "Hafta", dayWidth: 56 },
+  { key: "oy", label: "Oy", dayWidth: 36 },
+] as const
+type ViewKey = (typeof VIEW_MODES)[number]["key"]
 
-function mondayOf(iso: string): string {
-  const dow = new Date(`${iso}T00:00:00Z`).getUTCDay() // 0=yakshanba … 6=shanba
-  return addDays(iso, -((dow + 6) % 7))
-}
+const RANGE_BACK = 30
+const RANGE_DAYS = 150
 
 function todayIso(): string {
   return new Date().toLocaleDateString("en-CA")
 }
 
-/** `?stress=200` → yukni sinash uchun xonalar soni; aks holda 24. */
 function useStressParam(): number {
   return useMemo(() => {
     const p = new URLSearchParams(window.location.search).get("stress")
@@ -35,38 +38,67 @@ export function CalendarPage() {
   const stress = useStressParam()
   const data = useMockCalendarData(stress)
   const calRef = useRef<ReservationCalendarHandle>(null)
-  const [range, setRange] = useState<CalendarRange>(() => ({ start: mondayOf(todayIso()), days: RANGE_DAYS }))
+  const [view, setView] = useState<ViewKey>("hafta")
 
-  const shift = useCallback((by: number) => setRange((r) => ({ ...r, start: addDays(r.start, by) })), [])
-  const goToday = useCallback(() => setRange({ start: mondayOf(todayIso()), days: RANGE_DAYS }), [])
+  const dayWidth = (VIEW_MODES.find((v) => v.key === view) ?? VIEW_MODES[1]).dayWidth
+  const range = useMemo<CalendarRange>(() => ({ start: addDays(todayIso(), -RANGE_BACK), days: RANGE_DAYS }), [])
 
   return (
     <div className="flex h-full min-h-0 flex-col">
       <header className="hairline-b flex flex-wrap items-center justify-between gap-3 px-6 py-3">
         <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">Kalendar</h1>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="icon"
-            className="size-11 rounded-xl"
-            onClick={() => shift(-7)}
-            aria-label="Oldingi hafta"
-          >
-            <ChevronLeft />
-          </Button>
-          <Button variant="outline" className="h-11 rounded-xl px-5 text-[0.9375rem]" onClick={goToday}>
-            Bugun
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            className="size-11 rounded-xl"
-            onClick={() => shift(7)}
-            aria-label="Keyingi hafta"
-          >
-            <ChevronRight />
-          </Button>
-          <CtaButton className="ml-2" onClick={() => calRef.current?.openCreate()}>
+
+        <div className="flex flex-wrap items-center gap-2">
+          {}
+          <div className="flex items-center gap-0.5 rounded-xl bg-neutral-100 p-1">
+            {VIEW_MODES.map((v) => (
+              <button
+                key={v.key}
+                type="button"
+                onClick={() => setView(v.key)}
+                aria-pressed={view === v.key}
+                className={cn(
+                  "rounded-lg px-3.5 py-1.5 text-sm font-medium transition-colors",
+                  view === v.key
+                    ? "bg-white text-neutral-900 shadow-xs"
+                    : "text-neutral-500 hover:text-neutral-800",
+                )}
+              >
+                {v.label}
+              </button>
+            ))}
+          </div>
+
+          {}
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="icon"
+              className="size-11 rounded-xl"
+              onClick={() => calRef.current?.scrollByViewport(-1)}
+              aria-label="Oldingi"
+            >
+              <ChevronLeft />
+            </Button>
+            <Button
+              variant="outline"
+              className="h-11 rounded-xl px-5 text-[0.9375rem]"
+              onClick={() => calRef.current?.scrollToday()}
+            >
+              Bugun
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              className="size-11 rounded-xl"
+              onClick={() => calRef.current?.scrollByViewport(1)}
+              aria-label="Keyingi"
+            >
+              <ChevronRight />
+            </Button>
+          </div>
+
+          <CtaButton className="ml-1" onClick={() => calRef.current?.openCreate()}>
             Yangi bron
           </CtaButton>
         </div>
@@ -78,6 +110,7 @@ export function CalendarPage() {
           rooms={data.rooms}
           bookings={data.bookings}
           range={range}
+          dayWidth={dayWidth}
           isLoading={data.isLoading}
           error={data.error}
           onCreateBooking={data.createBooking}

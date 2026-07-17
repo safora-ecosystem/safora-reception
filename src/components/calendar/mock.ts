@@ -53,8 +53,8 @@ export function generateMockData(opts: MockOptions = {}): {
   }
 
   const t = epochDay(today)
-  const windowStart = t - 20
-  const windowEnd = t + 45
+  const windowStart = t - 35
+  const windowEnd = t + 130
   const bookings: CalendarBooking[] = []
   let seq = 0
 
