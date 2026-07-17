@@ -1,4 +1,5 @@
 import { memo, type CSSProperties } from "react"
+import { cn } from "@/lib/utils"
 import { isSundayColumn, isWeekendColumn } from "./geometry"
 
 
@@ -7,18 +8,10 @@ interface CalendarGridLayerProps {
   days: number
   dayWidth: number
   bodyWidth: number
-  totalHeight: number
   todayCol: number
 }
 
-function CalendarGridLayerImpl({
-  originDay,
-  days,
-  dayWidth,
-  bodyWidth,
-  totalHeight,
-  todayCol,
-}: CalendarGridLayerProps) {
+function CalendarGridLayerImpl({ originDay, days, dayWidth, bodyWidth, todayCol }: CalendarGridLayerProps) {
   const weekendCols: number[] = []
   for (let c = 0; c < days; c++) if (isWeekendColumn(originDay, c)) weekendCols.push(c)
 
@@ -28,25 +21,22 @@ function CalendarGridLayerImpl({
 
   return (
     <div
-      className="pointer-events-none absolute left-0 top-0"
-      style={{ width: bodyWidth, height: totalHeight }}
+      className="pointer-events-none sticky top-0 z-0 h-screen"
+      style={{ width: bodyWidth }}
       aria-hidden
     >
-      {/* Dam olish kunlari + bugun tint'lari (chiziqlar ostida) */}
+      {/* Dam olish kunlari + bugun washlari (viewport balandligida, chiziqlar ostida) */}
       {weekendCols.map((c) => (
         <div
           key={c}
-          className={isSundayColumn(originDay, c) ? "absolute top-0 bg-neutral-100" : "absolute top-0 bg-neutral-50"}
-          style={{ left: c * dayWidth, width: dayWidth, height: totalHeight }}
+          className={cn("absolute inset-y-0", isSundayColumn(originDay, c) ? "bg-neutral-100" : "bg-neutral-50")}
+          style={{ left: c * dayWidth, width: dayWidth }}
         />
       ))}
       {todayCol >= 0 && (
-        <div
-          className="absolute top-0 bg-brand-50"
-          style={{ left: todayCol * dayWidth, width: dayWidth, height: totalHeight }}
-        />
+        <div className="absolute inset-y-0 bg-brand-50" style={{ left: todayCol * dayWidth, width: dayWidth }} />
       )}
-      {/* Vertikal kun chiziqlari — tint'lar ustida, doim ko'rinadi */}
+      {/* Vertikal kun chiziqlari — washlar ustida */}
       <div className="absolute inset-0" style={gridlines} />
     </div>
   )

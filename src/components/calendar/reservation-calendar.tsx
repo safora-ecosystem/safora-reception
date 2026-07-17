@@ -43,9 +43,12 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
       className,
     } = props
 
-    const today = props.today ?? new Date().toLocaleDateString("en-CA")
-    const labels = resolveLabels(props.labels)
-    const statusConfig = resolveStatusConfig(props.statusConfig)
+    const today = useMemo(
+      () => props.today ?? new Date().toLocaleDateString("en-CA"),
+      [props.today],
+    )
+    const labels = useMemo(() => resolveLabels(props.labels), [props.labels])
+    const statusConfig = useMemo(() => resolveStatusConfig(props.statusConfig), [props.statusConfig])
 
     const originDay = epochDay(range.start)
     const bodyWidth = range.days * dayWidth
@@ -93,19 +96,13 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
       },
       [onSelectBooking, roomLabelById],
     )
-    const closeSelected = useCallback(() => setSelected(null), [])
+    const closeSelected = useCallback(() => setSelected((s) => (s ? null : s)), [])
 
-    const drag = useCalendarDrag({
-      scrollRef,
-      overlayRef,
-      originDay,
-      days: range.days,
-      dayWidth,
-      rowHeight,
-      railWidth,
-      bookings,
-      onCommit: setCreateDraft,
-    })
+    const dragConfig = useMemo(
+      () => ({ scrollRef, overlayRef, originDay, days: range.days, dayWidth, rowHeight, railWidth, bookings, onCommit: setCreateDraft }),
+      [originDay, range.days, dayWidth, rowHeight, railWidth, bookings],
+    )
+    const drag = useCalendarDrag(dragConfig)
 
     useImperativeHandle(
       ref,
@@ -184,7 +181,6 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
                   days={range.days}
                   dayWidth={dayWidth}
                   bodyWidth={bodyWidth}
-                  totalHeight={totalHeight}
                   todayCol={todayCol}
                 />
                 {virtualItems.map((vi) => {
