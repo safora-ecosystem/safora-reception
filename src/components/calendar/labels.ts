@@ -3,7 +3,7 @@ import type { CalendarLabels } from "./types"
 
 function groupThousands(n: number): string {
   const s = Math.round(Math.abs(n)).toString()
-  return (n < 0 ? "-" : "") + s.replace(/\B(?=(\d{3})+(?!\d))/g, " ")
+  return (n < 0 ? "-" : "") + s.replace(/\B(?=(\d{3})+(?!\d))/g, " ")
 }
 
 export const defaultLabels: CalendarLabels = {
@@ -13,7 +13,13 @@ export const defaultLabels: CalendarLabels = {
     "iyul", "avgust", "sentabr", "oktabr", "noyabr", "dekabr",
   ],
   nights: (n) => `${n} kecha`,
-  money: (amount) => `${groupThousands(amount)} so'm`,
+  money: (amount) => `${groupThousands(amount)} so'm`,
+  statusText: {
+    booked: "Bron qilingan",
+    checked_in: "Ichkarida",
+    checked_out: "Chiqib ketgan",
+    cancelled: "Bekor qilingan",
+  },
   today: "Bugun",
   emptyTitle: "Bron yo'q",
   emptyHint: "Bo'sh katak bo'ylab sichqonchani bosib torting — yangi bron ochiladi.",
@@ -23,11 +29,14 @@ export const defaultLabels: CalendarLabels = {
   cancel: "Bekor qilish",
   guestName: "Mehmon ismi",
   guestPhone: "Telefon",
+  room: "Xona",
+  arrival: "Kirish",
+  departure: "Chiqish",
   save: "Saqlash",
   close: "Yopish",
-  paid: "To'landi",
-  unpaid: "To'lanmagan",
-  of: "dan",
+  paid: "To'langan",
+  remaining: "Qoldi",
+  conflict: "Bu xona tanlangan sanalarda band",
 }
 
 export function resolveLabels(partial?: Partial<CalendarLabels>): CalendarLabels {

@@ -70,6 +70,8 @@ export interface BarRect {
 
 const MIN_BAR_PX = 4
 
+export const BAR_VPAD = 5
+
 export function barRect(
   start: string,
   end: string,

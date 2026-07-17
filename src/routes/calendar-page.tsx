@@ -1,8 +1,13 @@
-import { useCallback, useMemo, useState } from "react"
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react"
-import { toast } from "sonner"
-import { ReservationCalendar, addDays, type CalendarRange } from "@/components/calendar"
+import { useCallback, useMemo, useRef, useState } from "react"
+import { ChevronLeft, ChevronRight } from "lucide-react"
+import {
+  ReservationCalendar,
+  addDays,
+  type CalendarRange,
+  type ReservationCalendarHandle,
+} from "@/components/calendar"
 import { useMockCalendarData } from "@/lib/calendar-data"
+import { CtaButton } from "@/components/shared/cta-button"
 import { Button } from "@/components/ui/button"
 
 
@@ -29,6 +34,7 @@ function useStressParam(): number {
 export function CalendarPage() {
   const stress = useStressParam()
   const data = useMockCalendarData(stress)
+  const calRef = useRef<ReservationCalendarHandle>(null)
   const [range, setRange] = useState<CalendarRange>(() => ({ start: mondayOf(todayIso()), days: RANGE_DAYS }))
 
   const shift = useCallback((by: number) => setRange((r) => ({ ...r, start: addDays(r.start, by) })), [])
@@ -36,29 +42,39 @@ export function CalendarPage() {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <header className="hairline-b flex flex-wrap items-center justify-between gap-3 px-5 py-3.5">
-        <div className="min-w-0">
-          <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">Kalendar</h1>
-          <p className="mt-0.5 text-sm text-neutral-500">Bron, kirish va chiqishlar bitta jadvalda.</p>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <Button variant="outline" size="icon-sm" onClick={() => shift(-7)} aria-label="Oldingi hafta">
+      <header className="hairline-b flex flex-wrap items-center justify-between gap-3 px-6 py-3">
+        <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">Kalendar</h1>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="icon"
+            className="size-11 rounded-xl"
+            onClick={() => shift(-7)}
+            aria-label="Oldingi hafta"
+          >
             <ChevronLeft />
           </Button>
-          <Button variant="outline" size="sm" onClick={goToday}>
+          <Button variant="outline" className="h-11 rounded-xl px-5 text-[0.9375rem]" onClick={goToday}>
             Bugun
           </Button>
-          <Button variant="outline" size="icon-sm" onClick={() => shift(7)} aria-label="Keyingi hafta">
+          <Button
+            variant="outline"
+            size="icon"
+            className="size-11 rounded-xl"
+            onClick={() => shift(7)}
+            aria-label="Keyingi hafta"
+          >
             <ChevronRight />
           </Button>
-          <Button size="sm" className="ml-1 rounded-full">
-            <Plus /> Yangi bron
-          </Button>
+          <CtaButton className="ml-2" onClick={() => calRef.current?.openCreate()}>
+            Yangi bron
+          </CtaButton>
         </div>
       </header>
 
       <div className="min-h-0 flex-1">
         <ReservationCalendar
+          ref={calRef}
           rooms={data.rooms}
           bookings={data.bookings}
           range={range}
@@ -68,7 +84,6 @@ export function CalendarPage() {
           onCheckIn={data.checkIn}
           onCheckOut={data.checkOut}
           onCancel={data.cancel}
-          onSelectBooking={(b) => toast(b.label, { description: `${b.start} → ${b.end}` })}
         />
       </div>
     </div>

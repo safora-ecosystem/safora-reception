@@ -46,6 +46,7 @@ export interface CalendarLabels {
   months: string[]
   nights: (n: number) => string
   money: (amount: number) => string
+  statusText: Record<CalendarStatus, string>
   today: string
   emptyTitle: string
   emptyHint: string
@@ -55,11 +56,14 @@ export interface CalendarLabels {
   cancel: string
   guestName: string
   guestPhone: string
+  room: string
+  arrival: string
+  departure: string
   save: string
   close: string
   paid: string
-  unpaid: string
-  of: string
+  remaining: string
+  conflict: string
 }
 
 export interface CalendarDraft {

@@ -9,10 +9,11 @@ import type { Lane } from "./geometry"
 interface CalendarRailProps {
   lanes: Lane[]
   virtualItems: VirtualItem[]
+  offsetTop: number
   onToggleGroup: (group: string) => void
 }
 
-function CalendarRailImpl({ lanes, virtualItems, onToggleGroup }: CalendarRailProps) {
+function CalendarRailImpl({ lanes, virtualItems, offsetTop, onToggleGroup }: CalendarRailProps) {
   return (
     <div className="hairline-r relative h-full w-full bg-white">
       {virtualItems.map((vi) => {
@@ -26,7 +27,7 @@ function CalendarRailImpl({ lanes, virtualItems, onToggleGroup }: CalendarRailPr
               type="button"
               onClick={() => onToggleGroup(lane.group)}
               className="hairline-b absolute left-0 flex w-full items-center gap-1.5 bg-neutral-50 px-3 text-left hover:bg-neutral-100"
-              style={{ top: vi.start, height: vi.size }}
+              style={{ top: vi.start - offsetTop, height: vi.size }}
               aria-expanded={!lane.collapsed}
             >
               <Icon
@@ -49,7 +50,7 @@ function CalendarRailImpl({ lanes, virtualItems, onToggleGroup }: CalendarRailPr
           <div
             key={lane.id}
             className="hairline-b absolute left-0 flex w-full flex-col justify-center px-3"
-            style={{ top: vi.start, height: vi.size }}
+            style={{ top: vi.start - offsetTop, height: vi.size }}
           >
             <span className="truncate text-sm leading-tight font-medium text-neutral-800 tabular-nums">
               {lane.room.label}

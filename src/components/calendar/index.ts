@@ -1,4 +1,4 @@
-export { ReservationCalendar } from "./reservation-calendar"
+export { ReservationCalendar, type ReservationCalendarHandle } from "./reservation-calendar"
 export { defaultStatusConfig, resolveStatusConfig } from "./status-config"
 export { defaultLabels, resolveLabels } from "./labels"
 export { addDays, epochDay, isoFromEpochDay, nightsBetween, hasConflict } from "./geometry"

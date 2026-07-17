@@ -1,12 +1,8 @@
 import { memo } from "react"
-import { MoneyBag01Icon } from "@hugeicons/core-free-icons"
-import { Icon } from "@/components/ui/icon"
 import { cn } from "@/lib/utils"
-import { epochDay, nightsBetween, type BarRect } from "./geometry"
+import { BAR_VPAD, epochDay, nightsBetween, type BarRect } from "./geometry"
 import type { CalendarBooking, CalendarLabels, CalendarPayment, StatusVisual } from "./types"
 
-
-const BAR_VPAD = 5
 
 interface CalendarBarProps {
   booking: CalendarBooking
@@ -16,7 +12,8 @@ interface CalendarBarProps {
   visual: StatusVisual
   labels: CalendarLabels
   today: string
-  onSelect: (booking: CalendarBooking) => void
+  selected: boolean
+  onSelect: (booking: CalendarBooking, rect: DOMRect) => void
 }
 
 function fmtDay(iso: string, labels: CalendarLabels): string {
@@ -29,23 +26,24 @@ function paymentRatio(p: CalendarPayment): number {
   return p.paid > 0 ? 1 : 0
 }
 
-/** To'lov indikatori — pul qopi glifi to'langan foizga proporsional to'ladi, holatiga qarab rangli. */
+/** To'lov indikatori — `$` belgisi to'langan foizga proporsional (pastdan) to'ladi, holatiga
+    qarab rangli (to'liq=yashil, qisman=amber, to'lanmagan=quyi/xira). Bar matn rangini meros oladi. */
 function PaymentGlyph({ payment }: { payment: CalendarPayment }) {
   const ratio = paymentRatio(payment)
   const fill = ratio >= 1 ? "text-success" : "text-warning"
   return (
-    <span className="relative inline-block size-4 shrink-0" aria-hidden>
-      <Icon icon={MoneyBag01Icon} className="absolute inset-0 size-4 opacity-35" strokeWidth={1.75} />
+    <span className="relative inline-block size-4 shrink-0 text-[0.8125rem] leading-none font-bold" aria-hidden>
+      <span className="absolute inset-0 flex items-center justify-center opacity-30">$</span>
       {ratio > 0 && (
         <span className="absolute inset-x-0 bottom-0 overflow-hidden" style={{ height: `${ratio * 100}%` }}>
-          <Icon icon={MoneyBag01Icon} className={cn("absolute bottom-0 left-0 size-4", fill)} strokeWidth={1.75} />
+          <span className={cn("absolute bottom-0 left-0 flex size-4 items-center justify-center", fill)}>$</span>
         </span>
       )}
     </span>
   )
 }
 
-function CalendarBarImpl({ booking, rect, rowTop, rowHeight, visual, labels, today, onSelect }: CalendarBarProps) {
+function CalendarBarImpl({ booking, rect, rowTop, rowHeight, visual, labels, today, selected, onSelect }: CalendarBarProps) {
   const nights = nightsBetween(booking.start, booking.end)
   const overdue = booking.status === "checked_in" && epochDay(booking.end) < epochDay(today)
   const showPayment = booking.payment != null && rect.width >= 64
@@ -59,7 +57,7 @@ function CalendarBarImpl({ booking, rect, rowTop, rowHeight, visual, labels, tod
   return (
     <button
       type="button"
-      onClick={() => onSelect(booking)}
+      onClick={(e) => onSelect(booking, e.currentTarget.getBoundingClientRect())}
       title={title}
       aria-label={title}
       className={cn(
@@ -69,6 +67,7 @@ function CalendarBarImpl({ booking, rect, rowTop, rowHeight, visual, labels, tod
         rect.clippedStart && "rounded-l-none",
         rect.clippedEnd && "rounded-r-none",
         overdue && "ring-2 ring-warning ring-inset",
+        selected && "z-20 ring-2 ring-neutral-900/40 ring-inset",
       )}
       style={{
         left: rect.left,

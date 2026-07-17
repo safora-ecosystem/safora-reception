@@ -50,7 +50,6 @@ function CalendarHeaderImpl({
           const d = dateForColumn(originDay, c)
           const dow = d.getUTCDay()
           const isToday = c === todayCol
-          const isWeekend = dow === 0 || dow === 6
           return (
             <div
               key={c}
@@ -60,7 +59,7 @@ function CalendarHeaderImpl({
               <span
                 className={cn(
                   "text-[0.625rem] font-medium tracking-wide uppercase",
-                  isWeekend ? "text-neutral-400" : "text-neutral-400",
+                  isToday ? "text-brand-600" : "text-neutral-400",
                 )}
               >
                 {labels.weekdaysShort[dow]}
