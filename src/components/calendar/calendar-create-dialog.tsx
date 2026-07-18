@@ -79,7 +79,9 @@ function CreateForm({
 
   const nights = nightsBetween(start, end)
   const conflict = hasConflict({ roomId: draft.roomId, start, end }, bookings)
-  const valid = guestName.trim().length > 0 && nights >= 1 && !conflict
+  // Telefon endi MAJBURIY — mehmon QR check-in oxirgi 4 raqamiga tayanadi (backend ≥7 raqam talab qiladi).
+  const phoneDigits = guestPhone.replace(/\D/g, "")
+  const valid = guestName.trim().length > 0 && phoneDigits.length >= 7 && nights >= 1 && !conflict
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -91,7 +93,7 @@ function CreateForm({
         start,
         end,
         guestName: guestName.trim(),
-        guestPhone: guestPhone.trim() || undefined,
+        guestPhone: guestPhone.trim(),
       })
       onClose()
     } finally {
@@ -126,6 +128,7 @@ function CreateForm({
           onChange={(e) => setGuestPhone(e.target.value)}
           inputMode="tel"
           placeholder="+998 ..."
+          required
         />
       </div>
 
