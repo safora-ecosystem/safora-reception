@@ -9,6 +9,9 @@ type TurnstileApi = {
     opts: {
       sitekey: string
       appearance?: "always" | "execute" | "interaction-only"
+      theme?: "auto" | "light" | "dark"
+      retry?: "auto" | "never"
+      "refresh-expired"?: "auto" | "manual" | "never"
       callback: (token: string) => void
       "expired-callback"?: () => void
       "error-callback"?: () => void
@@ -59,7 +62,10 @@ export function Turnstile({
         if (cancelled || !holder.current || !window.turnstile) return
         widgetId.current = window.turnstile.render(holder.current, {
           sitekey: SITEKEY,
-          appearance: "interaction-only",
+          appearance: "always",
+          theme: "light",
+          retry: "auto",
+          "refresh-expired": "auto",
           callback: (token) => onTokenRef.current(token),
           "expired-callback": () => onTokenRef.current(null),
           "error-callback": () => onTokenRef.current(null),
