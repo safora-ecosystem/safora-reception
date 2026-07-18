@@ -121,12 +121,27 @@ export const cancelBooking = (id: string) => api<Booking>(`/bookings/${id}/cance
 
 // ── Mehmonxona brendi ───────────────────────────────────────────────────────
 
-/** Kirgan xodim biriktirilgan mehmonxonaning panel brendi (GET /hotel). `longLogoUrl` yo'q
-    bo'lsa (yoki hali yuklanmagan) panel Safora logotipiga tushadi. */
+/** Mehmonxona qoidalari (GET /hotel → `policy`). Bitta manba backend'da; admin/owner
+    panellari TAHRIRLAYDI, reception faqat O'QIYDI. Hozircha kalendar faqat `checkInTime`/
+    `checkOutTime`ni ishlatadi — backend policy obyekti kengroq (early/late check-in, bekor
+    qilish, no-show, bola/uy hayvoni/chekish qoidalari). Reception qolganlarini o'qiy boshlaganda
+    (masalan "Mehmonxona qoidalari" reference paneli) shu tipga qo'shiladi. Barcha maydon
+    ixtiyoriy: backend bermasa iste'molchi o'z default'iga tushadi. */
+export type HotelPolicy = {
+  /** "HH:MM" (24h) — standart kirish vaqti. Yo'q bo'lsa kalendar 14:00 ko'rsatadi. */
+  checkInTime?: string | null
+  /** "HH:MM" (24h) — standart chiqish vaqti. Yo'q bo'lsa kalendar 12:00 ko'rsatadi. */
+  checkOutTime?: string | null
+}
+
+/** Kirgan xodim biriktirilgan mehmonxonaning panel brendi + qoidalari (GET /hotel).
+    `longLogoUrl` yo'q bo'lsa (yoki hali yuklanmagan) panel Safora logotipiga tushadi. */
 export type HotelBranding = {
   name: string
   logoUrl: string | null
   longLogoUrl: string | null
+  /** Mehmonxona qoidalari; ixtiyoriy (backend bosqichma-bosqich to'ldiradi). */
+  policy?: HotelPolicy | null
 }
 
 export const getHotelBranding = () => api<HotelBranding>("/hotel")

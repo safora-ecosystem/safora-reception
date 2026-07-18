@@ -1,12 +1,15 @@
 import { useMemo, useRef, useState } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import {
   ReservationCalendar,
   addDays,
+  type CalendarLabels,
   type CalendarRange,
   type ReservationCalendarHandle,
 } from "@/components/calendar"
 import { useApiCalendarData, useMockCalendarData } from "@/lib/calendar-data"
+import { getHotelBranding } from "@/lib/api"
 import { CtaButton } from "@/components/shared/cta-button"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -46,6 +49,19 @@ export function CalendarPage() {
   const mock = useMockCalendarData(stress)
   const apiData = useApiCalendarData(range, { enabled: apiMode })
   const data = apiMode ? apiData : mock
+
+  const { data: hotel } = useQuery({
+    queryKey: ["hotel-branding"],
+    queryFn: getHotelBranding,
+    staleTime: 1000 * 60 * 10,
+    retry: 1,
+  })
+  const labels = useMemo<Partial<CalendarLabels> | undefined>(() => {
+    const ci = hotel?.policy?.checkInTime
+    const co = hotel?.policy?.checkOutTime
+    if (!ci && !co) return undefined
+    return { ...(ci ? { checkInTime: ci } : {}), ...(co ? { checkOutTime: co } : {}) }
+  }, [hotel?.policy?.checkInTime, hotel?.policy?.checkOutTime])
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -115,6 +131,7 @@ export function CalendarPage() {
           bookings={data.bookings}
           range={range}
           dayWidth={dayWidth}
+          labels={labels}
           isLoading={data.isLoading}
           error={data.error}
           onCreateBooking={data.createBooking}
