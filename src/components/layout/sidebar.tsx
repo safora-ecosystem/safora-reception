@@ -1,8 +1,41 @@
+import { useState } from "react"
 import { Link, useRouterState } from "@tanstack/react-router"
+import { useQuery } from "@tanstack/react-query"
 import { Icon } from "@/components/ui/icon"
+import { getHotelBranding } from "@/lib/api"
 import { cn } from "@/lib/utils"
 import { navItems, systemNavItems, type NavItem } from "./nav"
 import { ShiftCard } from "./shift-card"
+
+function BrandLogo() {
+  const { data } = useQuery({
+    queryKey: ["hotel-branding"],
+    queryFn: getHotelBranding,
+    staleTime: 1000 * 60 * 10,
+    retry: 1,
+  })
+  const [failed, setFailed] = useState(false)
+  const longLogo = !failed && data?.longLogoUrl ? data.longLogoUrl : null
+
+  return (
+    <div className="flex h-15 items-center justify-center">
+      {longLogo ? (
+        <img
+          src={longLogo}
+          alt={data?.name ?? "Mehmonxona"}
+          onError={() => setFailed(true)}
+          className="max-h-full max-w-full object-contain"
+        />
+      ) : (
+        <img
+          src="/safora-horizontal.png"
+          alt="Safora"
+          className="max-h-full max-w-full object-contain"
+        />
+      )}
+    </div>
+  )
+}
 
 function SectionLabel({ children }: { children: string }) {
   return (
@@ -59,7 +92,7 @@ export function Sidebar() {
     <aside className="flex w-60 shrink-0 flex-col overflow-hidden rounded-panel border border-border bg-white">
       {}
       <div className="shrink-0 px-4 pt-6 pb-4">
-        <img src="/safora-horizontal.png" alt="Safora" className="mx-auto h-15 w-auto" />
+        <BrandLogo />
       </div>
 
       {}

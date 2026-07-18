@@ -19,7 +19,7 @@ export function Topbar() {
         />
         <Input
           placeholder="Mehmon, bron yoki xona qidiring"
-          className="h-11 rounded-full border border-border bg-card pr-16 pl-11 text-[0.9375rem] placeholder:text-neutral-400"
+          className="h-11 rounded-panel border border-border bg-card pr-16 pl-11 text-[0.9375rem] placeholder:text-neutral-400"
         />
         {}
         <kbd className="pointer-events-none absolute top-1/2 right-2.5 flex h-7 -translate-y-1/2 items-center gap-1 rounded-full border border-border bg-white px-2 font-medium text-neutral-500 shadow-xs">
