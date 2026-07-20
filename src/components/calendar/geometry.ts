@@ -155,6 +155,47 @@ export function buildLanes(
   return lanes
 }
 
+/**
+ * Lane tepalari (body-lokal piksel). Formula virtualizer'ning `estimateSize`i bilan AYNAN bir xil
+ * bo'lishi shart — `measureElement` ataylab o'chirilgan (perf shartnomasi #3), shuning uchun
+ * o'lchov statik va bu yerda takrorlanishi xavfsiz.
+ */
+export function laneOffsets(lanes: Lane[], rowHeight: number, groupHeight: number): number[] {
+  const tops = new Array<number>(lanes.length)
+  let y = 0
+  for (let i = 0; i < lanes.length; i++) {
+    tops[i] = y
+    y += lanes[i].kind === "group" ? groupHeight : rowHeight
+  }
+  return tops
+}
+
+/**
+ * Body-lokal Y qaysi XONA lane'iga tushadi (binary search — 1000 xonada ham pointermove arzon).
+ * Guruh sarlavhasiga yoki tashqariga tushsa -1: chaqiruvchi oxirgi haqiqiy xonani saqlab qoladi,
+ * ya'ni sarlavha ustidan o'tganda ko'chirish sakrab ketmaydi.
+ */
+export function roomLaneAtY(
+  y: number,
+  lanes: Lane[],
+  tops: number[],
+  rowHeight: number,
+  groupHeight: number,
+): number {
+  if (y < 0 || lanes.length === 0) return -1
+  let lo = 0
+  let hi = lanes.length - 1
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1
+    const top = tops[mid]
+    const height = lanes[mid].kind === "group" ? groupHeight : rowHeight
+    if (y < top) hi = mid - 1
+    else if (y >= top + height) lo = mid + 1
+    else return lanes[mid].kind === "room" ? mid : -1
+  }
+  return -1
+}
+
 // ── Header oy segmentlari ─────────────────────────────────────────────────────
 
 export interface MonthSegment {

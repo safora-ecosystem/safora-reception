@@ -12,14 +12,15 @@ import { useVirtualizer } from "@tanstack/react-virtual"
 import { cn } from "@/lib/utils"
 import { CalendarBar } from "./calendar-bar"
 import { CalendarCreateDialog } from "./calendar-create-dialog"
-import { CalendarDetailModal, type DetailSelection } from "./calendar-detail-modal"
+import { CalendarDetailModal } from "./calendar-detail-modal"
 import { CalendarGridLayer } from "./calendar-grid-layer"
 import { CalendarHeader } from "./calendar-header"
 import { CalendarRail } from "./calendar-rail"
-import { addDays, epochDay, isoFromEpochDay, todayColumn } from "./geometry"
+import { addDays, epochDay, isoFromEpochDay, laneOffsets, todayColumn } from "./geometry"
 import { resolveLabels } from "./labels"
 import { resolveStatusConfig } from "./status-config"
 import { useCalendarDrag } from "./use-calendar-drag"
+import { useCalendarMove } from "./use-calendar-move"
 import { useBookingIndex, useLanes } from "./use-lanes"
 import type { CalendarBooking, CalendarDraft, CalendarRoom, ReservationCalendarProps } from "./types"
 
@@ -44,11 +45,14 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
       headerHeight = 60,
       groupByFloor = true,
       overscan = 10,
+      matchIds,
       onSelectBooking,
       onCreateBooking,
       onCheckIn,
       onCheckOut,
       onCancel,
+      onEditBooking,
+      onMoveBooking,
       isLoading = false,
       error = null,
       className,
@@ -83,7 +87,11 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
       return m
     }, [rooms])
 
-    const [selected, setSelected] = useState<DetailSelection | null>(null)
+    const [selectedId, setSelectedId] = useState<string | null>(null)
+    const selectedBooking = useMemo(
+      () => (selectedId ? (bookings.find((b) => b.id === selectedId) ?? null) : null),
+      [bookings, selectedId],
+    )
     const [createDraft, setCreateDraft] = useState<CalendarDraft | null>(null)
 
     const scrollRef = useRef<HTMLDivElement>(null)
@@ -136,19 +144,42 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
 
     const handleSelect = useCallback(
       (b: CalendarBooking) => {
-        const room = roomsById.get(b.roomId)
-        setSelected({ booking: b, roomLabel: room?.label ?? "", roomSublabel: room?.sublabel })
+        setSelectedId(b.id)
         onSelectBooking?.(b)
       },
-      [onSelectBooking, roomsById],
+      [onSelectBooking],
     )
-    const closeSelected = useCallback(() => setSelected(null), [])
+    const closeSelected = useCallback(() => setSelectedId(null), [])
 
     const dragConfig = useMemo(
       () => ({ scrollRef, overlayRef, originDay, days: range.days, dayWidth, rowHeight, railWidth, bookings, onCommit: setCreateDraft }),
       [originDay, range.days, dayWidth, rowHeight, railWidth, bookings],
     )
     const drag = useCalendarDrag(dragConfig)
+
+    const canMove = onMoveBooking != null
+    const laneTops = useMemo(() => laneOffsets(lanes, rowHeight, GROUP_HEIGHT), [lanes, rowHeight])
+    const moveConfig = useMemo(
+      () => ({
+        scrollRef,
+        overlayRef,
+        originDay,
+        days: range.days,
+        dayWidth,
+        rowHeight,
+        railWidth,
+        headerHeight,
+        groupHeight: GROUP_HEIGHT,
+        lanes,
+        laneTops,
+        bookings,
+        onCommit: (id: string, next: CalendarDraft) => {
+          void onMoveBooking?.(id, next)
+        },
+      }),
+      [originDay, range.days, dayWidth, rowHeight, railWidth, headerHeight, lanes, laneTops, bookings, onMoveBooking],
+    )
+    const moveDrag = useCalendarMove(moveConfig)
 
     useImperativeHandle(
       ref,
@@ -257,8 +288,11 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
                           visual={statusConfig[pb.booking.status]}
                           labels={labels}
                           today={today}
-                          selected={selected?.booking.id === pb.booking.id}
+                          selected={selectedId === pb.booking.id}
                           onSelect={handleSelect}
+                          movable={canMove && pb.booking.status === "booked"}
+                          dimmed={matchIds != null && !matchIds.has(pb.booking.id)}
+                          move={moveDrag}
                         />
                       ))}
                     </Fragment>
@@ -276,12 +310,15 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
         )}
 
         <CalendarDetailModal
-          selection={selected}
+          booking={selectedBooking}
+          rooms={rooms}
+          bookings={bookings}
           labels={labels}
           onClose={closeSelected}
           onCheckIn={onCheckIn}
           onCheckOut={onCheckOut}
           onCancel={onCancel}
+          onEdit={onEditBooking}
         />
 
         <CalendarCreateDialog

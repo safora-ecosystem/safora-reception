@@ -1,6 +1,7 @@
 import { memo } from "react"
 import { cn } from "@/lib/utils"
 import { BAR_VPAD, epochDay, nightsBetween, type BarRect } from "./geometry"
+import type { CalendarMoveHandlers } from "./use-calendar-move"
 import type { CalendarBooking, CalendarLabels, CalendarPayment, StatusVisual } from "./types"
 
 
@@ -14,6 +15,9 @@ interface CalendarBarProps {
   today: string
   selected: boolean
   onSelect: (booking: CalendarBooking) => void
+  movable?: boolean
+  dimmed?: boolean
+  move?: CalendarMoveHandlers
 }
 
 function fmtDay(iso: string, labels: CalendarLabels): string {
@@ -43,7 +47,20 @@ function PaymentGlyph({ payment }: { payment: CalendarPayment }) {
   )
 }
 
-function CalendarBarImpl({ booking, rect, rowTop, rowHeight, visual, labels, today, selected, onSelect }: CalendarBarProps) {
+function CalendarBarImpl({
+  booking,
+  rect,
+  rowTop,
+  rowHeight,
+  visual,
+  labels,
+  today,
+  selected,
+  onSelect,
+  movable = false,
+  dimmed = false,
+  move,
+}: CalendarBarProps) {
   const nights = nightsBetween(booking.start, booking.end)
   const overdue = booking.status === "checked_in" && epochDay(booking.end) < epochDay(today)
   const showPayment = booking.payment != null && rect.width >= 64
@@ -57,13 +74,26 @@ function CalendarBarImpl({ booking, rect, rowTop, rowHeight, visual, labels, tod
   return (
     <button
       type="button"
-      onClick={() => onSelect(booking)}
+      // Sudrash tugagach keladigan `click`ni yutamiz — aks holda ko'chirish ustiga detal
+      // modali ham ochilardi. Klaviatura (Enter) hech qachon sudramaydi → doim ochiladi.
+      onClick={() => {
+        if (move?.consumeClick()) return
+        onSelect(booking)
+      }}
+      // Handler'lar HAR bar'ga ulanadi, faqat ko'chiriladiganlarga emas: hook o'zi statusga
+      // qarab to'xtaydi, lekin pointerdown har jestda klik-bayrog'ini tozalashi kerak.
+      onPointerDown={move ? (e) => move.start(e, booking) : undefined}
+      onPointerMove={move?.move}
+      onPointerUp={move?.finish}
+      onPointerCancel={move?.cancel}
       title={title}
       aria-label={title}
       className={cn(
-        "absolute z-10 flex items-center gap-1.5 overflow-hidden rounded-[7px] px-2 text-left text-[0.75rem] font-medium transition-[filter,background-color] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:outline-none",
+        "absolute z-10 flex items-center gap-1.5 overflow-hidden rounded-[7px] px-2 text-left text-[0.75rem] font-medium transition-[filter,background-color,opacity] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:outline-none",
         visual.bar,
         visual.text,
+        movable && "cursor-grab active:cursor-grabbing",
+        dimmed && "opacity-25",
         rect.clippedStart && "rounded-l-none",
         rect.clippedEnd && "rounded-r-none",
         overdue && "ring-2 ring-warning ring-inset",
