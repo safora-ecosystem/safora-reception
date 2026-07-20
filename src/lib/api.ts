@@ -213,6 +213,23 @@ export const checkInBooking = (id: string) => api<Booking>(`/bookings/${id}/chec
 export const checkOutBooking = (id: string) => api<Booking>(`/bookings/${id}/check-out`, { method: "PATCH" })
 export const cancelBooking = (id: string) => api<Booking>(`/bookings/${id}/cancel`, { method: "PATCH" })
 
+// ── Faol seanslar (qurilmalar) ────────────────────────────────────────────────
+
+export type ActiveSession = {
+  id: string
+  device: string
+  ip: string | null
+  lastActiveAt: string
+  signedInAt: string
+  current: boolean
+}
+
+export const listSessions = () => api<ActiveSession[]>("/auth/sessions")
+export const revokeSession = (id: string) =>
+  api<void>(`/auth/sessions/${id}/revoke`, { method: "POST" })
+export const revokeOtherSessions = () =>
+  api<{ revoked: number }>("/auth/sessions/revoke-others", { method: "POST" })
+
 // ── Mehmonxona brendi ───────────────────────────────────────────────────────
 
 /** Mehmonxona qoidalari (GET /hotel → `policy`). Bitta manba backend'da; admin/owner
