@@ -3,6 +3,7 @@ import {
   ArrowRight,
   BadgeCheck,
   CalendarDays,
+  Clock,
   DoorOpen,
   LogIn,
   LogOut,
@@ -265,7 +266,8 @@ function DetailBody({
                   b.guestConfirmed ? "bg-success-surface text-success-surface-foreground" : "bg-neutral-100 text-neutral-500",
                 )}
               >
-                <BadgeCheck className="size-3" />
+                {/* Tasdiqlanmaganda "check" ikonkasi CHALG'ITADI — kutish holati soat bilan. */}
+                {b.guestConfirmed ? <BadgeCheck className="size-3" /> : <Clock className="size-3" />}
                 {b.guestConfirmed ? labels.confirmed : labels.notConfirmed}
               </span>
             )}
@@ -407,7 +409,9 @@ function DetailBody({
                   <button
                     type="button"
                     onClick={() => setAmount(String(suggested))}
-                    className="self-start text-xs font-medium text-brand-700 underline-offset-2 hover:underline"
+                    // Neytral: input ostidagi qizil matn validatsiya XATOSIdek o'qiladi, bu esa
+                    // shunchaki maslahat. Brend rangi faqat hover'da — interaktivligini bildiradi.
+                    className="self-start text-xs font-medium text-neutral-500 underline-offset-2 transition-colors hover:text-brand-700 hover:underline"
                   >
                     {labels.nightlyRate} {labels.money(editRoom?.rate ?? 0)} × {nights} = {labels.money(suggested)}
                   </button>
