@@ -2,6 +2,11 @@ import { clearSession, getSession, updateTokens, type Session } from "./auth"
 
 const BASE_URL = import.meta.env.VITE_API_URL
 
+const DEFAULT_TIMEOUT_MS = 15_000
+const MAX_RETRIES = 2
+const RETRY_BASE_MS = 400
+const RETRYABLE_STATUS = new Set([502, 503, 504])
+
 export class ApiError extends Error {
   readonly status: number
   readonly body: unknown
@@ -18,6 +23,17 @@ export class ApiError extends Error {
   }
 }
 
+/** `fetch` umuman javob ololmaganda (tarmoq uzilgan, server o'lik, timeout) otiladi — brauzerning
+    xom "Failed to fetch" TypeError'i o'rniga tushunarli, typed xato. UI shu message'ni ko'rsatadi. */
+export class NetworkError extends Error {
+  readonly cause: unknown
+  constructor(cause: unknown) {
+    super("Server bilan aloqa yo'q. Internet aloqangizni tekshiring yoki birozdan so'ng qayta urining.")
+    this.name = "NetworkError"
+    this.cause = cause
+  }
+}
+
 type ApiOptions = {
   method?: string
   body?: unknown
@@ -25,36 +41,95 @@ type ApiOptions = {
   signal?: AbortSignal
 }
 
-async function rawFetch(path: string, { method = "GET", body, signal }: ApiOptions, token?: string) {
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
+async function rawFetch(
+  path: string,
+  { method = "GET", body, signal }: ApiOptions,
+  token?: string,
+  timeoutMs = DEFAULT_TIMEOUT_MS,
+) {
   const hasBody = body !== undefined
-  return fetch(`${BASE_URL}${path}`, {
-    method,
-    // Only advertise a JSON body when we actually send one — Fastify rejects an empty
-    // `application/json` body with 400, so bodyless GET/DELETE must NOT set content-type.
-    headers: {
-      ...(hasBody ? { "content-type": "application/json" } : {}),
-      ...(token ? { authorization: `Bearer ${token}` } : {}),
-    },
-    ...(hasBody ? { body: JSON.stringify(body) } : {}),
-    signal,
-  })
+  // Timeout har urinishda YANGI (bir martalik); chaqiruvchi signalini (mas. unmount) ham hurmat qilamiz.
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(new DOMException("timeout", "TimeoutError")), timeoutMs)
+  const onCallerAbort = () => controller.abort(signal?.reason)
+  if (signal) {
+    if (signal.aborted) controller.abort(signal.reason)
+    else signal.addEventListener("abort", onCallerAbort, { once: true })
+  }
+  try {
+    return await fetch(`${BASE_URL}${path}`, {
+      method,
+      // Only advertise a JSON body when we actually send one — Fastify rejects an empty
+      // `application/json` body with 400, so bodyless GET/DELETE must NOT set content-type.
+      headers: {
+        ...(hasBody ? { "content-type": "application/json" } : {}),
+        ...(token ? { authorization: `Bearer ${token}` } : {}),
+      },
+      ...(hasBody ? { body: JSON.stringify(body) } : {}),
+      signal: controller.signal,
+    })
+  } finally {
+    clearTimeout(timer)
+    signal?.removeEventListener("abort", onCallerAbort)
+  }
 }
 
-/** Sessiya tokenini avtomatik qo'shadi; access eskirgan bo'lsa (401) bir marta refresh
-    qilib qayta urinadi, refresh ham o'lgan bo'lsa sessiyani tozalab /login'ga qaytaradi. */
+/** rawFetch + idempotent retry: tarmoq/timeout xatosi yoki 502/503/504'da GET'ni backoff bilan
+    qayta uradi; chaqiruvchi ataylab bekor qilsa (unmount) — retry yo'q, propagate. So'rov umuman
+    yetib bormasa NetworkError. */
+async function sendWithRetry(path: string, options: ApiOptions, token: string | undefined): Promise<Response> {
+  const idempotent = (options.method ?? "GET").toUpperCase() === "GET"
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const res = await rawFetch(path, options, token)
+      if (idempotent && RETRYABLE_STATUS.has(res.status) && attempt < MAX_RETRIES) {
+        await delay(RETRY_BASE_MS * 2 ** attempt)
+        continue
+      }
+      return res
+    } catch (err) {
+      if (options.signal?.aborted) throw err // chaqiruvchi bekor qildi — bu retry emas
+      if (idempotent && attempt < MAX_RETRIES) {
+        await delay(RETRY_BASE_MS * 2 ** attempt)
+        continue
+      }
+      throw new NetworkError(err)
+    }
+  }
+}
+
+// Bir vaqtda kelgan 401'lar bitta refresh so'rovini ULASHADI. Refresh token bir martalik
+// (rotatsiya) — parallel refresh'lar bir-birini revoke qilib TASODIFIY LOGOUT qilardi. Birinchi
+// chaqiruvchi refresh qiladi, qolganlari o'sha natijani kutadi.
+let refreshInFlight: Promise<Session | null> | null = null
+
+function refreshSession(refreshToken: string): Promise<Session | null> {
+  refreshInFlight ??= rawFetch("/auth/refresh", { method: "POST", body: { refreshToken } })
+    .then(async (res) => {
+      if (!res.ok) return null
+      const next = (await res.json()) as Session
+      updateTokens(next.accessToken, next.refreshToken)
+      return next
+    })
+    .catch(() => null)
+    .finally(() => {
+      refreshInFlight = null
+    })
+  return refreshInFlight
+}
+
+/** Sessiya tokenini avtomatik qo'shadi; access eskirgan bo'lsa (401) bir marta refresh qilib
+    qayta urinadi (single-flight), refresh ham o'lgan bo'lsa sessiyani tozalab /login'ga qaytaradi. */
 export async function api<T>(path: string, options: ApiOptions = {}): Promise<T> {
   const session = getSession()
-  let res = await rawFetch(path, options, options.token ?? session?.accessToken)
+  let res = await sendWithRetry(path, options, options.token ?? session?.accessToken)
 
   if (res.status === 401 && !options.token && session?.refreshToken) {
-    const refreshed = await rawFetch(
-      "/auth/refresh",
-      { method: "POST", body: { refreshToken: session.refreshToken } },
-    )
-    if (refreshed.ok) {
-      const next = (await refreshed.json()) as Session
-      updateTokens(next.accessToken, next.refreshToken)
-      res = await rawFetch(path, options, next.accessToken)
+    const next = await refreshSession(session.refreshToken)
+    if (next) {
+      res = await sendWithRetry(path, options, next.accessToken)
     } else if (path !== "/auth/login") {
       clearSession()
       window.location.assign("/login")
