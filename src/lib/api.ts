@@ -91,6 +91,12 @@ export type Booking = {
   /** Decimal(12,2) — string/number. Kalendar to'lov indikatori uchun. */
   totalAmount?: number | string
   paidAmount?: number | string
+  /** Mehmon QR orqali kelishini tasdiqlaganmi. */
+  guestConfirmed?: boolean
+  /** Haqiqiy kirish/chiqish MOMENTI (timestamptz) — rejadagi kundan farqli, `null` = bo'lmagan. */
+  checkedInAt?: string | null
+  checkedOutAt?: string | null
+  createdAt?: string
   room: { id: string; number: string }
 }
 
@@ -115,6 +121,19 @@ export type CreateBookingBody = {
 }
 
 export const createBooking = (body: CreateBookingBody) => api<Booking>("/bookings", { method: "POST", body })
+
+export type UpdateBookingBody = {
+  roomId?: string
+  guestName?: string
+  guestPhone?: string
+  checkInDate?: string
+  checkOutDate?: string
+  totalAmount?: number
+}
+
+export const updateBooking = (id: string, body: UpdateBookingBody) =>
+  api<Booking>(`/bookings/${id}`, { method: "PATCH", body })
+// PATCH bodyless — api() content-type qo'ymaydi (Fastify bo'sh-body gotcha).
 export const checkInBooking = (id: string) => api<Booking>(`/bookings/${id}/check-in`, { method: "PATCH" })
 export const checkOutBooking = (id: string) => api<Booking>(`/bookings/${id}/check-out`, { method: "PATCH" })
 export const cancelBooking = (id: string) => api<Booking>(`/bookings/${id}/cancel`, { method: "PATCH" })

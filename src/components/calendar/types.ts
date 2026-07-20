@@ -14,6 +14,7 @@ export interface CalendarRoom {
   group?: string
   sublabel?: string
   order?: number
+  rate?: number
 }
 
 export interface CalendarBooking {
@@ -25,6 +26,10 @@ export interface CalendarBooking {
   label: string
   sublabel?: string
   payment?: CalendarPayment
+  guestConfirmed?: boolean
+  checkedInAt?: string | null
+  checkedOutAt?: string | null
+  createdAt?: string
   meta?: Record<string, unknown>
 }
 
@@ -71,6 +76,21 @@ export interface CalendarLabels {
   paid: string
   remaining: string
   conflict: string
+
+  edit: string
+  discard: string
+  confirmed: string
+  notConfirmed: string
+  history: string
+  historyCreated: string
+  historyCheckedIn: string
+  historyCheckedOut: string
+  actions: string
+  total: string
+  nightlyRate: string
+  amount: string
+  lockedHint: string
+  noChanges: string
 }
 
 export interface CalendarDraft {
@@ -82,6 +102,15 @@ export interface CalendarDraft {
 export interface CalendarCreateInput extends CalendarDraft {
   guestName: string
   guestPhone?: string
+}
+
+export interface BookingEditPatch {
+  roomId?: string
+  guestName?: string
+  guestPhone?: string
+  start?: string
+  end?: string
+  totalAmount?: number
 }
 
 export interface ReservationCalendarProps {
@@ -98,12 +127,14 @@ export interface ReservationCalendarProps {
   overscan?: number
   statusConfig?: Partial<StatusConfig>
   labels?: Partial<CalendarLabels>
+  matchIds?: ReadonlySet<string> | null
 
   onCreateBooking?: (input: CalendarCreateInput) => void | Promise<void>
   onCheckIn?: (id: string) => void | Promise<void>
   onCheckOut?: (id: string) => void | Promise<void>
   onCancel?: (id: string) => void | Promise<void>
   onSelectBooking?: (booking: CalendarBooking) => void
+  onEditBooking?: (id: string, patch: BookingEditPatch) => void | Promise<void>
   onMoveBooking?: (id: string, next: CalendarDraft) => void | Promise<void>
 
   isLoading?: boolean

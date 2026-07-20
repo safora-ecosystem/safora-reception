@@ -44,6 +44,21 @@ export const defaultLabels: CalendarLabels = {
   paid: "To'langan",
   remaining: "Qoldi",
   conflict: "Bu xona tanlangan sanalarda band",
+
+  edit: "Tahrirlash",
+  discard: "Voz kechish",
+  confirmed: "Tasdiqlagan",
+  notConfirmed: "Tasdiqlanmagan",
+  history: "Tarix",
+  historyCreated: "Bron ochildi",
+  historyCheckedIn: "Mehmon kirdi",
+  historyCheckedOut: "Mehmon chiqdi",
+  actions: "Harakatlar",
+  total: "Jami",
+  nightlyRate: "Bir kecha",
+  amount: "Summa",
+  lockedHint: "Mehmon kirgandan keyin xona va sana o'zgartirilmaydi",
+  noChanges: "O'zgarish kiritilmadi",
 }
 
 export function resolveLabels(partial?: Partial<CalendarLabels>): CalendarLabels {

@@ -12,6 +12,7 @@ export type {
   CalendarLabels,
   CalendarDraft,
   CalendarCreateInput,
+  BookingEditPatch,
   StatusVisual,
   StatusConfig,
   ReservationCalendarProps,
