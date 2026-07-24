@@ -62,6 +62,8 @@ export interface CalendarLabels {
   today: string
   emptyTitle: string
   emptyHint: string
+  noRoomsTitle: string
+  noRoomsHint: string
   newBooking: string
   checkIn: string
   checkOut: string

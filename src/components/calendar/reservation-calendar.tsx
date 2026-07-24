@@ -196,7 +196,8 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
       [rooms, today, todayCol, range.start, scrollToDate, scrollByViewport],
     )
 
-    const showEmpty = !isLoading && !error && rooms.length === 0
+    const showNoRooms = !isLoading && !error && rooms.length === 0
+    const showNoBookings = !isLoading && !error && rooms.length > 0 && bookings.length === 0
 
     return (
       <div className={cn("relative flex h-full min-h-0 flex-col", className)}>
@@ -204,10 +205,10 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
           <div className="flex flex-1 items-center justify-center p-8 text-center text-sm text-destructive">
             {error}
           </div>
-        ) : showEmpty ? (
+        ) : showNoRooms ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-1 p-8 text-center">
-            <p className="text-sm font-medium text-neutral-700">{labels.emptyTitle}</p>
-            <p className="max-w-xs text-xs text-neutral-500">{labels.emptyHint}</p>
+            <p className="text-sm font-medium text-neutral-700">{labels.noRoomsTitle}</p>
+            <p className="max-w-xs text-xs text-neutral-500">{labels.noRoomsHint}</p>
           </div>
         ) : (
           <div
@@ -306,6 +307,20 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
                 />
               </div>
             </div>
+          </div>
+        )}
+
+        {/* "Bron yo'q" — kalendarni CHIQARMASDAN (grid ostida ko'rinib turadi) ustidan suzuvchi
+            ishora. pointer-events-none: ostidagi drag-to-create catcher'lari ishlashda davom etadi —
+            foydalanuvchi bo'sh katak bo'ylab sudrab birinchi bronni ocha oladi. Body viewport'i
+            ustida markazlashadi (rail/header'dan tashqarida) va scroll'da joyida qoladi. */}
+        {showNoBookings && (
+          <div
+            className="pointer-events-none absolute z-20 flex flex-col items-center justify-center gap-1 px-8 text-center"
+            style={{ top: headerHeight, left: railWidth, right: 0, bottom: 0 }}
+          >
+            <p className="text-sm font-medium text-neutral-700">{labels.emptyTitle}</p>
+            <p className="max-w-xs text-xs text-neutral-500">{labels.emptyHint}</p>
           </div>
         )}
 

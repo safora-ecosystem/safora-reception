@@ -30,6 +30,8 @@ export const defaultLabels: CalendarLabels = {
   today: "Bugun",
   emptyTitle: "Bron yo'q",
   emptyHint: "Bo'sh katak bo'ylab sichqonchani bosib torting — yangi bron ochiladi.",
+  noRoomsTitle: "Xona yo'q",
+  noRoomsHint: "Bu mehmonxona uchun hali xona qo'shilmagan.",
   newBooking: "Yangi bron",
   checkIn: "Kirdi",
   checkOut: "Chiqdi",
