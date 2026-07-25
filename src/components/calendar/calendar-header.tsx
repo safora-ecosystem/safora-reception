@@ -14,6 +14,7 @@ interface CalendarHeaderProps {
   headerHeight: number
   todayCol: number
   labels: CalendarLabels
+  occupancy: number[]
 }
 
 function CalendarHeaderImpl({
@@ -24,6 +25,7 @@ function CalendarHeaderImpl({
   headerHeight,
   todayCol,
   labels,
+  occupancy,
 }: CalendarHeaderProps) {
   const months = monthSegments(originDay, days)
 
@@ -44,12 +46,13 @@ function CalendarHeaderImpl({
         ))}
       </div>
 
-      {/* Kun kataklari */}
+      {/* Kun kataklari — hafta kuni · sana · bandlik % */}
       <div className="flex" style={{ height: headerHeight - MONTH_STRIP }}>
         {Array.from({ length: days }, (_, c) => {
           const d = dateForColumn(originDay, c)
           const dow = d.getUTCDay()
           const isToday = c === todayCol
+          const occ = occupancy[c] ?? 0
           return (
             <div
               key={c}
@@ -71,6 +74,15 @@ function CalendarHeaderImpl({
                 )}
               >
                 {d.getUTCDate()}
+              </span>
+              {/* Bandlik — emfaza EMAS: neytral matn, faqat yuqori bandlik biroz to'qroq. Bugun brand. */}
+              <span
+                className={cn(
+                  "text-[0.625rem] leading-none font-medium tabular-nums",
+                  isToday ? "text-brand-600" : occ >= 90 ? "text-neutral-600" : "text-neutral-400",
+                )}
+              >
+                {occ > 0 ? `${occ}%` : " "}
               </span>
             </div>
           )

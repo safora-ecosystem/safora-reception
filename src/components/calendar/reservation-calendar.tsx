@@ -14,6 +14,7 @@ import { CalendarBar } from "./calendar-bar"
 import { CalendarCreateDialog } from "./calendar-create-dialog"
 import { CalendarDetailModal } from "./calendar-detail-modal"
 import { CalendarGridLayer } from "./calendar-grid-layer"
+import { CalendarGroupRow } from "./calendar-group-row"
 import { CalendarHeader } from "./calendar-header"
 import { CalendarRail } from "./calendar-rail"
 import { addDays, epochDay, isoFromEpochDay, laneOffsets, todayColumn } from "./geometry"
@@ -25,7 +26,7 @@ import { useBookingIndex, useLanes } from "./use-lanes"
 import type { CalendarBooking, CalendarDraft, CalendarRoom, ReservationCalendarProps } from "./types"
 
 
-const GROUP_HEIGHT = 30
+const GROUP_HEIGHT = 52
 
 export interface ReservationCalendarHandle {
   openCreate: (roomId?: string, start?: string) => void
@@ -42,7 +43,7 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
       dayWidth = 48,
       rowHeight = 44,
       railWidth = 180,
-      headerHeight = 60,
+      headerHeight = 74,
       groupByFloor = true,
       overscan = 10,
       matchIds,
@@ -68,6 +69,7 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
     const originDay = epochDay(range.start)
     const bodyWidth = range.days * dayWidth
     const todayCol = todayColumn(originDay, range.days, today)
+    const pastCol = epochDay(today) - originDay
 
     const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(() => new Set<string>())
     const toggleGroup = useCallback((group: string) => {
@@ -86,6 +88,57 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
       for (const r of rooms) m.set(r.id, r)
       return m
     }, [rooms])
+
+    const occupancy = useMemo(() => {
+      const days = range.days
+      const total = rooms.length
+      const counts = new Array<number>(days).fill(0)
+      if (total === 0) return counts
+      for (const b of bookings) {
+        if (b.status !== "booked" && b.status !== "checked_in") continue
+        let s = epochDay(b.start) - originDay
+        let e = epochDay(b.end) - originDay
+        if (e <= 0 || s >= days) continue
+        if (s < 0) s = 0
+        if (e > days) e = days
+        for (let c = s; c < e; c++) counts[c]++
+      }
+      return counts.map((c) => Math.min(100, Math.round((c / total) * 100)))
+    }, [bookings, rooms.length, originDay, range.days])
+
+    const groupStats = useMemo(() => {
+      const days = range.days
+      const roomGroup = new Map<string, string>()
+      const total = new Map<string, number>()
+      const m = new Map<string, { rate: number; avail: Int16Array }>()
+      for (const r of rooms) {
+        const key = r.group ?? ""
+        if (key === "") continue
+        roomGroup.set(r.id, key)
+        total.set(key, (total.get(key) ?? 0) + 1)
+        let g = m.get(key)
+        if (!g) {
+          g = { rate: 0, avail: new Int16Array(days) }
+          m.set(key, g)
+        }
+        if (r.rate != null && r.rate > 0 && (g.rate === 0 || r.rate < g.rate)) g.rate = r.rate
+      }
+      for (const [key, g] of m) g.avail.fill(total.get(key) ?? 0)
+      for (const b of bookings) {
+        if (b.status !== "booked" && b.status !== "checked_in") continue
+        const key = roomGroup.get(b.roomId)
+        if (key == null) continue
+        const g = m.get(key)
+        if (!g) continue
+        let s = epochDay(b.start) - originDay
+        let e = epochDay(b.end) - originDay
+        if (e <= 0 || s >= days) continue
+        if (s < 0) s = 0
+        if (e > days) e = days
+        for (let c = s; c < e; c++) g.avail[c]--
+      }
+      return m
+    }, [rooms, bookings, originDay, range.days])
 
     const [selectedId, setSelectedId] = useState<string | null>(null)
     const selectedBooking = useMemo(
@@ -152,8 +205,8 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
     const closeSelected = useCallback(() => setSelectedId(null), [])
 
     const dragConfig = useMemo(
-      () => ({ scrollRef, overlayRef, originDay, days: range.days, dayWidth, rowHeight, railWidth, bookings, onCommit: setCreateDraft }),
-      [originDay, range.days, dayWidth, rowHeight, railWidth, bookings],
+      () => ({ scrollRef, overlayRef, originDay, days: range.days, dayWidth, rowHeight, railWidth, today, bookings, onCommit: setCreateDraft }),
+      [originDay, range.days, dayWidth, rowHeight, railWidth, today, bookings],
     )
     const drag = useCalendarDrag(dragConfig)
 
@@ -170,6 +223,7 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
         railWidth,
         headerHeight,
         groupHeight: GROUP_HEIGHT,
+        today,
         lanes,
         laneTops,
         bookings,
@@ -177,7 +231,7 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
           void onMoveBooking?.(id, next)
         },
       }),
-      [originDay, range.days, dayWidth, rowHeight, railWidth, headerHeight, lanes, laneTops, bookings, onMoveBooking],
+      [originDay, range.days, dayWidth, rowHeight, railWidth, headerHeight, today, lanes, laneTops, bookings, onMoveBooking],
     )
     const moveDrag = useCalendarMove(moveConfig)
 
@@ -187,17 +241,16 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
         openCreate: (roomId, start) => {
           const rid = roomId ?? rooms[0]?.id
           if (!rid) return
-          const s = start ?? (todayCol >= 0 ? today : range.start)
+          const s = start ?? (epochDay(today) >= originDay ? today : range.start)
           setCreateDraft({ roomId: rid, start: s, end: addDays(s, 1) })
         },
         scrollToday: () => scrollToDate(today, "center"),
         scrollByViewport,
       }),
-      [rooms, today, todayCol, range.start, scrollToDate, scrollByViewport],
+      [rooms, today, originDay, range.start, scrollToDate, scrollByViewport],
     )
 
     const showNoRooms = !isLoading && !error && rooms.length === 0
-    const showNoBookings = !isLoading && !error && rooms.length > 0 && bookings.length === 0
 
     return (
       <div className={cn("relative flex h-full min-h-0 flex-col", className)}>
@@ -241,6 +294,7 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
                   headerHeight={headerHeight}
                   todayCol={todayCol}
                   labels={labels}
+                  occupancy={occupancy}
                 />
               </div>
 
@@ -262,12 +316,28 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
                   dayWidth={dayWidth}
                   bodyWidth={bodyWidth}
                   todayCol={todayCol}
+                  pastCol={pastCol}
                 />
                 {virtualItems.map((vi) => {
                   const lane = lanes[vi.index]
-                  if (!lane || lane.kind !== "room") return null
-                  const bars = bookingIndex.get(lane.room.id)
+                  if (!lane) return null
                   const rowTop = vi.start - headerHeight
+                  // Guruh sarlavha satri — body'da kunlik bo'sh xona + narx (reference "5 / $100").
+                  if (lane.kind === "group") {
+                    const stats = groupStats.get(lane.group)
+                    return (
+                      <CalendarGroupRow
+                        key={lane.id}
+                        rowTop={rowTop}
+                        height={vi.size}
+                        days={range.days}
+                        dayWidth={dayWidth}
+                        avail={stats?.avail ?? null}
+                        rate={stats?.rate ?? 0}
+                      />
+                    )
+                  }
+                  const bars = bookingIndex.get(lane.room.id)
                   return (
                     <Fragment key={lane.id}>
                       {/* Drag-to-create catcher — bars ostida (z-5), bo'sh joyda pointerdown'ni tutadi. */}
@@ -300,27 +370,19 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
                   )
                 })}
 
-                {/* Drag tanlash overlay'i — ref bilan mutatsiya (render'dan tashqari) */}
+                {/* Drag/ghost tanlash overlay'i — ref bilan mutatsiya (render'dan tashqari).
+                    Ikki qatlam (tashqi chegara + ichki fill) + diagonal clip'ni paintSelectionShape
+                    o'rnatadi → tanlov to'rtburchak emas, "aktiv bron" (tape-chart) ko'rinishida.
+                    data-conflict tashqi qatlamda; ichki fill group-data bilan hamohang rangda. */}
                 <div
                   ref={overlayRef}
-                  className="pointer-events-none absolute z-[15] hidden rounded-[7px] border-2 border-brand-500/70 bg-brand-500/15 data-[conflict=true]:border-destructive/70 data-[conflict=true]:bg-destructive/15"
-                />
+                  data-conflict="false"
+                  className="group pointer-events-none absolute z-[15] hidden overflow-hidden rounded-[7px] bg-brand-500 data-[conflict=true]:bg-destructive"
+                >
+                  <div className="absolute rounded-[6px] bg-brand-500/20 group-data-[conflict=true]:bg-destructive/20" />
+                </div>
               </div>
             </div>
-          </div>
-        )}
-
-        {/* "Bron yo'q" — kalendarni CHIQARMASDAN (grid ostida ko'rinib turadi) ustidan suzuvchi
-            ishora. pointer-events-none: ostidagi drag-to-create catcher'lari ishlashda davom etadi —
-            foydalanuvchi bo'sh katak bo'ylab sudrab birinchi bronni ocha oladi. Body viewport'i
-            ustida markazlashadi (rail/header'dan tashqarida) va scroll'da joyida qoladi. */}
-        {showNoBookings && (
-          <div
-            className="pointer-events-none absolute z-20 flex flex-col items-center justify-center gap-1 px-8 text-center"
-            style={{ top: headerHeight, left: railWidth, right: 0, bottom: 0 }}
-          >
-            <p className="text-sm font-medium text-neutral-700">{labels.emptyTitle}</p>
-            <p className="max-w-xs text-xs text-neutral-500">{labels.emptyHint}</p>
           </div>
         )}
 

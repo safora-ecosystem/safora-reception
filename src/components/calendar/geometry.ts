@@ -59,6 +59,29 @@ export function hasConflict(
   )
 }
 
+export function freeSpanAround(
+  roomId: string,
+  startCol: number,
+  bookings: CalendarBooking[],
+  originDay: number,
+  minCol: number,
+  maxCol: number,
+): { lo: number; hi: number } {
+  let lo = minCol
+  let hi = maxCol
+  for (const b of bookings) {
+    if (b.roomId !== roomId || !OCCUPYING.includes(b.status)) continue
+    const bs = epochDay(b.start) - originDay
+    const be = epochDay(b.end) - originDay
+    if (be <= startCol) {
+      if (be > lo) lo = be
+    } else if (bs > startCol) {
+      if (bs - 1 < hi) hi = bs - 1
+    }
+  }
+  return { lo, hi }
+}
+
 
 export interface BarRect {
   left: number
@@ -97,6 +120,58 @@ export function barRect(
   }
 }
 
+export function barClipPath(
+  width: number,
+  height: number,
+  clippedStart: boolean,
+  clippedEnd: boolean,
+): string {
+  const k = Math.min(Math.round(height * 0.5), Math.round(width * 0.34), 16)
+  if (k < 3) return ""
+  const leftTop = clippedStart ? 0 : k
+  const rightBottom = clippedEnd ? width : width - k
+  return `polygon(${leftTop}px 0, ${width}px 0, ${rightBottom}px ${height}px, 0 ${height}px)`
+}
+
+/**
+ * Drag/ghost overlay'ni AYNAN CalendarBar shakliga soladi — ref bilan imperativ (render'dan
+ * tashqari, 60fps). Ikki qatlam: `el` = tashqi chegara qatlami, birinchi bolasi = ichki fill
+ * (2px inset), ikkalasiga ham diagonal `barClipPath`. Shu sabab tanlov to'rtburchak emas, "aktiv
+ * bron" ko'rinishida bo'ladi. `conflict` → `data-conflict` (rang CSS'da almashadi). Yaratish ham,
+ * ko'chirish ham SHU bilan bo'yaydi, shakl bir manbadan keladi.
+ */
+export function paintSelectionShape(
+  el: HTMLElement,
+  left: number,
+  width: number,
+  top: number,
+  height: number,
+  clippedStart: boolean,
+  clippedEnd: boolean,
+  conflict: boolean,
+): void {
+  el.style.display = "block"
+  el.style.left = `${left}px`
+  el.style.width = `${width}px`
+  el.style.top = `${top}px`
+  el.style.height = `${height}px`
+  el.style.clipPath = barClipPath(width, height, clippedStart, clippedEnd) || "none"
+  el.dataset.conflict = conflict ? "true" : "false"
+
+  const inner = el.firstElementChild as HTMLElement | null
+  if (inner) {
+    const inset = 2
+    const iw = Math.max(0, width - 2 * inset)
+    const ih = Math.max(0, height - 2 * inset)
+    inner.style.left = `${inset}px`
+    inner.style.top = `${inset}px`
+    inner.style.width = `${iw}px`
+    inner.style.height = `${ih}px`
+    inner.style.clipPath = barClipPath(iw, ih, clippedStart, clippedEnd) || "none"
+  }
+}
+
+/** Drag paytida clientX → ustun indeksi (clamp qilinmagan; chaqiruvchi clamp qiladi). */
 export function columnFromX(
   clientX: number,
   scrollerLeft: number,
@@ -107,6 +182,7 @@ export function columnFromX(
   return Math.floor((clientX - scrollerLeft + scrollLeft - railWidth) / dayWidth)
 }
 
+// ── Lane modeli (guruh sarlavhasi + xona satrlari) ────────────────────────────
 
 export type Lane =
   | { kind: "group"; id: string; group: string; count: number; collapsed: boolean }
@@ -122,6 +198,11 @@ function compareRooms(a: CalendarRoom, b: CalendarRoom): number {
   return roomOrder(a) - roomOrder(b) || a.label.localeCompare(b.label)
 }
 
+/**
+ * Xonalarni tekis lane ro'yxatiga aylantiradi. groupByFloor bo'lsa har guruh oldiga
+ * sarlavha lane qo'yiladi va collapsed guruhlarning xonalari tushirib qoldiriladi.
+ * Guruh tartibi = saralangan xonalarda birinchi uchrash tartibi (xona raqami qavatni kodlaydi).
+ */
 export function buildLanes(
   rooms: CalendarRoom[],
   groupByFloor: boolean,
@@ -142,6 +223,7 @@ export function buildLanes(
 
   const lanes: Lane[] = []
   for (const [key, groupRooms] of groups) {
+    // Guruhsiz xonalar (key === "") sarlavhasiz to'g'ridan-to'g'ri chiqadi.
     if (key === "") {
       for (const room of groupRooms) lanes.push({ kind: "room", id: room.id, room })
       continue

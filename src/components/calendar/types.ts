@@ -41,6 +41,7 @@ export interface CalendarRange {
 export interface StatusVisual {
   bar: string
   text?: string
+  border?: string
   hidden?: boolean
 }
 
@@ -60,8 +61,6 @@ export interface CalendarLabels {
   stay: string
   payment: string
   today: string
-  emptyTitle: string
-  emptyHint: string
   noRoomsTitle: string
   noRoomsHint: string
   newBooking: string

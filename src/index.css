@@ -92,6 +92,16 @@
   --color-warning-surface-foreground: var(--warning-surface-foreground);
   --color-destructive-surface: var(--destructive-surface);
   --color-destructive-surface-foreground: var(--destructive-surface-foreground);
+  
+  --color-cal-in-surface: var(--cal-in-surface);
+  --color-cal-in-foreground: var(--cal-in-foreground);
+  --color-cal-in-border: var(--cal-in-border);
+  --color-cal-booked-surface: var(--cal-booked-surface);
+  --color-cal-booked-foreground: var(--cal-booked-foreground);
+  --color-cal-booked-border: var(--cal-booked-border);
+  --color-cal-out-surface: var(--cal-out-surface);
+  --color-cal-out-foreground: var(--cal-out-foreground);
+  --color-cal-out-border: var(--cal-out-border);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -165,6 +175,17 @@
   --destructive-foreground: #ffffff;
   --destructive-surface: #fdeaea;
   --destructive-surface-foreground: #b91c1c;
+
+  
+  --cal-in-surface: #c3e2cd; 
+  --cal-in-foreground: #1c6742;
+  --cal-in-border: #9dcaaf;
+  --cal-booked-surface: #ccd3f1; 
+  --cal-booked-foreground: #384896;
+  --cal-booked-border: #b0bce9;
+  --cal-out-surface: #e8e6e2; 
+  --cal-out-foreground: #8a837b;
+  --cal-out-border: #d3cfc9;
 
   --border: var(--color-neutral-200);
   --input: var(--color-neutral-200);

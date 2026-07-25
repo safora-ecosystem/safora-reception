@@ -1,6 +1,6 @@
 import { memo } from "react"
 import { cn } from "@/lib/utils"
-import { BAR_VPAD, epochDay, nightsBetween, type BarRect } from "./geometry"
+import { BAR_VPAD, barClipPath, epochDay, nightsBetween, type BarRect } from "./geometry"
 import type { CalendarMoveHandlers } from "./use-calendar-move"
 import type { CalendarBooking, CalendarLabels, CalendarPayment, StatusVisual } from "./types"
 
@@ -64,6 +64,23 @@ function CalendarBarImpl({
   const nights = nightsBetween(booking.start, booking.end)
   const overdue = booking.status === "checked_in" && epochDay(booking.end) < epochDay(today)
   const showPayment = booking.payment != null && rect.width >= 64
+  const barHeight = rowHeight - 2 * BAR_VPAD
+
+  // Ikki qatlam (tape-chart bar): TASHQI = chegara rangi + diagonal shakl, ICHKI = fill (1px inset).
+  // clip-path CSS border'ni ham, ring'ni ham diagonal uchda kesib tashlaydi — shuning uchun chegara
+  // shu inset mexanizmi orqali beriladi va u qiya uchni ham to'g'ri qamrab, shaklga MOS 1px chiziq
+  // chizadi. Tanlangan (brand) / overdue (amber) holatida chegara 2px va urg'uli rangda.
+  const emphasize = selected || overdue
+  const inset = emphasize ? 2 : 1
+  const outerClip = barClipPath(rect.width, barHeight, rect.clippedStart, rect.clippedEnd)
+  const innerClip = barClipPath(
+    rect.width - 2 * inset,
+    barHeight - 2 * inset,
+    rect.clippedStart,
+    rect.clippedEnd,
+  )
+  // Tanlangan = brand (design.md: "aktiv holat = brand"), overdue = amber (semantik), aks holda status chegarasi.
+  const borderBg = selected ? "bg-brand-500" : overdue ? "bg-warning" : visual.border
 
   const title =
     `${booking.label} · ${fmtDay(booking.start, labels)} – ${fmtDay(booking.end, labels)} · ${labels.nights(nights)}` +
@@ -89,25 +106,44 @@ function CalendarBarImpl({
       title={title}
       aria-label={title}
       className={cn(
-        "absolute z-10 flex items-center gap-1.5 overflow-hidden rounded-[7px] px-2 text-left text-[0.75rem] font-medium transition-[filter,background-color,opacity] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:outline-none",
-        visual.bar,
-        visual.text,
-        movable && "cursor-grab active:cursor-grabbing",
+        // Tashqi = chegara qatlami. Klaviatura fokusi clip ostida ring bermaydi → chegara brand bo'ladi.
+        "absolute z-10 overflow-hidden rounded-[7px] transition-[opacity] focus-visible:bg-brand-500 focus-visible:outline-none",
+        borderBg,
+        // touch-none: touch/pen'da sudrash gestini brauzer scroll uchun o'g'irlamasin (ko'chirish ishlasin).
+        movable && "cursor-grab touch-none active:cursor-grabbing",
         dimmed && "opacity-25",
+        selected && "z-20",
         rect.clippedStart && "rounded-l-none",
         rect.clippedEnd && "rounded-r-none",
-        overdue && "ring-2 ring-warning ring-inset",
-        selected && "z-20 ring-2 ring-neutral-900/40 ring-inset",
       )}
       style={{
         left: rect.left,
         width: rect.width,
         top: rowTop + BAR_VPAD,
-        height: rowHeight - 2 * BAR_VPAD,
+        height: barHeight,
+        clipPath: outerClip || undefined,
       }}
     >
-      <span className="min-w-0 flex-1 truncate">{booking.label}</span>
-      {showPayment && booking.payment && <PaymentGlyph payment={booking.payment} />}
+      {/* Ichki fill — ism CHAPDA. `text-left` SHART: native <button> UA-default `text-align: center`
+          ni meros qiladi, uni bosmasak ism markazда qoladi (justify emas, TEXT-ALIGN masalasi).
+          To'lov glifi ism YONIDA (o'ng chekkaga surilmaydi) — flex oqimida, gap bilan. */}
+      <span
+        className={cn(
+          "absolute flex items-center gap-1.5 overflow-hidden rounded-[6px] pr-2.5 pl-3.5 text-left text-[0.8125rem] font-medium transition-[filter,background-color]",
+          visual.bar,
+          visual.text,
+        )}
+        style={{
+          top: inset,
+          left: inset,
+          right: inset,
+          bottom: inset,
+          clipPath: innerClip || undefined,
+        }}
+      >
+        <span className="min-w-0 truncate">{booking.label}</span>
+        {showPayment && booking.payment && <PaymentGlyph payment={booking.payment} />}
+      </span>
     </button>
   )
 }

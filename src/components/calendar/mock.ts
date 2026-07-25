@@ -13,6 +13,13 @@ function mulberry32(seed: number): () => number {
 }
 
 const ROOM_TYPES = ["Standart", "Standart", "Lyuks", "Yarim lyuks", "Oila", "Deluxe"]
+const RATE_BY_TYPE: Record<string, number> = {
+  Standart: 250_000,
+  Lyuks: 650_000,
+  "Yarim lyuks": 450_000,
+  Oila: 550_000,
+  Deluxe: 400_000,
+}
 const FIRST = [
   "Aziz", "Dilnoza", "Sardor", "Malika", "Jasur", "Nigora", "Bekzod", "Kamola",
   "Ravshan", "Zilola", "Otabek", "Sevara", "Ulug'bek", "Gulnora", "Sherzod", "Madina",
@@ -43,12 +50,14 @@ export function generateMockData(opts: MockOptions = {}): {
   for (let i = 0; i < roomCount; i++) {
     const floor = Math.floor(i / perFloor) + 1
     const num = floor * 100 + (i % perFloor) + 1
+    const type = pick(ROOM_TYPES)
     rooms.push({
       id: `room-${num}`,
       label: String(num),
       group: `${floor}-qavat`,
-      sublabel: pick(ROOM_TYPES),
+      sublabel: type,
       order: num,
+      rate: RATE_BY_TYPE[type] ?? 300_000,
     })
   }
 

@@ -1,13 +1,32 @@
+import { useEffect, useRef } from "react"
 import { Message02Icon, NotificationBubbleIcon, Search01Icon } from "@hugeicons/core-free-icons"
 import { Button } from "@/components/ui/button"
 import { Icon } from "@/components/ui/icon"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { getSession } from "@/lib/auth"
+import { useTopbarSearch } from "@/lib/topbar-search"
 
 export function Topbar() {
   const user = getSession()?.user
   const initial = (user?.name ?? "?").trim().charAt(0).toUpperCase()
+
+  const { query, setQuery } = useTopbarSearch()
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const cmdK = (e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k"
+      if (cmdK) {
+        e.preventDefault()
+        inputRef.current?.focus()
+        inputRef.current?.select()
+      }
+    }
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [])
+
   return (
     <header className="flex h-[4.5rem] shrink-0 items-center gap-3 rounded-panel border border-border bg-white px-4">
       {}
@@ -18,7 +37,11 @@ export function Topbar() {
           strokeWidth={1.75}
         />
         <Input
+          ref={inputRef}
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
           placeholder="Mehmon, bron yoki xona qidiring"
+          aria-label="Qidirish"
           className="h-11 rounded-panel border border-border bg-card pr-16 pl-11 text-[0.9375rem] placeholder:text-neutral-400"
         />
         {}

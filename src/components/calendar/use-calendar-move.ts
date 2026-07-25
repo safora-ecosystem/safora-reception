@@ -1,5 +1,15 @@
 import { useCallback, useMemo, useRef, type PointerEvent as ReactPointerEvent, type RefObject } from "react"
-import { BAR_VPAD, columnFromX, epochDay, hasConflict, isoFromEpochDay, roomLaneAtY, type Lane } from "./geometry"
+import {
+  BAR_VPAD,
+  barRect,
+  columnFromX,
+  epochDay,
+  hasConflict,
+  isoFromEpochDay,
+  paintSelectionShape,
+  roomLaneAtY,
+  type Lane,
+} from "./geometry"
 import type { CalendarBooking, CalendarDraft } from "./types"
 
 
@@ -21,6 +31,7 @@ interface MoveConfig {
   railWidth: number
   headerHeight: number
   groupHeight: number
+  today: string
   lanes: Lane[]
   laneTops: number[]
   bookings: CalendarBooking[]
@@ -35,15 +46,14 @@ interface MoveState {
   laneIndex: number
   originCol: number
   originLaneIndex: number
-  scrollerLeft: number
-  scrollerTop: number
-  scrollLeft: number
-  scrollTop: number
   pointerId: number
   dragged: boolean
 }
 
 const clamp = (n: number, lo: number, hi: number) => (n < lo ? lo : n > hi ? hi : n)
+
+const EDGE = 56
+const MAX_SPEED = 22
 
 function draftOf(s: MoveState, originDay: number, lanes: Lane[]): CalendarDraft {
   const lane = lanes[s.laneIndex]
@@ -57,39 +67,116 @@ function draftOf(s: MoveState, originDay: number, lanes: Lane[]): CalendarDraft 
 export function useCalendarMove(config: MoveConfig): CalendarMoveHandlers {
   const stateRef = useRef<MoveState | null>(null)
   const suppressClickRef = useRef(false)
+  const pointerRef = useRef({ x: 0, y: 0 })
+  const rafRef = useRef<number | null>(null)
 
   const paint = useCallback(() => {
     const s = stateRef.current
     const ov = config.overlayRef.current
     if (!s || !ov) return
     const draft = draftOf(s, config.originDay, config.lanes)
-    ov.style.display = "block"
-    ov.style.left = `${(s.startCol + 0.5) * config.dayWidth}px`
-    ov.style.width = `${s.nights * config.dayWidth}px`
-    ov.style.top = `${config.laneTops[s.laneIndex] + BAR_VPAD}px`
-    ov.style.height = `${config.rowHeight - 2 * BAR_VPAD}px`
-    ov.dataset.conflict = hasConflict(draft, config.bookings, s.booking.id) ? "true" : "false"
+    const bodyWidth = config.days * config.dayWidth
+    const r = barRect(draft.start, draft.end, config.originDay, config.dayWidth, bodyWidth)
+    paintSelectionShape(
+      ov,
+      r.left,
+      r.width,
+      config.laneTops[s.laneIndex] + BAR_VPAD,
+      config.rowHeight - 2 * BAR_VPAD,
+      r.clippedStart,
+      r.clippedEnd,
+      hasConflict(draft, config.bookings, s.booking.id),
+    )
   }, [config])
+
+  const apply = useCallback(() => {
+    const s = stateRef.current
+    const scroller = config.scrollRef.current
+    if (!s || !scroller) return
+    const rect = scroller.getBoundingClientRect()
+    const { x, y } = pointerRef.current
+    const minDay = Math.max(0, epochDay(config.today) - config.originDay)
+    const col = clamp(
+      columnFromX(x, rect.left, scroller.scrollLeft, config.railWidth, config.dayWidth) - s.grabOffset,
+      minDay,
+      Math.max(minDay, config.days - s.nights),
+    )
+    const yLocal = y - rect.top + scroller.scrollTop - config.headerHeight
+    const lane = roomLaneAtY(yLocal, config.lanes, config.laneTops, config.rowHeight, config.groupHeight)
+    const nextLane = lane >= 0 ? lane : s.laneIndex
+    if (col === s.startCol && nextLane === s.laneIndex) return
+    s.startCol = col
+    s.laneIndex = nextLane
+    s.dragged = true
+    paint()
+  }, [config, paint])
+
+  const stopAutoScroll = useCallback(() => {
+    if (rafRef.current != null) {
+      cancelAnimationFrame(rafRef.current)
+      rafRef.current = null
+    }
+  }, [])
+
+  const tick = useCallback(() => {
+    const s = stateRef.current
+    const scroller = config.scrollRef.current
+    if (!s || !scroller) {
+      rafRef.current = null
+      return
+    }
+    const rect = scroller.getBoundingClientRect()
+    const { x, y } = pointerRef.current
+    const leftEdge = rect.left + config.railWidth
+    const topEdge = rect.top + config.headerHeight
+    const ramp = (depth: number) => Math.ceil((Math.min(depth, EDGE) / EDGE) * MAX_SPEED)
+    let dx = 0
+    let dy = 0
+    if (x < leftEdge + EDGE) dx = -ramp(leftEdge + EDGE - x)
+    else if (x > rect.right - EDGE) dx = ramp(x - (rect.right - EDGE))
+    if (y < topEdge + EDGE) dy = -ramp(topEdge + EDGE - y)
+    else if (y > rect.bottom - EDGE) dy = ramp(y - (rect.bottom - EDGE))
+    if (dx === 0 && dy === 0) {
+      rafRef.current = null
+      return
+    }
+    scroller.scrollLeft += dx
+    scroller.scrollTop += dy
+    apply()
+    rafRef.current = requestAnimationFrame(tick)
+  }, [config, apply])
+
+  const syncAutoScroll = useCallback(() => {
+    const scroller = config.scrollRef.current
+    if (!scroller) return
+    const rect = scroller.getBoundingClientRect()
+    const { x, y } = pointerRef.current
+    const near =
+      x < rect.left + config.railWidth + EDGE ||
+      x > rect.right - EDGE ||
+      y < rect.top + config.headerHeight + EDGE ||
+      y > rect.bottom - EDGE
+    if (near) {
+      if (rafRef.current == null) rafRef.current = requestAnimationFrame(tick)
+    } else {
+      stopAutoScroll()
+    }
+  }, [config, tick, stopAutoScroll])
 
   const start = useCallback(
     (e: ReactPointerEvent, booking: CalendarBooking) => {
-      // Har yangi jest bayroqni tozalaydi. Sudrash tugagach `click` KELMASLIGI mumkin (bar
-      // virtualizatsiya yoki auto-refresh tufayli DOM'dan chiqib ketsa) — o'shanda bayroq
-      // `true` bo'lib qolib, keyingi haqiqiy klikni yutib yuborardi.
       suppressClickRef.current = false
-      // Ko'chirish faqat kelmagan mehmon uchun — server ham aynan shuni majburlaydi (409).
       if (e.button !== 0 || booking.status !== "booked") return
       const scroller = config.scrollRef.current
       if (!scroller) return
       const rect = scroller.getBoundingClientRect()
-      const scrollLeft = scroller.scrollLeft
-      const scrollTop = scroller.scrollTop
       const startCol = epochDay(booking.start) - config.originDay
-      const pointerCol = columnFromX(e.clientX, rect.left, scrollLeft, config.railWidth, config.dayWidth)
-      const y = e.clientY - rect.top + scrollTop - config.headerHeight
+      const pointerCol = columnFromX(e.clientX, rect.left, scroller.scrollLeft, config.railWidth, config.dayWidth)
+      const y = e.clientY - rect.top + scroller.scrollTop - config.headerHeight
       const laneIndex = roomLaneAtY(y, config.lanes, config.laneTops, config.rowHeight, config.groupHeight)
       if (laneIndex < 0) return
 
+      pointerRef.current = { x: e.clientX, y: e.clientY }
       stateRef.current = {
         booking,
         nights: epochDay(booking.end) - epochDay(booking.start),
@@ -98,39 +185,22 @@ export function useCalendarMove(config: MoveConfig): CalendarMoveHandlers {
         laneIndex,
         originCol: startCol,
         originLaneIndex: laneIndex,
-        scrollerLeft: rect.left,
-        scrollerTop: rect.top,
-        scrollLeft,
-        scrollTop,
         pointerId: e.pointerId,
         dragged: false,
       }
       e.currentTarget.setPointerCapture(e.pointerId)
-      // Ataylab paint YO'Q: oddiy klikda ghost miltillamasin.
     },
     [config],
   )
 
   const move = useCallback(
     (e: ReactPointerEvent) => {
-      const s = stateRef.current
-      if (!s) return
-      const col = clamp(
-        columnFromX(e.clientX, s.scrollerLeft, s.scrollLeft, config.railWidth, config.dayWidth) - s.grabOffset,
-        0,
-        Math.max(0, config.days - s.nights),
-      )
-      const y = e.clientY - s.scrollerTop + s.scrollTop - config.headerHeight
-      const lane = roomLaneAtY(y, config.lanes, config.laneTops, config.rowHeight, config.groupHeight)
-      const nextLane = lane >= 0 ? lane : s.laneIndex // guruh sarlavhasi ustida — oxirgi xonada qolamiz
-
-      if (col === s.startCol && nextLane === s.laneIndex) return
-      s.startCol = col
-      s.laneIndex = nextLane
-      s.dragged = true
-      paint()
+      if (!stateRef.current) return
+      pointerRef.current = { x: e.clientX, y: e.clientY }
+      apply()
+      syncAutoScroll()
     },
-    [config, paint],
+    [apply, syncAutoScroll],
   )
 
   const hide = useCallback(() => {
@@ -143,28 +213,29 @@ export function useCalendarMove(config: MoveConfig): CalendarMoveHandlers {
       const s = stateRef.current
       if (!s) return
       stateRef.current = null
+      stopAutoScroll()
       hide()
       try {
         e.currentTarget.releasePointerCapture(s.pointerId)
       } catch {
-        /* capture allaqachon yo'qolgan bo'lishi mumkin */
       }
 
-      if (!s.dragged) return // qimirlamadi — bu klik, selection o'z yo'lida ketsin
+      if (!s.dragged) return
       suppressClickRef.current = true
 
-      if (s.startCol === s.originCol && s.laneIndex === s.originLaneIndex) return // joyiga qaytdi
+      if (s.startCol === s.originCol && s.laneIndex === s.originLaneIndex) return
       const draft = draftOf(s, config.originDay, config.lanes)
-      if (hasConflict(draft, config.bookings, s.booking.id)) return // band — jim rad etamiz (ghost qizil edi)
+      if (hasConflict(draft, config.bookings, s.booking.id)) return
       config.onCommit(s.booking.id, draft)
     },
-    [config, hide],
+    [config, hide, stopAutoScroll],
   )
 
   const cancel = useCallback(() => {
     stateRef.current = null
+    stopAutoScroll()
     hide()
-  }, [hide])
+  }, [hide, stopAutoScroll])
 
   const consumeClick = useCallback(() => {
     const v = suppressClickRef.current
@@ -172,7 +243,6 @@ export function useCalendarMove(config: MoveConfig): CalendarMoveHandlers {
     return v
   }, [])
 
-  // Barqaror obyekt — `CalendarBar` React.memo'si buzilmasin (perf shartnomasi #4).
   return useMemo(
     () => ({ start, move, finish, cancel, consumeClick }),
     [start, move, finish, cancel, consumeClick],

@@ -3,16 +3,19 @@ import type { StatusConfig } from "./types"
 
 export const defaultStatusConfig: StatusConfig = {
   booked: {
-    bar: "bar-hatch hairline hover:brightness-[0.97]",
-    text: "text-neutral-700",
+    bar: "bg-cal-booked-surface hover:brightness-[0.97]",
+    text: "text-cal-booked-foreground",
+    border: "bg-cal-booked-border",
   },
   checked_in: {
-    bar: "bg-brand-400 hover:bg-brand-500",
-    text: "text-white",
+    bar: "bg-cal-in-surface hover:brightness-[0.97]",
+    text: "text-cal-in-foreground",
+    border: "bg-cal-in-border",
   },
   checked_out: {
-    bar: "bg-neutral-100 hairline hover:brightness-[0.98]",
-    text: "text-neutral-400",
+    bar: "bg-cal-out-surface hover:brightness-[0.99]",
+    text: "text-cal-out-foreground",
+    border: "bg-cal-out-border",
   },
   cancelled: {
     bar: "",
