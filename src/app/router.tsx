@@ -1,11 +1,12 @@
 import { createRootRoute, createRoute, createRouter, redirect } from "@tanstack/react-router"
-import { ClipboardList, DoorOpen, LifeBuoy, MessagesSquare } from "lucide-react"
+import { ClipboardList, DoorOpen, LifeBuoy } from "lucide-react"
 import { RootLayout } from "./root-layout"
 import { LoginPage } from "@/routes/login-page"
 import { StatistikaPage } from "@/routes/statistika-page"
 import { CalendarPage } from "@/routes/calendar-page"
 import { SettingsPage } from "@/routes/settings-page"
 import { PlaceholderPage } from "@/routes/placeholder-page"
+import { ChatPage } from "@/routes/chat-page"
 import { staffLogout } from "@/lib/api"
 import { isAuthed } from "@/lib/auth"
 
@@ -65,9 +66,7 @@ const requestsRoute = createRoute({
 const chatRoute = createRoute({
   getParentRoute: () => appLayoutRoute,
   path: "/chat",
-  component: () => (
-    <PlaceholderPage title="Suhbat" description="Mehmonlar bilan yozishmalar." icon={MessagesSquare} />
-  ),
+  component: ChatPage,
 })
 
 const settingsRoute = createRoute({

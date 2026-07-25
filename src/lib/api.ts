@@ -270,6 +270,57 @@ export type PanelNotice = { level: NoticeLevel; message: string; updatedAt: stri
     bilishi kerak. */
 export const getPanelNotice = () => api<PanelNotice>("/platform/notice?panel=reception")
 
+// ── Chat (mehmon ↔ reception) ─────────────────────────────────────────────────
+
+export type ChatSender = "guest" | "staff"
+
+/** Inbox qatori — bir booking = bitta suhbat. Oxirgi xabar + o'qilmagan soni serverdan keladi. */
+export type ChatConversation = {
+  bookingId: string
+  roomNumber: string
+  guestName: string
+  bookingStatus: BookingStatus
+  lastMessageAt: string
+  lastMessagePreview: string | null
+  lastMessageSender: ChatSender | null
+  unread: number
+}
+
+export type ChatMessage = {
+  id: string
+  bookingId: string
+  senderType: ChatSender
+  /** staff xabari — javob bergan xodim id'si; mehmon xabari — null. */
+  senderUserId: string | null
+  text: string
+  createdAt: string
+}
+
+/** Keyset sahifa: items yangi→eski tartibda; nextCursor = eskiroq sahifa uchun (yoki null). */
+export type ChatPage<T> = { items: T[]; nextCursor: string | null }
+
+export const listConversations = () => api<ChatPage<ChatConversation>>("/chat/conversations")
+
+export const listChatMessages = (bookingId: string, cursor?: string) => {
+  const qs = cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""
+  return api<ChatPage<ChatMessage>>(`/chat/conversations/${bookingId}/messages${qs}`)
+}
+
+export const sendChatMessage = (bookingId: string, text: string) =>
+  api<ChatMessage>(`/chat/conversations/${bookingId}/messages`, { method: "POST", body: { text } })
+
+// POST bodyless — api() content-type qo'ymaydi (Fastify bo'sh-body gotcha).
+export const markChatRead = (bookingId: string) =>
+  api<{ ok: true }>(`/chat/conversations/${bookingId}/read`, { method: "POST" })
+
+/** Real-time: connection token + WS URL (Centrifugo). Reception connect'da o'z inbox'iga avto-obuna. */
+export const chatRtConnect = () =>
+  api<{ token: string; url: string }>("/chat/rt/connect", { method: "POST" })
+
+/** Bitta suhbat kanaliga subscription token — server tenant/booking'ni tekshiradi (begonaga 403). */
+export const chatRtSubscribe = (channel: string) =>
+  api<{ token: string }>("/chat/rt/subscribe", { method: "POST", body: { channel } })
+
 export function staffLogin(
   staffHandle: string,
   password: string,

@@ -2,7 +2,7 @@ import { useState } from "react"
 import { Link, useRouterState } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
 import { Icon } from "@/components/ui/icon"
-import { getHotelBranding } from "@/lib/api"
+import { getHotelBranding, listConversations } from "@/lib/api"
 import { cn } from "@/lib/utils"
 import { navItems, systemNavItems, type NavItem } from "./nav"
 import { ShiftCard } from "./shift-card"
@@ -88,6 +88,18 @@ export function Sidebar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const isActive = (to: string) => (to === "/" ? pathname === "/" : pathname.startsWith(to))
 
+  const conversations = useQuery({
+    queryKey: ["chat", "conversations"],
+    queryFn: listConversations,
+    staleTime: 15_000,
+    refetchInterval: 30_000,
+  })
+  const chatUnread = conversations.data?.items.reduce((sum, c) => sum + c.unread, 0) ?? 0
+  const badgeFor = (item: NavItem): NavItem =>
+    item.to === "/chat" && chatUnread > 0
+      ? { ...item, badge: chatUnread > 99 ? "99+" : String(chatUnread) }
+      : item
+
   return (
     <aside className="flex w-60 shrink-0 flex-col overflow-hidden rounded-panel border border-border bg-white">
       {}
@@ -100,7 +112,7 @@ export function Sidebar() {
         <SectionLabel>Menyu</SectionLabel>
         <nav className="flex flex-col gap-0.5">
           {navItems.map((item) => (
-            <NavRow key={item.to} item={item} active={isActive(item.to)} />
+            <NavRow key={item.to} item={badgeFor(item)} active={isActive(item.to)} />
           ))}
         </nav>
 
