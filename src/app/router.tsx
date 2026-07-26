@@ -4,6 +4,7 @@ import { LoginPage } from "@/routes/login-page"
 import { StatistikaPage } from "@/routes/statistika-page"
 import { CalendarPage } from "@/routes/calendar-page"
 import { GuestsPage } from "@/routes/guests-page"
+import { GuestsArchivePage } from "@/routes/guests-archive-page"
 import { RequestsPage } from "@/routes/requests-page"
 import { HelpPage } from "@/routes/help-page"
 import { SettingsPage } from "@/routes/settings-page"
@@ -46,6 +47,12 @@ const guestsRoute = createRoute({
   component: GuestsPage,
 })
 
+const guestsArchiveRoute = createRoute({
+  getParentRoute: () => appLayoutRoute,
+  path: "/guests/archive",
+  component: GuestsArchivePage,
+})
+
 const requestsRoute = createRoute({
   getParentRoute: () => appLayoutRoute,
   path: "/requests",
@@ -86,6 +93,7 @@ const routeTree = rootRoute.addChildren([
     statistikaRoute,
     calendarRoute,
     guestsRoute,
+    guestsArchiveRoute,
     requestsRoute,
     chatRoute,
     settingsRoute,

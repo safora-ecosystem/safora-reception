@@ -1,13 +1,13 @@
 
 export const CHART_SERIES = [
   "#f2570f",
+  "#0d9488",
   "#1f5fa9",
-  "#0d9f6e",
-  "#7c5cff",
   "#b45309",
-  "#0891b2",
+  "#7c5cff",
   "#d6336c",
   "#4d7c0f",
+  "#0891b2",
 ] as const
 
 export const CHART_PRIMARY = CHART_SERIES[0]

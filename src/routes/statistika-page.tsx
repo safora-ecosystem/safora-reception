@@ -146,7 +146,7 @@ export function StatistikaPage() {
             ya'ni KONTENTIDAN kichrayolmaydi. Band kunda "Bugungi harakat" ro'yxati uzun bo'lib
             butun qatorni cho'zib yuborardi (yonidagi bandlik grafigi ekran bo'yiga sudralardi),
             ro'yxatning o'z ichki scroll'i esa hech qachon ishga tushmasdi. */}
-        <div className="grid grid-cols-1 gap-4 xl:min-h-[21rem] xl:grow xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)] xl:grid-rows-1 xl:[&>*]:min-h-0">
+        <div className="grid grid-cols-1 gap-4 xl:max-h-[30rem] xl:min-h-[21rem] xl:grow xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)] xl:grid-rows-1 xl:[&>*]:min-h-0">
           <WeeklyOccupancy days={week.days} todayIndex={week.todayIndex} />
 
           <ChatPanel />

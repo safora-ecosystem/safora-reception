@@ -342,7 +342,13 @@ export type DirectoryGuest = {
   note: string | null
 }
 
-export const listGuests = () => api<DirectoryGuest[]>("/guests")
+/** `scope=active` (sukut) — faqat joylashgan/kutilayotgan odamlar. `archive` — chiqib
+    ketganlar, qidiruv SERVER tomonda. Sahifa ochilishida butun tarix ko'tarilmasin. */
+export const listGuests = (scope: "active" | "archive" = "active", search?: string) => {
+  const q = new URLSearchParams({ scope })
+  if (search) q.set("search", search)
+  return api<DirectoryGuest[]>(`/guests?${q}`)
+}
 
 // ── Xizmat so'rovlari (GET/POST/PATCH /service-requests) ─────────────────────
 
