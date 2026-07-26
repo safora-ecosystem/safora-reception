@@ -1,11 +1,14 @@
-import { Outlet } from "@tanstack/react-router"
+import { Outlet, useLocation } from "@tanstack/react-router"
 import { NoticeBanner } from "@/components/layout/notice-banner"
 import { Sidebar } from "@/components/layout/sidebar"
 import { Topbar } from "@/components/layout/topbar"
 import { PageHeaderProvider } from "@/lib/page-header"
 import { TopbarSearchProvider } from "@/lib/topbar-search"
+import { cn } from "@/lib/utils"
 
 export function RootLayout() {
+  const barePanel = useLocation({ select: (l) => l.pathname }) === "/chat"
+
   return (
     <PageHeaderProvider>
       <TopbarSearchProvider>
@@ -16,7 +19,12 @@ export function RootLayout() {
             {}
             <NoticeBanner />
             {}
-            <main className="app-scroll flex min-h-0 flex-1 flex-col overflow-y-auto rounded-panel border border-border bg-white">
+            <main
+              className={cn(
+                "app-scroll flex min-h-0 flex-1 flex-col overflow-y-auto",
+                !barePanel && "rounded-panel border border-border bg-white",
+              )}
+            >
               <Outlet />
             </main>
           </div>
