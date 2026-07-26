@@ -86,10 +86,10 @@ export function Toggle({
   )
 }
 
-const THEMES: Array<{ value: ThemePref; label: string; hint: string }> = [
-  { value: "auto", label: "Tizim", hint: "Qurilma sozlamasiga ergashadi" },
-  { value: "light", label: "Yorug'", hint: "Doim yorug'" },
-  { value: "dark", label: "Qorong'i", hint: "Doim qorong'i" },
+const THEMES: Array<{ value: ThemePref; label: string }> = [
+  { value: "auto", label: "Avto" },
+  { value: "light", label: "Yorug'" },
+  { value: "dark", label: "Qorong'i" },
 ]
 
 function ThemePreview({ mode }: { mode: "light" | "dark" }) {
@@ -150,10 +150,7 @@ export function ThemeSection() {
                 >
                   {on && <Check className="size-2.5" strokeWidth={3} />}
                 </span>
-                <span className="min-w-0">
-                  <span className="block text-sm font-medium text-neutral-900">{t.label}</span>
-                  <span className="block text-xs text-neutral-500">{t.hint}</span>
-                </span>
+                <span className="truncate text-sm font-medium text-neutral-900">{t.label}</span>
               </span>
             </button>
           )
