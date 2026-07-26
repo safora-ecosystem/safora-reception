@@ -3,7 +3,17 @@ import { Message02Icon, NotificationBubbleIcon, Search01Icon } from "@hugeicons/
 import { Button } from "@/components/ui/button"
 import { Icon } from "@/components/ui/icon"
 import { Input } from "@/components/ui/input"
+import { Link } from "@tanstack/react-router"
+import { ChevronDown, LogOut, UserRound } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { getSession, ROLE_LABEL } from "@/lib/auth"
 import { usePageHeader } from "@/lib/page-header"
 import { useTopbarSearch } from "@/lib/topbar-search"
@@ -84,15 +94,41 @@ export function Topbar() {
 
         <span className="mx-1 hidden h-7 w-px bg-border sm:block" aria-hidden />
 
-        <div className="flex items-center gap-2.5 pr-1">
-          <Avatar size="lg">
-            <AvatarFallback>{initial}</AvatarFallback>
-          </Avatar>
-          <div className="hidden leading-tight lg:block">
-            <p className="text-[0.9375rem] font-medium text-neutral-900">{user?.name ?? "Xodim"}</p>
-            <p className="text-sm text-neutral-500">{user ? ROLE_LABEL[user.role] : ""}</p>
-          </div>
-        </div>
+        {}
+        <DropdownMenu>
+          <DropdownMenuTrigger className="flex items-center gap-2.5 rounded-panel px-1 py-1 outline-none transition-colors hover:bg-neutral-100 focus-visible:ring-3 focus-visible:ring-ring/40 data-[state=open]:bg-neutral-100">
+            <Avatar size="lg">
+              <AvatarFallback>{initial}</AvatarFallback>
+            </Avatar>
+            <div className="hidden leading-tight text-left lg:block">
+              <p className="text-[0.9375rem] font-medium text-neutral-900">{user?.name ?? "Xodim"}</p>
+              <p className="text-sm text-neutral-500">{user ? ROLE_LABEL[user.role] : ""}</p>
+            </div>
+            <ChevronDown className="hidden size-4 shrink-0 text-neutral-400 lg:block" strokeWidth={2} />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuLabel className="flex flex-col gap-0.5">
+              <span className="truncate text-sm font-medium text-neutral-900">{user?.name ?? "Xodim"}</span>
+              <span className="truncate text-xs font-normal text-neutral-500 tabular-nums">
+                {user?.staffHandle ?? ""}
+              </span>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              <Link to="/settings">
+                <UserRound strokeWidth={1.75} />
+                Profil va sozlamalar
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem variant="destructive" asChild>
+              <Link to="/logout">
+                <LogOut strokeWidth={1.75} />
+                Chiqish
+              </Link>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </header>
   )

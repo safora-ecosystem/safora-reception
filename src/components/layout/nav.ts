@@ -2,7 +2,6 @@ import {
   Analytics02Icon,
   Calendar02Icon,
   HelpCircleIcon,
-  Logout03Icon,
   Message02Icon,
   Settings02Icon,
   SparklesIcon,
@@ -28,5 +27,4 @@ export const navItems: NavItem[] = [
 export const systemNavItems: NavItem[] = [
   { to: "/settings", label: "Sozlamalar", icon: Settings02Icon },
   { to: "/help", label: "Yordam", icon: HelpCircleIcon },
-  { to: "/logout", label: "Chiqish", icon: Logout03Icon },
 ]

@@ -100,23 +100,66 @@ async function sendWithRetry(path: string, options: ApiOptions, token: string | 
   }
 }
 
-// Bir vaqtda kelgan 401'lar bitta refresh so'rovini ULASHADI. Refresh token bir martalik
-// (rotatsiya) — parallel refresh'lar bir-birini revoke qilib TASODIFIY LOGOUT qilardi. Birinchi
-// chaqiruvchi refresh qiladi, qolganlari o'sha natijani kutadi.
+// Refresh — TABLAR ARASIDA ham bitta. Ilgari navbat faqat shu tab ichida edi va aynan shu
+// tasodifiy logoutning asosiy sababi bo'lgan: refresh tokeni BIR MARTALIK (server rotatsiya
+// qiladi), ya'ni bitta panelning ikkita tabi bir vaqtda yangilasa, ikkinchisining qo'lidagi
+// token o'lik bo'lib qolardi va keyingi so'rovda odam tizimdan chiqib ketardi. Front-deskda
+// esa ikki-uch tab ochiq turishi odatiy hol.
+//
+// Endi Web Locks bilan navbat: qulfni olgan tab AVVAL storage'ni qayta o'qiydi — boshqa tab
+// allaqachon yangilagan bo'lsa, umuman so'rov yubormaydi.
+const REFRESH_LOCK = "safora-refresh"
+/** Access tokenda shu vaqtdan ko'proq qolgan bo'lsa yangilash shart emas. */
+const FRESH_MARGIN_SEC = 30
+
+/** JWT `exp` — imzo TEKSHIRILMAYDI. Bu xavfsizlik qarori emas, "yangilash kerakmi?" degan
+    mahalliy savol; haqiqiy tekshiruv baribir serverda. */
+function accessExpiresAt(token: string | undefined): number {
+  if (!token) return 0
+  try {
+    const payload = token.split(".")[1]
+    const json = atob(payload.replace(/-/g, "+").replace(/_/g, "/"))
+    const { exp } = JSON.parse(json) as { exp?: number }
+    return typeof exp === "number" ? exp : 0
+  } catch {
+    return 0
+  }
+}
+
+/** Server "bu token o'lik" degan yagona holat. Tarmoq/5xx bundan FARQ qiladi. */
+class SessionExpiredError extends Error {}
+
+async function runRefresh(): Promise<Session | null> {
+  const current = getSession()
+  if (!current?.refreshToken) return null
+  // Qulfni kutayotganda boshqa tab yangilab qo'ygan bo'lishi mumkin — o'sha tokendan foydalanamiz.
+  if (accessExpiresAt(current.accessToken) - Date.now() / 1000 > FRESH_MARGIN_SEC) return current
+
+  const res = await rawFetch("/auth/refresh", {
+    method: "POST",
+    body: { refreshToken: current.refreshToken },
+  })
+  if (res.ok) {
+    const next = (await res.json()) as Session
+    updateTokens(next.accessToken, next.refreshToken)
+    return next
+  }
+  // FAQAT server tokenni rad etsa sessiya tugaydi. 5xx yoki tarmoq uzilishi vaqtinchalik
+  // nosozlik — odamni ish o'rtasida tizimdan chiqarib yuborish uchun sabab emas.
+  if (res.status === 401 || res.status === 403) throw new SessionExpiredError()
+  return null
+}
+
 let refreshInFlight: Promise<Session | null> | null = null
 
-function refreshSession(refreshToken: string): Promise<Session | null> {
-  refreshInFlight ??= rawFetch("/auth/refresh", { method: "POST", body: { refreshToken } })
-    .then(async (res) => {
-      if (!res.ok) return null
-      const next = (await res.json()) as Session
-      updateTokens(next.accessToken, next.refreshToken)
-      return next
-    })
-    .catch(() => null)
-    .finally(() => {
-      refreshInFlight = null
-    })
+function refreshSession(): Promise<Session | null> {
+  refreshInFlight ??= (
+    typeof navigator !== "undefined" && "locks" in navigator
+      ? navigator.locks.request(REFRESH_LOCK, runRefresh)
+      : runRefresh()
+  ).finally(() => {
+    refreshInFlight = null
+  })
   return refreshInFlight
 }
 
@@ -127,14 +170,20 @@ export async function api<T>(path: string, options: ApiOptions = {}): Promise<T>
   let res = await sendWithRetry(path, options, options.token ?? session?.accessToken)
 
   if (res.status === 401 && !options.token && session?.refreshToken) {
-    const next = await refreshSession(session.refreshToken)
-    if (next) {
-      res = await sendWithRetry(path, options, next.accessToken)
-    } else if (path !== "/auth/login") {
-      clearSession()
-      window.location.assign("/login")
-      throw new ApiError(401, { message: "Seans muddati tugadi — qayta kiring" })
+    let next: Session | null = null
+    try {
+      next = await refreshSession()
+    } catch (err) {
+      if (err instanceof SessionExpiredError && path !== "/auth/login") {
+        clearSession()
+        window.location.assign("/login")
+        throw new ApiError(401, { message: "Seans muddati tugadi — qayta kiring" })
+      }
+      throw err
     }
+    // `next` null bo'lsa — vaqtinchalik nosozlik. Sessiya saqlanadi, chaqiruvchi oddiy
+    // xatolikni oladi va keyingi urinishda hammasi tiklanadi.
+    if (next) res = await sendWithRetry(path, options, next.accessToken)
   }
 
   const payload = await res.json().catch(() => null)
