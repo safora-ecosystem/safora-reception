@@ -19,6 +19,8 @@ import { Button } from "@/components/ui/button"
 import { DropdownSelect } from "@/components/ui/dropdown-select"
 import { useFullscreenPanel } from "@/lib/use-fullscreen-panel"
 import { useSetPageHeader } from "@/lib/page-header"
+import { usePermissions } from "@/lib/permissions"
+import { useReadOnlyCalendar } from "@/lib/calendar-guard"
 import { useTopbarSearch } from "@/lib/topbar-search"
 import { cn } from "@/lib/utils"
 
@@ -52,15 +54,20 @@ function useMockParams(): { mock: boolean; rooms: number } {
 
 export function CalendarPage() {
   const { mock: mockMode, rooms: mockRooms } = useMockParams()
+  const { can } = usePermissions()
+  const [selfReadOnly] = useReadOnlyCalendar()
+  const canEdit = can("calendar.edit") && !selfReadOnly
   const navigate = useNavigate()
   const calRef = useRef<ReservationCalendarHandle>(null)
   const { hostRef, panelRef, expanded, toggle } = useFullscreenPanel()
   useSetPageHeader(
     "Kalendar",
-    <Button size="xl" onClick={() => calRef.current?.openCreate()}>
-      <Plus strokeWidth={2} />
-      Yangi bron
-    </Button>,
+    canEdit ? (
+      <Button size="xl" onClick={() => calRef.current?.openCreate()}>
+        <Plus strokeWidth={2} />
+        Yangi bron
+      </Button>
+    ) : undefined,
   )
   const { query, setQuery } = useTopbarSearch()
   const [view, setView] = useState<ViewKey>("hafta")
