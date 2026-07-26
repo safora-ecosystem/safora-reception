@@ -616,3 +616,30 @@ export async function staffLogout(): Promise<void> {
     clearSession()
   }
 }
+
+// ── Jamoa chati (GET/POST /chat/team) ────────────────────────────────────────
+
+export type TeamThread = {
+  user: { id: string; name: string; role: string }
+  lastMessageAt: string | null
+  lastMessagePreview: string | null
+  lastMessageMine: boolean
+  unread: number
+}
+
+export type TeamMessage = {
+  id: string
+  senderId: string
+  text: string
+  createdAt: string
+}
+
+export const listTeamThreads = () => api<TeamThread[]>("/chat/team/threads")
+export const listTeamMessages = (userId: string, before?: string) =>
+  api<{ messages: TeamMessage[] }>(
+    `/chat/team/threads/${userId}/messages${before ? `?before=${before}` : ""}`,
+  )
+export const sendTeamMessage = (userId: string, text: string) =>
+  api<TeamMessage>(`/chat/team/threads/${userId}/messages`, { method: "POST", body: { text } })
+export const markTeamRead = (userId: string) =>
+  api<{ ok: boolean }>(`/chat/team/threads/${userId}/read`, { method: "POST" })
