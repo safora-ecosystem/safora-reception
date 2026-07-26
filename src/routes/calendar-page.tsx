@@ -57,11 +57,7 @@ export function CalendarPage() {
   const { hostRef, panelRef, expanded, toggle } = useFullscreenPanel()
   useSetPageHeader(
     "Kalendar",
-    <Button
-      size="lg"
-      className="h-11 rounded-full px-5"
-      onClick={() => calRef.current?.openCreate()}
-    >
+    <Button size="xl" onClick={() => calRef.current?.openCreate()}>
       <Plus strokeWidth={2} />
       Yangi bron
     </Button>,

@@ -116,7 +116,7 @@ export function StatistikaPage() {
       title="Statistika"
       fill
       actions={
-        <Button size="lg" className="h-11 rounded-full px-5" asChild>
+        <Button size="xl" asChild>
           <Link to="/calendar">
             <Plus strokeWidth={2} />
             Yangi bron
