@@ -39,11 +39,11 @@ const STEPS: Step[] = [
   },
   {
     icon: Sparkles,
-    title: "Xizmat so'rovini yopish",
+    title: "Xizmatni yopish",
     body:
-      "Mehmon xonadagi QR orqali so'rov yuboradi. “Qabul qilish” — ish sizda ekanini bildiradi, “Bajarildi” — yopadi va summani so'raydi (taksi narxi oldindan noma'lum bo'lgani uchun aynan yopishda kiritiladi).",
+      "Mehmon xonadagi QR orqali xizmat buyurtma qiladi. “Qabul qilish” — ish sizda ekanini bildiradi, “Bajarildi” — yopadi va summani so'raydi (taksi narxi oldindan noma'lum bo'lgani uchun aynan yopishda kiritiladi).",
     to: "/requests",
-    linkLabel: "So'rovlarga o'tish",
+    linkLabel: "Xizmatlarga o'tish",
   },
   {
     icon: MessageCircle,
@@ -90,7 +90,7 @@ export function HelpPage() {
               <p className="text-lg font-semibold">Resepshn paneli qo'llanmasi</p>
               <p className="mt-1 text-sm text-hero-foreground/85">
                 {hotel.data?.name ? `${hotel.data.name} — ` : ""}kunlik ish oqimi: bron ochish,
-                kirish/chiqish, mehmon so'rovlari va yozishma. Savol qolsa — pastdagi aloqa.
+                kirish/chiqish, mehmon xizmatlari va yozishma. Savol qolsa — pastdagi aloqa.
               </p>
             </div>
             <div className="flex gap-2">

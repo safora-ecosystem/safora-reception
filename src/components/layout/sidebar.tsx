@@ -37,14 +37,6 @@ function BrandLogo() {
   )
 }
 
-function SectionLabel({ children }: { children: string }) {
-  return (
-    <p className="px-3 pt-5 pb-2 text-[0.6875rem] font-medium tracking-wider text-neutral-400 uppercase first:pt-1">
-      {children}
-    </p>
-  )
-}
-
 function NavRow({ item, active }: { item: NavItem; active: boolean }) {
   const body = (
     <>
@@ -109,15 +101,14 @@ export function Sidebar() {
 
       {}
       <div className="min-h-0 flex-1 overflow-y-auto px-3">
-        <SectionLabel>Menyu</SectionLabel>
-        <nav className="flex flex-col gap-0.5">
+        {}
+        <nav className="flex flex-col gap-0.5 pt-1">
           {navItems.map((item) => (
             <NavRow key={item.to} item={badgeFor(item)} active={isActive(item.to)} />
           ))}
         </nav>
 
-        <SectionLabel>Umumiy</SectionLabel>
-        <nav className="flex flex-col gap-0.5">
+        <nav className="hairline-t mt-2 flex flex-col gap-0.5 pt-2">
           {systemNavItems.map((item) => (
             <NavRow key={item.to} item={item} active={isActive(item.to)} />
           ))}

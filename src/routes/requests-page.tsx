@@ -106,13 +106,13 @@ export function RequestsPage() {
 
   return (
     <PageLayout
-      title="So'rovlar"
-      actions={<CtaButton onClick={() => setCreateOpen(true)}>So'rov qo'shish</CtaButton>}
+      title="Xizmatlar"
+      actions={<CtaButton onClick={() => setCreateOpen(true)}>Xizmat qo'shish</CtaButton>}
     >
       <div className="flex flex-col gap-4">
         <StatGrid>
           <StatCard
-            label="Yangi so'rov"
+            label="Yangi xizmat"
             value={requestsQ.isSuccess ? String(counts.new) : "—"}
             hint="hali qabul qilinmagan"
             hero
@@ -131,20 +131,20 @@ export function RequestsPage() {
             label="Tushum"
             value={requestsQ.isSuccess ? money(revenue, { unit: false }) : "—"}
             unit={requestsQ.isSuccess ? "so'm" : undefined}
-            hint="bajarilgan so'rovlar"
+            hint="bajarilgan xizmatlar"
           />
         </StatGrid>
 
         <Card className="gap-0 p-0">
           <div className="flex flex-wrap items-center justify-between gap-3 p-4">
             <p className="text-sm text-neutral-500">
-              Mehmon xonadagi QR orqali so'rov yuboradi — u shu yerda paydo bo'ladi.
+              Mehmon xonadagi QR orqali xizmat buyurtma qiladi — u shu yerda paydo bo'ladi.
             </p>
             <RangeToggle
               options={FILTERS}
               value={filter}
               onChange={setFilter}
-              ariaLabel="So'rov holati"
+              ariaLabel="Xizmat holati"
             />
           </div>
 
@@ -159,7 +159,7 @@ export function RequestsPage() {
                   <Sparkles className="size-5" strokeWidth={1.75} />
                 </span>
                 <p className="text-sm font-medium text-neutral-700">
-                  {filter === "open" ? "Ochiq so'rov yo'q" : "So'rov topilmadi"}
+                  {filter === "open" ? "Ochiq xizmat yo'q" : "Xizmat topilmadi"}
                 </p>
                 <p className="max-w-xs text-xs text-neutral-500">
                   {filter === "open"
@@ -214,7 +214,7 @@ export function RequestsPage() {
                       )}
 
                       {/* To'ldirilgan tugma qatorda ATIGI BITTA — keyingi tabiiy qadam:
-                          yangi so'rovda "qabul qilish", ishdagida "bajarildi". */}
+                          yangi xizmatda "qabul qilish", ishdagida "bajarildi". */}
                       {open && (
                         <div className="flex shrink-0 gap-2">
                           {request.status === "new" && (
@@ -252,7 +252,7 @@ export function RequestsPage() {
   )
 }
 
-/** Yopish oynasi — summani AYNAN shu yerda so'raymiz: taksi/ovqat narxi so'rov ochilganda
+/** Yopish oynasi — summani AYNAN shu yerda so'raymiz: taksi/ovqat narxi buyurtma ochilganda
     ko'pincha noma'lum, bajarilgach esa aniq. Bo'sh qoldirilsa 0 bo'lib yoziladi. */
 function CompleteDialog({
   request,
@@ -269,7 +269,7 @@ function CompleteDialog({
       updateServiceRequest(request!.id, { status: "done", amount: value }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["service-requests"] })
-      toast.success("So'rov yopildi")
+      toast.success("Xizmat yopildi")
       onClose()
       setAmount("")
     },
@@ -288,7 +288,7 @@ function CompleteDialog({
     >
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle>So'rovni yopish</DialogTitle>
+          <DialogTitle>Xizmatni yopish</DialogTitle>
         </DialogHeader>
         {request && (
           <form
@@ -346,7 +346,7 @@ function CreateRequestDialog({
   const [type, setType] = useState<ServiceType>("other")
   const [note, setNote] = useState("")
 
-  // Xonada hozir yashayotgan bron — so'rov mehmonga bog'lansin (kim so'raganini bilish uchun).
+  // Xonada hozir turgan bron — xizmat mehmonga bog'lansin (kim buyurtma qilganini bilish uchun).
   const bookingForRoom = (bookingsQ.data ?? []).find(
     (b) => b.room.id === roomId && b.status === "checked_in",
   )
@@ -362,14 +362,14 @@ function CreateRequestDialog({
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["service-requests"] })
-      toast.success("So'rov qo'shildi")
+      toast.success("Xizmat qo'shildi")
       onOpenChange(false)
       setRoomId("")
       setTitle("")
       setType("other")
       setNote("")
     },
-    onError: (err) => toast.error(apiErr(err, "So'rovni qo'shib bo'lmadi")),
+    onError: (err) => toast.error(apiErr(err, "Xizmatni qo'shib bo'lmadi")),
   })
 
   const rooms = roomsQ.data ?? []
@@ -378,7 +378,7 @@ function CreateRequestDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Yangi so'rov</DialogTitle>
+          <DialogTitle>Yangi xizmat</DialogTitle>
         </DialogHeader>
         <form
           className="flex flex-col gap-4"

@@ -29,21 +29,38 @@ export function ChartTooltip({
   title,
   rows,
   align = "center",
+  placement = "above",
 }: {
   title: string
   rows: TooltipRow[]
   align?: "start" | "center" | "end"
+  placement?: "above" | "below"
 }) {
+  const box = cn(
+    "pointer-events-none absolute z-20 min-w-max rounded-lg border border-border bg-popover px-2.5 py-2 shadow-md",
+    placement === "above" ? "bottom-full mb-2" : "top-0",
+    align === "center" && "left-1/2 -translate-x-1/2",
+    align === "start" && "left-0",
+    align === "end" && "right-0",
+  )
+
+  if (rows.length === 1) {
+    const row = rows[0]
+    return (
+      <div role="tooltip" className={box}>
+        <p className="text-[0.6875rem] font-medium text-neutral-500">{title}</p>
+        <p className="mt-0.5 flex items-baseline gap-1.5 text-sm leading-tight font-semibold text-neutral-900 tabular-nums">
+          {row.value}
+          {row.hatch && (
+            <span className="text-[0.625rem] font-normal text-neutral-400">rejada</span>
+          )}
+        </p>
+      </div>
+    )
+  }
+
   return (
-    <div
-      role="tooltip"
-      className={cn(
-        "pointer-events-none absolute bottom-full z-20 mb-2 min-w-max rounded-lg border border-border bg-popover px-2.5 py-2 shadow-md",
-        align === "center" && "left-1/2 -translate-x-1/2",
-        align === "start" && "left-0",
-        align === "end" && "right-0",
-      )}
-    >
+    <div role="tooltip" className={box}>
       <p className="text-[0.6875rem] font-medium text-neutral-500">{title}</p>
       <div className="mt-1 flex flex-col gap-1">
         {rows.map((row) => (

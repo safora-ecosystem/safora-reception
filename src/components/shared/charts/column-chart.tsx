@@ -43,6 +43,10 @@ const MAX_BAR = 36
 const MIN_BAR_HEIGHT = 10
 const TICKS = 4
 
+function axisWidthFor(labels: string[]): number {
+  return Math.max(30, Math.max(...labels.map((l) => l.length)) * 6 + 10)
+}
+
 export function ColumnChart({
   data,
   series,
@@ -67,6 +71,8 @@ export function ColumnChart({
     maxValue ?? 0,
   )
   const { top, ticks } = niceScale(maxValue ?? peak, TICKS)
+  const tickLabels = ticks.map(tickFormat)
+  const axisWidth = axisWidthFor(tickLabels)
 
   const every = labelEvery ?? Math.max(1, Math.ceil(data.length / 12))
 
@@ -74,14 +80,14 @@ export function ColumnChart({
     <div className={cn("flex min-h-0 flex-col", className)}>
       <div className="flex min-h-0 flex-1">
         {}
-        <div className="relative w-9 shrink-0">
-          {ticks.map((tick) => (
+        <div className="relative shrink-0" style={{ width: axisWidth }}>
+          {ticks.map((tick, i) => (
             <span
               key={tick}
-              className="absolute right-1.5 translate-y-1/2 text-[0.625rem] tabular-nums text-neutral-400"
+              className="absolute right-1.5 translate-y-1/2 text-[0.625rem] whitespace-nowrap tabular-nums text-neutral-400"
               style={{ bottom: `${(tick / top) * 100}%` }}
             >
-              {tickFormat(tick)}
+              {tickLabels[i]}
             </span>
           ))}
         </div>
@@ -117,12 +123,14 @@ export function ColumnChart({
                   className="relative min-w-0 flex-1"
                   onMouseEnter={() => setHover(index)}
                 >
-                  {/* Hover maydoni butun ustun bo'yi — nishon belgidan kattaroq bo'lishi kerak. */}
+                  {/* Hover maydoni butun ustun bo'yi — nishon belgidan kattaroq bo'lishi kerak.
+                      Yumaloq va uyaning ichiga kirgan: to'g'ri burchakli, uyani to'liq egallagan
+                      dog' kartaning ichida begona to'rtburchak bo'lib o'qilardi. */}
                   <div
                     aria-hidden
                     className={cn(
-                      "absolute inset-0 transition-colors",
-                      isActive && "bg-neutral-100/70",
+                      "absolute inset-y-0 inset-x-[4%] rounded-lg transition-colors",
+                      isActive && "bg-neutral-500/[0.07]",
                     )}
                   />
 
@@ -166,13 +174,16 @@ export function ColumnChart({
                     </span>
                   )}
 
+                  {/* Quticha ustunning tepasiga EMAS, plotning tepasiga qadaladi. Ustun ustida
+                      suzganda u qo'shni ustunlarni yopardi va sichqoncha ustunlar bo'ylab
+                      yurganda yuqoriga-pastga sakrab, grafikni tinchsiz qilardi. Tepada esa
+                      doim bo'sh havo bor (shkala cho'qqisi ma'lumotdan yuqori) — quticha
+                      o'sha havoda turadi va hech qachon belgi ustiga tushmaydi. */}
                   {isActive && (
-                    <div
-                      className="pointer-events-none absolute inset-x-0"
-                      style={{ bottom: `${tallest}%` }}
-                    >
+                    <div className="pointer-events-none absolute inset-x-0 top-0">
                       <ChartTooltip
                         title={datum.full ?? datum.label}
+                        placement="below"
                         align={align < 0.15 ? "start" : align > 0.85 ? "end" : "center"}
                         rows={series.map<TooltipRow>((s, si) => ({
                           label: s.label,
@@ -190,9 +201,9 @@ export function ColumnChart({
         </div>
       </div>
 
-      {/* X yorliqlari — yuqoridagi bilan bir xil bo'linish (w-9 + flex-1), shuning uchun tekis. */}
+      {/* X yorliqlari — yuqoridagi bilan bir xil bo'linish (o'q eni + flex-1), shuning uchun tekis. */}
       <div className="mt-2 flex">
-        <div className="w-9 shrink-0" aria-hidden />
+        <div className="shrink-0" style={{ width: axisWidth }} aria-hidden />
         <div className="flex min-w-0 flex-1">
           {data.map((datum, index) => (
             <span

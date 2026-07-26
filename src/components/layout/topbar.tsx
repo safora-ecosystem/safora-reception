@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Icon } from "@/components/ui/icon"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { getSession } from "@/lib/auth"
+import { getSession, ROLE_LABEL } from "@/lib/auth"
 import { usePageHeader } from "@/lib/page-header"
 import { useTopbarSearch } from "@/lib/topbar-search"
 
@@ -90,7 +90,7 @@ export function Topbar() {
           </Avatar>
           <div className="hidden leading-tight lg:block">
             <p className="text-[0.9375rem] font-medium text-neutral-900">{user?.name ?? "Xodim"}</p>
-            <p className="text-sm text-neutral-500">{user?.staffHandle ?? ""}</p>
+            <p className="text-sm text-neutral-500">{user ? ROLE_LABEL[user.role] : ""}</p>
           </div>
         </div>
       </div>

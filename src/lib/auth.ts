@@ -8,6 +8,12 @@ export type StaffUser = {
   staffHandle: string
 }
 
+export const ROLE_LABEL: Record<StaffRole, string> = {
+  owner: "Rahbar",
+  manager: "Menejer",
+  reception: "Resepshn",
+}
+
 export type Session = {
   accessToken: string
   refreshToken: string
