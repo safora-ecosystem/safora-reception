@@ -14,14 +14,15 @@ export type NavItem = {
   label: string
   icon: IconData
   badge?: string
+  permission?: string
 }
 
 export const navItems: NavItem[] = [
   { to: "/", label: "Statistika", icon: Analytics02Icon },
-  { to: "/calendar", label: "Kalendar", icon: Calendar02Icon },
-  { to: "/guests", label: "Mehmonlar", icon: UserStar01Icon },
-  { to: "/requests", label: "Xizmatlar", icon: SparklesIcon },
-  { to: "/chat", label: "Suhbat", icon: Message02Icon },
+  { to: "/calendar", label: "Kalendar", icon: Calendar02Icon, permission: "calendar.view" },
+  { to: "/guests", label: "Mehmonlar", icon: UserStar01Icon, permission: "guests.view" },
+  { to: "/requests", label: "Xizmatlar", icon: SparklesIcon, permission: "requests.view" },
+  { to: "/chat", label: "Suhbat", icon: Message02Icon, permission: "chat.guest" },
 ]
 
 export const systemNavItems: NavItem[] = [

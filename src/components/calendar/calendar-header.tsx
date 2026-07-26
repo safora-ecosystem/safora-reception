@@ -76,7 +76,7 @@ function CalendarHeaderImpl({
                 className={cn(
                   "flex items-center justify-center rounded-full px-2 font-semibold tabular-nums leading-none",
                   compact ? "h-7 min-w-7 text-lg" : "h-9 min-w-9 text-2xl",
-                  isToday ? "bg-brand-500 text-white" : "text-neutral-800",
+                  isToday ? "bg-brand-500 text-on-fill" : "text-neutral-800",
                 )}
               >
                 {d.getUTCDate()}

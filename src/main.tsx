@@ -7,8 +7,10 @@ import "./index.css"
 import { router } from "./app/router"
 import { queryClient } from "./lib/query-client"
 import { initScrollbarAutohide } from "./lib/scrollbar"
+import { initTheme } from "./lib/theme"
 
 initScrollbarAutohide()
+initTheme()
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

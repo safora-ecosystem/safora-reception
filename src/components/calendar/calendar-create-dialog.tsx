@@ -680,7 +680,7 @@ function CreateForm({
             "rounded-control",
             // Yaratilajak narsaning kalendardagi rangi — tugmada ham o'sha.
             isBlock &&
-              "bg-cal-block-foreground text-white hover:bg-cal-block-foreground/90 focus-visible:ring-cal-block-foreground",
+              "bg-cal-block-foreground text-on-fill hover:bg-cal-block-foreground/90 focus-visible:ring-cal-block-foreground",
           )}
         >
           {isBlock ? labels.createBlock : labels.create}
@@ -729,8 +729,8 @@ function RoomRow({
           "flex size-4 shrink-0 items-center justify-center rounded-[0.3rem] transition-colors",
           selected
             ? tone === "slate"
-              ? "bg-cal-block-foreground text-white"
-              : "bg-brand-500 text-white"
+              ? "bg-cal-block-foreground text-on-fill"
+              : "bg-brand-500 text-on-fill"
             : "ring-1 ring-neutral-300",
         )}
       >

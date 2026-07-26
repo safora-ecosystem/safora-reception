@@ -27,6 +27,8 @@ import { useCalendarTooltip } from "./use-calendar-tooltip"
 import { useBookingIndex, useLanes } from "./use-lanes"
 import type { CalendarBooking, CalendarDraft, ReservationCalendarProps } from "./types"
 
+const PAST_DAYS_IN_VIEW = 4
+
 
 export interface ReservationCalendarHandle {
   openCreate: (roomId?: string, start?: string) => void
@@ -176,12 +178,18 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
 
     const focusDateRef = useRef(today)
     const scrollToDate = useCallback(
-      (iso: string, align: "start" | "center" = "start") => {
+      (iso: string, align: "start" | "center" | "today" = "start", smooth = false) => {
         const el = scrollRef.current
         if (!el) return
         const x = (epochDay(iso) - originDay) * dayWidth
-        el.scrollLeft =
-          align === "center" ? Math.max(0, x + dayWidth / 2 - el.clientWidth / 2) : Math.max(0, x - dayWidth)
+        const left =
+          align === "center"
+            ? Math.max(0, x + dayWidth / 2 - el.clientWidth / 2)
+            : align === "today"
+              ? Math.max(0, x - PAST_DAYS_IN_VIEW * dayWidth)
+              : Math.max(0, x - dayWidth)
+        if (smooth) el.scrollTo({ left, behavior: "smooth" })
+        else el.scrollLeft = left
       },
       [originDay, dayWidth],
     )
@@ -200,7 +208,7 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
     useEffect(() => {
       if (initedRef.current || todayCol < 0) return
       initedRef.current = true
-      scrollToDate(today, "center")
+      scrollToDate(today, "today")
     }, [todayCol, today, scrollToDate])
     const prevDwRef = useRef(dayWidth)
     useEffect(() => {
@@ -263,7 +271,7 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
           const s = start ?? (epochDay(today) >= originDay ? today : range.start)
           setCreateDraft({ roomId: rid, start: s, end: addDays(s, 1) })
         },
-        scrollToday: () => scrollToDate(today, "center"),
+        scrollToday: () => scrollToDate(today, "today", true),
         scrollByViewport,
       }),
       [rooms, today, originDay, range.start, scrollToDate, scrollByViewport],

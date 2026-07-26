@@ -3,6 +3,7 @@ import { Link, useRouterState } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
 import { Icon } from "@/components/ui/icon"
 import { getHotelBranding, listConversations } from "@/lib/api"
+import { usePermissions } from "@/lib/permissions"
 import { cn } from "@/lib/utils"
 import { navItems, systemNavItems, type NavItem } from "./nav"
 import { ShiftCard } from "./shift-card"
@@ -24,13 +25,13 @@ function BrandLogo() {
           src={longLogo}
           alt={data?.name ?? "Mehmonxona"}
           onError={() => setFailed(true)}
-          className="max-h-full max-w-full object-contain"
+          className="logo-adapt max-h-full max-w-full object-contain"
         />
       ) : (
         <img
           src="/safora-horizontal.png"
           alt="Safora"
-          className="max-h-full max-w-full object-contain"
+          className="logo-adapt max-h-full max-w-full object-contain"
         />
       )}
     </div>
@@ -78,6 +79,8 @@ function NavRow({ item, active }: { item: NavItem; active: boolean }) {
 
 export function Sidebar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
+  const { can } = usePermissions()
+  const visible = (item: NavItem) => !item.permission || can(item.permission)
   const isActive = (to: string) => (to === "/" ? pathname === "/" : pathname.startsWith(to))
 
   const conversations = useQuery({
@@ -103,13 +106,13 @@ export function Sidebar() {
       <div className="min-h-0 flex-1 overflow-y-auto px-3">
         {}
         <nav className="flex flex-col gap-0.5 pt-1">
-          {navItems.map((item) => (
+          {navItems.filter(visible).map((item) => (
             <NavRow key={item.to} item={badgeFor(item)} active={isActive(item.to)} />
           ))}
         </nav>
 
         <nav className="hairline-t mt-2 flex flex-col gap-0.5 pt-2">
-          {systemNavItems.map((item) => (
+          {systemNavItems.filter(visible).map((item) => (
             <NavRow key={item.to} item={item} active={isActive(item.to)} />
           ))}
         </nav>

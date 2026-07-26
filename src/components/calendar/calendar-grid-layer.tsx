@@ -35,7 +35,7 @@ function CalendarGridLayerImpl({ originDay, days, dayWidth, bodyWidth, todayCol,
         />
       ))}
       {todayCol >= 0 && (
-        <div className="absolute inset-y-0 bg-brand-50" style={{ left: todayCol * dayWidth, width: dayWidth }} />
+        <div className="absolute inset-y-0 bg-[var(--brand-today)]" style={{ left: todayCol * dayWidth, width: dayWidth }} />
       )}
       {/* O'tmish (bugundan oldingi kunlar) — bu yerga bron ochilmaydi. TEKIS, juda xira neytral
           wash (diagonal shtrix EMAS — u butun fonni "chizilgan"dek ko'rsatardi). Chiziqlar ostida. */}

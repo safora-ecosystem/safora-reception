@@ -70,7 +70,7 @@ export function ShiftCard() {
       : { dot: "bg-neutral-400", label: "Tekshirilmoqda" }
 
   return (
-    <div className="surface-dark relative overflow-hidden rounded-[15px] px-4 py-3.5 text-white">
+    <div className="surface-dark relative overflow-hidden rounded-[15px] px-4 py-3.5 text-on-fill">
       <span
         className={cn("absolute top-3 right-3 size-2 rounded-full ring-2 ring-white/15", conn.dot)}
         title={conn.label}
@@ -80,11 +80,11 @@ export function ShiftCard() {
         time={uzTime(now)}
         className="text-2xl leading-none font-semibold tracking-tight"
       />
-      <p className="mt-1.5 text-xs text-white/55">{uzDate(now)}</p>
+      <p className="mt-1.5 text-xs text-on-fill-55">{uzDate(now)}</p>
       {}
-      <p className="mt-1.5 flex items-baseline justify-between gap-2 text-xs text-white/55">
+      <p className="mt-1.5 flex items-baseline justify-between gap-2 text-xs text-on-fill-55">
         <span>{shiftLabel(now)}</span>
-        <VersionTag className="shrink-0 text-white/40" />
+        <VersionTag className="shrink-0 text-on-fill-40" />
       </p>
     </div>
   )

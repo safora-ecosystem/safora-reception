@@ -1,68 +1,30 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Loader2, LogOut, Monitor, Smartphone } from "lucide-react"
+import { LogOut, Volume2 } from "lucide-react"
 import { toast } from "sonner"
 import { PageLayout } from "@/components/layout/page-layout"
+import {
+  Loading,
+  Row,
+  Section,
+  SessionRow,
+  ThemeSection,
+  Toggle,
+} from "@/components/settings/settings-parts"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { listSessions, revokeOtherSessions, revokeSession, type ActiveSession } from "@/lib/api"
-import { getSession } from "@/lib/auth"
-
-function timeAgo(iso: string): string {
-  const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000)
-  if (s < 60) return "hozirgina"
-  const m = Math.floor(s / 60)
-  if (m < 60) return `${m} daqiqa oldin`
-  const h = Math.floor(m / 60)
-  if (h < 24) return `${h} soat oldin`
-  const d = Math.floor(h / 24)
-  if (d < 30) return `${d} kun oldin`
-  return new Date(iso).toLocaleDateString("uz")
-}
-
-function SessionRow({
-  session,
-  onRevoke,
-  revoking,
-}: {
-  session: ActiveSession
-  onRevoke: () => void
-  revoking: boolean
-}) {
-  const Icon = /iOS|Android/i.test(session.device) ? Smartphone : Monitor
-  return (
-    <div className="flex items-center gap-3 py-3">
-      <div className="grid size-10 shrink-0 place-items-center rounded-full bg-neutral-100 text-neutral-500">
-        <Icon className="size-5" strokeWidth={1.75} />
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <p className="truncate text-sm font-medium text-neutral-900">{session.device}</p>
-          {session.current && <Badge variant="secondary">Joriy qurilma</Badge>}
-        </div>
-        <p className="mt-0.5 truncate text-xs text-neutral-500">
-          {session.ip ?? "IP noma'lum"} · {session.current ? "hozir faol" : timeAgo(session.lastActiveAt)}
-        </p>
-      </div>
-      {!session.current && (
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onRevoke}
-          disabled={revoking}
-          className="shrink-0 text-destructive hover:text-destructive"
-        >
-          Chiqarish
-        </Button>
-      )}
-    </div>
-  )
-}
+import { listSessions, revokeOtherSessions, revokeSession } from "@/lib/api"
+import { ROLE_LABEL, getSession } from "@/lib/auth"
+import { playMessageChime, requestDesktopPermission, useNotifyPrefs } from "@/lib/notify"
 
 export function SettingsPage() {
   const qc = useQueryClient()
   const user = getSession()?.user
-  const { data: sessions, isLoading } = useQuery({ queryKey: ["sessions"], queryFn: listSessions })
+  const { prefs, set } = useNotifyPrefs()
+
+  const { data: sessions, isLoading } = useQuery({
+    queryKey: ["sessions"],
+    queryFn: listSessions,
+  })
 
   const revokeOne = useMutation({
     mutationFn: revokeSession,
@@ -83,48 +45,87 @@ export function SettingsPage() {
 
   const otherCount = sessions?.filter((s) => !s.current).length ?? 0
 
+  async function toggleDesktop(next: boolean) {
+    if (!next) {
+      set({ desktop: false })
+      return
+    }
+    if (await requestDesktopPermission()) set({ desktop: true })
+    else toast.error("Brauzer bildirishnomaga ruxsat bermadi")
+  }
+
   return (
     <PageLayout title="Sozlamalar">
-      <div className="flex max-w-2xl flex-col gap-6">
-        {user && (
-          <Card>
-            <CardContent className="flex items-center gap-4 py-5">
-              <div className="grid size-12 place-items-center rounded-full bg-primary/10 text-lg font-semibold text-primary">
-                {(user.name ?? "?").trim().charAt(0).toUpperCase()}
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:items-start">
+        <div className="flex flex-col gap-4">
+          <Section title="Profil" hint="Hisobingiz ma'lumoti.">
+            <div className="flex items-center gap-3.5 px-4 py-4">
+              <div className="grid size-12 shrink-0 place-items-center rounded-full bg-accent text-lg font-semibold text-accent-foreground">
+                {(user?.name ?? "?").trim().charAt(0).toUpperCase()}
               </div>
-              <div className="min-w-0">
-                <p className="truncate font-medium text-neutral-900">{user.name}</p>
-                <p className="truncate text-sm text-neutral-500">{user.staffHandle}</p>
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-medium text-neutral-900">{user?.name ?? "Xodim"}</p>
+                <p className="truncate text-sm text-neutral-500 tabular-nums">{user?.staffHandle}</p>
               </div>
-            </CardContent>
-          </Card>
-        )}
+              {user && <Badge variant="secondary">{ROLE_LABEL[user.role]}</Badge>}
+            </div>
+            <Row label="Ruhsatlar" hint="Nima qila olishingizni rahbar belgilaydi." />
+          </Section>
 
-        <Card>
-          <CardContent className="py-5">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h2 className="text-base font-semibold text-neutral-900">Faol seanslar</h2>
-                <p className="mt-0.5 text-sm text-neutral-500">Hisobingizga kirilgan qurilmalar.</p>
-              </div>
-              {otherCount > 0 && (
+          <Section
+            title="Bildirishnomalar"
+            hint="Yangi xabar kelganda qanday xabardor bo'lasiz."
+            action={
+              <Button variant="outline" size="sm" onClick={() => playMessageChime()}>
+                <Volume2 strokeWidth={1.75} />
+                Eshitish
+              </Button>
+            }
+          >
+            <Row label="Ovozli signal" hint="Mehmon yoki jamoadan xabar kelganda.">
+              <Toggle checked={prefs.sound} onChange={(v) => set({ sound: v })} label="Ovozli signal" />
+            </Row>
+            <Row label="Brauzer bildirishnomasi" hint="Tab fonda bo'lganda ish stolida ko'rinadi.">
+              <Toggle
+                checked={prefs.desktop}
+                onChange={(v) => void toggleDesktop(v)}
+                label="Brauzer bildirishnomasi"
+              />
+            </Row>
+          </Section>
+
+          <Section title="Ilova" hint="Panel versiyasi va texnik ma'lumot.">
+            <Row label="Panel">
+              <span className="text-sm text-neutral-700">Resepshn</span>
+            </Row>
+            <Row label="Versiya">
+              <span className="text-sm text-neutral-700 tabular-nums">v{__APP_VERSION__}</span>
+            </Row>
+          </Section>
+        </div>
+
+        <div className="flex flex-col gap-4">
+          <ThemeSection />
+
+          <Section
+            title="Faol seanslar"
+            hint="Hisobingizga kirilgan qurilmalar."
+            action={
+              otherCount > 0 ? (
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => revokeOthers.mutate()}
                   disabled={revokeOthers.isPending}
-                  className="shrink-0"
                 >
-                  <LogOut className="size-4" strokeWidth={1.75} /> Boshqalardan chiqish
+                  <LogOut strokeWidth={1.75} /> Boshqalardan chiqish
                 </Button>
-              )}
-            </div>
-
-            <div className="mt-3 divide-y divide-border">
+              ) : undefined
+            }
+          >
+            <div className="divide-hairline">
               {isLoading ? (
-                <div className="flex items-center gap-2 py-6 text-sm text-neutral-500">
-                  <Loader2 className="size-4 animate-spin" /> Yuklanmoqda…
-                </div>
+                <Loading />
               ) : (
                 sessions?.map((session) => (
                   <SessionRow
@@ -136,8 +137,8 @@ export function SettingsPage() {
                 ))
               )}
             </div>
-          </CardContent>
-        </Card>
+          </Section>
+        </div>
       </div>
     </PageLayout>
   )

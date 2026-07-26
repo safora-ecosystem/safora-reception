@@ -195,6 +195,7 @@
   --cal-block-foreground: #414a58; 
   --cal-block-border: #93a0b3;
 
+  --brand-today: var(--color-brand-50);
   --border: var(--color-neutral-200);
   --input: var(--color-neutral-200);
   --ring: var(--color-brand-500);
@@ -217,6 +218,89 @@
   --sidebar-ring: var(--color-brand-500);
 }
 
+
+:root[data-theme="dark"] {
+  --color-white: #16130f;
+
+  --color-neutral-50: #1a1715;
+  --color-neutral-100: #24201d;
+  --color-neutral-200: #322d29;
+  --color-neutral-300: #45403a;
+  --color-neutral-400: #8a8279;
+  --color-neutral-500: #a8a099;
+  --color-neutral-600: #c2bbb3;
+  --color-neutral-700: #d8d2cb;
+  --color-neutral-800: #ebe7e2;
+  --color-neutral-900: #f7f4f1;
+  --color-neutral-950: #ffffff;
+
+  --surface-page: #0f0d0b;
+  --surface-shell: #16130f;
+  --surface-1: #16130f;
+  --card: #1b1815;
+  --popover: #211d19;
+  --hero: var(--color-brand-700);
+  --hero-foreground: #ffffff;
+
+  --border: #322d29;
+  --input: #322d29;
+  --accent: #3a2517;
+  --accent-foreground: #ffb98c;
+
+  --success-surface: #12301f;
+  --success-surface-foreground: #6ee7a0;
+  --warning-surface: #362613;
+  --warning-surface-foreground: #f5b653;
+  --destructive-surface: #3a1a1a;
+  --destructive-surface-foreground: #f79191;
+
+  --shadow-card: 0 1px 2px oklch(0 0 0 / 0.4);
+  --shadow-xs: 0 1px 2px oklch(0 0 0 / 0.45);
+  --shadow-sm: 0 1px 3px oklch(0 0 0 / 0.5), 0 1px 2px oklch(0 0 0 / 0.4);
+  --shadow-md: 0 4px 6px -1px oklch(0 0 0 / 0.5), 0 2px 4px -2px oklch(0 0 0 / 0.4);
+  --shadow-lg: 0 10px 15px -3px oklch(0 0 0 / 0.55), 0 4px 6px -4px oklch(0 0 0 / 0.4);
+
+
+  
+  --cal-in-surface: #14523a;
+  --cal-in-foreground: #9fe9c4;
+  --cal-in-border: #1f7a56;
+  --cal-booked-surface: #17395f;
+  --cal-booked-foreground: #a9d2fb;
+  --cal-booked-border: #2a5f9c;
+  --cal-out-surface: #2d2a25;
+  --cal-out-foreground: #b5aea3;
+  --cal-out-border: #443f38;
+  --cal-block-surface: #262d38;
+  --cal-block-foreground: #a9b4c4;
+  --cal-block-border: #3a4453;
+
+  --brand-today: #2a1c12;
+
+  color-scheme: dark;
+}
+
+@layer utilities {
+  
+  .text-on-fill {
+    color: #fff;
+  }
+  .text-on-fill-70 {
+    color: rgb(255 255 255 / 0.7);
+  }
+  .text-on-fill-55 {
+    color: rgb(255 255 255 / 0.55);
+  }
+  .text-on-fill-40 {
+    color: rgb(255 255 255 / 0.4);
+  }
+
+  
+  :root[data-theme="dark"] .logo-adapt {
+    filter: invert(1) hue-rotate(180deg);
+  }
+}
+
 @layer utilities {
   .shadow-card { box-shadow: var(--shadow-card); }
   .shadow-xs { box-shadow: var(--shadow-xs); }
@@ -236,8 +320,9 @@
   .sheen-brand {
     background-image: radial-gradient(115% 115% at 100% 0%, oklch(1 0 0 / 0.16), transparent 55%);
   }
+  
   .surface-dark {
-    background-color: var(--color-neutral-900);
+    background-color: #1c1917;
     background-image:
       radial-gradient(90% 120% at 0% 0%, oklch(0.72 0.17 45 / 0.20), transparent 55%),
       radial-gradient(90% 120% at 100% 100%, oklch(0.55 0.15 40 / 0.14), transparent 50%);

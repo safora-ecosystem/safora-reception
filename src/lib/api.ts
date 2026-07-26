@@ -497,6 +497,29 @@ export type HotelPolicy = {
 
 /** Kirgan xodim biriktirilgan mehmonxonaning panel brendi + qoidalari (GET /hotel).
     `longLogoUrl` yo'q bo'lsa (yoki hali yuklanmagan) panel Safora logotipiga tushadi. */
+// ── Ruhsatlar (GET/PUT /permissions) ─────────────────────────────────────────
+
+/** Rahbar siyosat yozadigan rollar. `owner` ATAYLAB yo'q — uning ruxsati roldan keladi. */
+export type PolicyRole = "manager" | "reception"
+
+export type PermissionDef = {
+  key: string
+  label: string
+  hint: string
+  group: string
+  roles: PolicyRole[]
+  /** Yoqilishi uchun avval kerak bo'ladigan ruhsat. */
+  requires: string | null
+}
+
+export type PermissionCatalog = {
+  groups: Array<{ id: string; label: string; hint: string }>
+  permissions: PermissionDef[]
+  policies: Record<PolicyRole, string[]>
+}
+
+export const getMyPermissions = () => api<{ role: string; granted: string[] }>("/permissions/me")
+
 export type HotelBranding = {
   name: string
   logoUrl: string | null

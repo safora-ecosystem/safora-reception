@@ -19,7 +19,7 @@ const buttonVariants = cva(
         destructive:
           "bg-destructive-surface text-destructive-surface-foreground hover:bg-[color-mix(in_oklch,var(--destructive-surface),var(--destructive)_12%)] active:bg-[color-mix(in_oklch,var(--destructive-surface),var(--destructive)_20%)] focus-visible:border-destructive/40 focus-visible:ring-destructive/20",
         "destructive-solid":
-          "bg-destructive text-white hover:bg-[color-mix(in_oklch,var(--destructive),black_10%)] active:bg-[color-mix(in_oklch,var(--destructive),black_18%)] focus-visible:ring-destructive/30",
+          "bg-destructive text-on-fill hover:bg-[color-mix(in_oklch,var(--destructive),black_10%)] active:bg-[color-mix(in_oklch,var(--destructive),black_18%)] focus-visible:ring-destructive/30",
         link: "text-primary underline-offset-4 hover:underline",
       },
       size: {
