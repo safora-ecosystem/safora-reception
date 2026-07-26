@@ -133,7 +133,7 @@ export async function api<T>(path: string, options: ApiOptions = {}): Promise<T>
     } else if (path !== "/auth/login") {
       clearSession()
       window.location.assign("/login")
-      throw new ApiError(401, { message: "Sessiya muddati tugadi — qayta kiring" })
+      throw new ApiError(401, { message: "Seans muddati tugadi — qayta kiring" })
     }
   }
 

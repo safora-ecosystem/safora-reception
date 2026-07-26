@@ -191,8 +191,8 @@ export function CalendarPage() {
               className="size-11 rounded-xl"
               onClick={toggle}
               aria-pressed={expanded}
-              aria-label={expanded ? "Oynadan chiqish" : "To'liq ekran"}
-              title={expanded ? "Oynadan chiqish (Esc)" : "To'liq ekran"}
+              aria-label={expanded ? "To'liq ekrandan chiqish" : "To'liq ekran"}
+              title={expanded ? "To'liq ekrandan chiqish (Esc)" : "To'liq ekran"}
             >
               <Icon
                 icon={expanded ? ArrowShrink01Icon : ArrowExpandDiagonal01Icon}

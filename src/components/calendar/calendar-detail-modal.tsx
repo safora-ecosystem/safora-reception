@@ -557,7 +557,7 @@ function DetailBody({
                     </PopoverContent>
                   </Popover>
                 ) : editing && canExtend ? (
-                  // Ichkaridagi mehmon: FAQAT chiqish kuni. Bitta sanali picker — "kirishni ham
+                  // Joylashgan mehmon: FAQAT chiqish kuni. Bitta sanali picker — "kirishni ham
                   // o'zgartirsam bo'ladimi?" degan savol umuman tug'ilmasin.
                   <div className="flex flex-col gap-1.5">
                     <Popover open={pickerOpen} onOpenChange={setPickerOpen}>

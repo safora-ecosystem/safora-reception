@@ -21,7 +21,7 @@ import { cn } from "@/lib/utils"
 
 
 const STATE_LABEL: Record<GuestState, string> = {
-  in_house: "Yashamoqda",
+  in_house: "Joylashgan",
   arriving: "Kutilmoqda",
   past: "Chiqib ketgan",
 }
@@ -44,7 +44,7 @@ type Filter = "all" | GuestState
 
 const FILTERS: Array<{ value: Filter; label: string }> = [
   { value: "all", label: "Hammasi" },
-  { value: "in_house", label: "Yashamoqda" },
+  { value: "in_house", label: "Joylashgan" },
   { value: "arriving", label: "Kutilmoqda" },
   { value: "past", label: "Tarix" },
 ]
@@ -82,9 +82,9 @@ export function GuestsPage() {
       <div className="flex flex-col gap-4">
         <StatGrid>
           <StatCard
-            label="Hozir yashamoqda"
+            label="Hozir mehmonxonada"
             value={guestsQ.isSuccess ? String(counts.inHouse) : "—"}
-            hint="mehmonxonada"
+            hint="joylashgan mehmonlar"
             hero
           />
           <StatCard

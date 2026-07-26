@@ -8,7 +8,7 @@ import { VersionTag } from "./version-tag"
 
 function shiftLabel(now: Date): string {
   const hour = now.getHours()
-  if (hour >= 6 && hour < 14) return "Tonggi smena"
+  if (hour >= 6 && hour < 14) return "Ertalabki smena"
   if (hour >= 14 && hour < 22) return "Kunduzgi smena"
   return "Tungi smena"
 }
