@@ -114,9 +114,9 @@ export function StatistikaPage() {
   return (
     <PageLayout
       title="Statistika"
-      description="Bugungi bandlik, kirish va chiqishlar bir ko'rinishda."
+      fill
       actions={
-        <Button size="lg" className="rounded-full" asChild>
+        <Button size="lg" className="h-11 rounded-full px-5" asChild>
           <Link to="/calendar">
             <Plus strokeWidth={2} />
             Yangi bron
@@ -124,7 +124,7 @@ export function StatistikaPage() {
         </Button>
       }
     >
-      <div className="flex flex-col gap-4">
+      <div className="flex grow flex-col gap-4">
         <StatGrid>
           {snapshot.map((s) => (
             <StatCard
@@ -139,8 +139,9 @@ export function StatistikaPage() {
         </StatGrid>
 
         {/* Ihcham operatsion qator: bandlik chart'i · suhbatlar · bugungi harakat. Desktop-first
-            (front-desk): xl'da 3 ustun, undan tor ekranda ustma-ust. */}
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)]">
+            (front-desk): xl'da 3 ustun bitta qatorda ekran balandligini to'ldiradi (grow + 1fr
+            qator → kartalar cho'ziladi), undan tor ekranda ustma-ust va tabiiy balandlik. */}
+        <div className="grid grid-cols-1 gap-4 xl:min-h-0 xl:grow xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)] xl:grid-rows-1">
           <WeeklyOccupancy days={week.days} todayIndex={week.todayIndex} />
 
           <ChatPanel />
@@ -149,7 +150,7 @@ export function StatistikaPage() {
             <CardHeader>
               <CardTitle>Bugungi harakat</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="app-scroll min-h-0 flex-1 overflow-y-auto">
               {movements.length === 0 ? (
                 <p className="py-8 text-center text-sm text-neutral-500">
                   {loaded ? "Bugun kirish yoki chiqish yo'q." : "Yuklanmoqda…"}

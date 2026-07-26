@@ -16,17 +16,19 @@ export function useBookingIndex(
   dayWidth: number,
   bodyWidth: number,
   statusConfig: StatusConfig,
+  checkInFrac: number,
+  checkOutFrac: number,
 ): Map<string, PositionedBar[]> {
   return useMemo(() => {
     const map = new Map<string, PositionedBar[]>()
     for (const b of bookings) {
       if (statusConfig[b.status]?.hidden) continue
-      const rect = barRect(b.start, b.end, originDay, dayWidth, bodyWidth)
+      const rect = barRect(b.start, b.end, originDay, dayWidth, bodyWidth, checkInFrac, checkOutFrac)
       if (rect.cull) continue
       const arr = map.get(b.roomId)
       if (arr) arr.push({ booking: b, rect })
       else map.set(b.roomId, [{ booking: b, rect }])
     }
     return map
-  }, [bookings, originDay, dayWidth, bodyWidth, statusConfig])
+  }, [bookings, originDay, dayWidth, bodyWidth, statusConfig, checkInFrac, checkOutFrac])
 }

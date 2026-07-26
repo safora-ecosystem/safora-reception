@@ -84,7 +84,7 @@ export function SettingsPage() {
   const otherCount = sessions?.filter((s) => !s.current).length ?? 0
 
   return (
-    <PageLayout title="Sozlamalar" description="Hisob va faol qurilmalar.">
+    <PageLayout title="Sozlamalar">
       <div className="flex max-w-2xl flex-col gap-6">
         {user && (
           <Card>

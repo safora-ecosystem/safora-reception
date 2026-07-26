@@ -4,14 +4,13 @@ import { dateForColumn, monthSegments } from "./geometry"
 import type { CalendarLabels } from "./types"
 
 
-const MONTH_STRIP = 22
-
 interface CalendarHeaderProps {
   originDay: number
   days: number
   dayWidth: number
   bodyWidth: number
   headerHeight: number
+  railWidth: number
   todayCol: number
   labels: CalendarLabels
   occupancy: number[]
@@ -23,23 +22,29 @@ function CalendarHeaderImpl({
   dayWidth,
   bodyWidth,
   headerHeight,
+  railWidth,
   todayCol,
   labels,
   occupancy,
 }: CalendarHeaderProps) {
   const months = monthSegments(originDay, days)
+  const compact = headerHeight < 92
+  const monthStrip = compact ? 20 : 26
 
   return (
     <div className="hairline-b relative bg-white" style={{ width: bodyWidth, height: headerHeight }}>
       {}
-      <div className="flex" style={{ height: MONTH_STRIP }}>
+      <div className="flex" style={{ height: monthStrip }}>
         {months.map((seg) => (
           <div
             key={`${seg.year}-${seg.month}`}
-            className="hairline-b flex items-center overflow-hidden px-2 text-[0.6875rem] font-semibold whitespace-nowrap text-neutral-500"
+            className="hairline-b relative flex items-center"
             style={{ width: seg.span * dayWidth }}
           >
-            <span className="truncate capitalize">
+            <span
+              className="sticky z-10 whitespace-nowrap bg-white py-0.5 pr-3 pl-2 text-[0.6875rem] font-semibold text-neutral-500 capitalize"
+              style={{ left: railWidth }}
+            >
               {labels.months[seg.month]} {seg.year}
             </span>
           </div>
@@ -47,7 +52,7 @@ function CalendarHeaderImpl({
       </div>
 
       {/* Kun kataklari — hafta kuni · sana · bandlik % */}
-      <div className="flex" style={{ height: headerHeight - MONTH_STRIP }}>
+      <div className="flex" style={{ height: headerHeight - monthStrip }}>
         {Array.from({ length: days }, (_, c) => {
           const d = dateForColumn(originDay, c)
           const dow = d.getUTCDay()
@@ -56,12 +61,12 @@ function CalendarHeaderImpl({
           return (
             <div
               key={c}
-              className="flex flex-col items-center justify-center gap-0.5"
+              className={cn("flex flex-col items-center justify-center", compact ? "gap-0.5" : "gap-1")}
               style={{ width: dayWidth }}
             >
               <span
                 className={cn(
-                  "text-[0.625rem] font-medium tracking-wide uppercase",
+                  "text-[0.6875rem] font-medium tracking-wide uppercase",
                   isToday ? "text-brand-600" : "text-neutral-400",
                 )}
               >
@@ -69,8 +74,9 @@ function CalendarHeaderImpl({
               </span>
               <span
                 className={cn(
-                  "flex h-6 min-w-6 items-center justify-center rounded-full px-1 text-sm font-semibold tabular-nums",
-                  isToday ? "bg-brand-500 text-white" : "text-neutral-700",
+                  "flex items-center justify-center rounded-full px-2 font-semibold tabular-nums leading-none",
+                  compact ? "h-7 min-w-7 text-lg" : "h-9 min-w-9 text-2xl",
+                  isToday ? "bg-brand-500 text-white" : "text-neutral-800",
                 )}
               >
                 {d.getUTCDate()}
@@ -78,11 +84,11 @@ function CalendarHeaderImpl({
               {/* Bandlik — emfaza EMAS: neytral matn, faqat yuqori bandlik biroz to'qroq. Bugun brand. */}
               <span
                 className={cn(
-                  "text-[0.625rem] leading-none font-medium tabular-nums",
+                  "text-xs leading-none font-medium tabular-nums",
                   isToday ? "text-brand-600" : occ >= 90 ? "text-neutral-600" : "text-neutral-400",
                 )}
               >
-                {occ > 0 ? `${occ}%` : " "}
+                {`${occ}%`}
               </span>
             </div>
           )

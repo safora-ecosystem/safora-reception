@@ -14,6 +14,7 @@ import {
   type ChatMessage,
 } from "@/lib/api"
 import { appendLiveMessage, conversationsKey, messagesKey, useChat } from "@/lib/chat-realtime"
+import { useSetPageHeader } from "@/lib/page-header"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -32,6 +33,7 @@ function listTime(iso: string): string {
 }
 
 export function ChatPage() {
+  useSetPageHeader("Suhbat")
   const qc = useQueryClient()
   const hotelId = getSession()?.user.hotelId ?? ""
   const { client, status } = useChat()

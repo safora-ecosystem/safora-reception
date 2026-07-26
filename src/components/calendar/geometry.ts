@@ -22,6 +22,13 @@ export function nightsBetween(start: string, end: string): number {
   return epochDay(end) - epochDay(start)
 }
 
+export function dayFraction(time: string | undefined): number {
+  if (!time) return 0
+  const [h, m] = time.slice(0, 5).split(":").map(Number)
+  const mins = (Number.isFinite(h) ? h : 0) * 60 + (Number.isFinite(m) ? m : 0)
+  return Math.min(1, Math.max(0, mins / 1440))
+}
+
 export function dateForColumn(originDay: number, col: number): Date {
   return new Date((originDay + col) * DAY_MS)
 }
@@ -95,22 +102,19 @@ const MIN_BAR_PX = 4
 
 export const BAR_VPAD = 5
 
-export function barRect(
-  start: string,
-  end: string,
-  originDay: number,
+function rectFromIdx(
+  startIdx: number,
+  endIdx: number,
   dayWidth: number,
   bodyWidth: number,
+  checkInFrac: number,
+  checkOutFrac: number,
 ): BarRect {
-  const startIdx = epochDay(start) - originDay
-  const endIdx = epochDay(end) - originDay
-  const leftRaw = (startIdx + 0.5) * dayWidth
-  const rightRaw = (endIdx + 0.5) * dayWidth
-
+  const leftRaw = (startIdx + checkInFrac) * dayWidth
+  const rightRaw = (endIdx + checkOutFrac) * dayWidth
   const cull = rightRaw <= 0 || leftRaw >= bodyWidth
   const left = Math.max(leftRaw, 0)
   const right = Math.min(rightRaw, bodyWidth)
-
   return {
     left: Math.round(left),
     width: cull ? 0 : Math.max(Math.round(right - left), MIN_BAR_PX),
@@ -120,25 +124,68 @@ export function barRect(
   }
 }
 
-export function barClipPath(
-  width: number,
-  height: number,
-  clippedStart: boolean,
-  clippedEnd: boolean,
-): string {
-  const k = Math.min(Math.round(height * 0.5), Math.round(width * 0.34), 16)
-  if (k < 3) return ""
-  const leftTop = clippedStart ? 0 : k
-  const rightBottom = clippedEnd ? width : width - k
-  return `polygon(${leftTop}px 0, ${width}px 0, ${rightBottom}px ${height}px, 0 ${height}px)`
+export function barRect(
+  start: string,
+  end: string,
+  originDay: number,
+  dayWidth: number,
+  bodyWidth: number,
+  checkInFrac = 0,
+  checkOutFrac = 0,
+): BarRect {
+  return rectFromIdx(
+    epochDay(start) - originDay,
+    epochDay(end) - originDay,
+    dayWidth,
+    bodyWidth,
+    checkInFrac,
+    checkOutFrac,
+  )
+}
+
+export function barRectFromDays(
+  startIdx: number,
+  endIdx: number,
+  dayWidth: number,
+  bodyWidth: number,
+  checkInFrac = 0,
+  checkOutFrac = 0,
+): BarRect {
+  return rectFromIdx(startIdx, endIdx, dayWidth, bodyWidth, checkInFrac, checkOutFrac)
+}
+
+
+const SLANT_RATIO = 0.3
+const SLANT_MAX = 11
+
+export const BAR_RADIUS = 7
+
+export function barSlant(height: number, width: number): number {
+  return Math.max(0, Math.round(Math.min(height * SLANT_RATIO, SLANT_MAX, width / 3)))
+}
+
+export function barRadius(radius: number, clippedStart: boolean, clippedEnd: boolean): string {
+  const l = clippedStart ? 0 : Math.max(radius, 0)
+  const r = clippedEnd ? 0 : Math.max(radius, 0)
+  return `${l}px ${r}px ${r}px ${l}px`
+}
+
+/**
+ * `clip-path` polygon'i. Foizga tayangan (`100%`) — shuning uchun AYNAN shu satr ham tashqi
+ * (kontur) qatlamiga, ham ichkaridagi kichikroq (fill) qatlamiga beriladi va ikkalasi parallel
+ * chiqadi. Oynadan kesilgan uch TEKIS qoladi: u diapazon chegarasi, kirish/chiqish emas.
+ */
+export function barClipPath(slant: number, clippedStart: boolean, clippedEnd: boolean): string {
+  const l = clippedStart ? 0 : slant
+  const r = clippedEnd ? 0 : slant
+  return `polygon(${l}px 0, 100% 0, calc(100% - ${r}px) 100%, 0 100%)`
 }
 
 /**
  * Drag/ghost overlay'ni AYNAN CalendarBar shakliga soladi — ref bilan imperativ (render'dan
- * tashqari, 60fps). Ikki qatlam: `el` = tashqi chegara qatlami, birinchi bolasi = ichki fill
- * (2px inset), ikkalasiga ham diagonal `barClipPath`. Shu sabab tanlov to'rtburchak emas, "aktiv
- * bron" ko'rinishida bo'ladi. `conflict` → `data-conflict` (rang CSS'da almashadi). Yaratish ham,
- * ko'chirish ham SHU bilan bo'yaydi, shakl bir manbadan keladi.
+ * tashqari, 60fps). Ikki qatlam: element o'zi = kontur, birinchi bolasi = fill; ranglar CSS
+ * class'da, bu yerda faqat geometriya + shakl. `conflict` → `data-conflict` (rang CSS'da
+ * almashadi). Yaratish ham, ko'chirish ham SHU bilan bo'yaydi — shakl bir manbadan keladi.
  */
 export function paintSelectionShape(
   el: HTMLElement,
@@ -155,20 +202,16 @@ export function paintSelectionShape(
   el.style.width = `${width}px`
   el.style.top = `${top}px`
   el.style.height = `${height}px`
-  el.style.clipPath = barClipPath(width, height, clippedStart, clippedEnd) || "none"
-  el.dataset.conflict = conflict ? "true" : "false"
-
-  const inner = el.firstElementChild as HTMLElement | null
-  if (inner) {
-    const inset = 2
-    const iw = Math.max(0, width - 2 * inset)
-    const ih = Math.max(0, height - 2 * inset)
-    inner.style.left = `${inset}px`
-    inner.style.top = `${inset}px`
-    inner.style.width = `${iw}px`
-    inner.style.height = `${ih}px`
-    inner.style.clipPath = barClipPath(iw, ih, clippedStart, clippedEnd) || "none"
+  const clip = barClipPath(barSlant(height, width), clippedStart, clippedEnd)
+  el.style.clipPath = clip
+  el.style.borderRadius = barRadius(BAR_RADIUS, clippedStart, clippedEnd)
+  const fill = el.firstElementChild
+  if (fill instanceof HTMLElement) {
+    fill.style.clipPath = clip
+    // Ichki qatlam 2px kichik — radiusi ham shuncha kichik bo'lsa kontur konsentrik chiqadi.
+    fill.style.borderRadius = barRadius(BAR_RADIUS - 2, clippedStart, clippedEnd)
   }
+  el.dataset.conflict = conflict ? "true" : "false"
 }
 
 /** Drag paytida clientX → ustun indeksi (clamp qilinmagan; chaqiruvchi clamp qiladi). */

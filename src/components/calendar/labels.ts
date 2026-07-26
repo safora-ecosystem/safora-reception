@@ -1,7 +1,7 @@
 import type { CalendarLabels } from "./types"
 
 
-function groupThousands(n: number): string {
+export function groupThousands(n: number): string {
   const s = Math.round(Math.abs(n)).toString()
   return (n < 0 ? "-" : "") + s.replace(/\B(?=(\d{3})+(?!\d))/g, " ")
 }
@@ -19,6 +19,13 @@ export const defaultLabels: CalendarLabels = {
     checked_in: "Ichkarida",
     checked_out: "Chiqib ketgan",
     cancelled: "Bekor qilingan",
+    blocked: "Yopilgan",
+  },
+  blockKindText: {
+    maintenance: "Ta'mir",
+    cleaning: "Chuqur tozalash",
+    hold: "Ushlab turilgan",
+    other: "Boshqa sabab",
   },
   checkInTime: "14:00",
   checkOutTime: "12:00",
@@ -57,10 +64,62 @@ export const defaultLabels: CalendarLabels = {
   total: "Jami",
   nightlyRate: "Bir kecha",
   amount: "Summa",
-  lockedHint: "Mehmon kirgandan keyin xona va sana o'zgartirilmaydi",
+  lockedHint: "Mehmon kirgan — xona va kirish sanasi o'zgarmaydi, faqat chiqish uzayadi",
   noChanges: "O'zgarish kiritilmadi",
+
+  rooms: "Xonalar",
+  roomsSelected: (n) => (n === 0 ? "Xona tanlanmagan" : `${n} ta xona tanlandi`),
+  roomSearch: "Xona raqami yoki turi",
+  roomsEmpty: "Mos xona topilmadi",
+  busy: "Band",
+  selectedBusy: "Tanlangan xonalardan biri bu sanalarda band",
+  pastStart: "O'tgan kunga bron ochib bo'lmaydi",
+  summary: "Xulosa",
+  quickNights: "Tez tanlash",
+  prepayment: "Oldindan to'lov",
+  paymentUnpaid: "To'lanmagan",
+  paymentPartial: "Qisman",
+  paymentFull: "To'liq",
+  prepaymentTooBig: "Avans jami summadan oshmasligi kerak",
+  create: "Bron yaratish",
+  groupHint: (n) => `${n} ta xona bitta amalda ochiladi — bittasi band bo'lsa hech biri yaratilmaydi`,
+
+  modeBooking: "Yangi bron",
+  modeBlock: "Xonani yopish",
+  blockTitle: "Xonani yopish",
+  blockReason: "Sabab",
+  blockReasonHint: "Ixtiyoriy — masalan “kondisioner almashtiriladi”",
+  blockKind: "Turi",
+  createBlock: "Xonani yopish",
+  blockHint: "Bu kunlarda xonaga bron qo'yib bo'lmaydi. Mehmon, pul va QR yo'q.",
+
+  companions: "Hamroh mehmonlar",
+  addGuest: "Mehmon qo'shish",
+  removeGuest: "O'chirish",
+  primaryGuest: "Asosiy",
+  makePrimary: "Asosiy qilish",
+  document: "Hujjat",
+  docNumber: "Seriya va raqam",
+  docTypeText: {
+    passport: "Pasport",
+    id_card: "ID karta",
+    birth_certificate: "Tug'ilganlik guvohnomasi",
+    driver_license: "Haydovchilik guvohnomasi",
+    other: "Boshqa",
+  },
+  note: "Eslatma",
+  notePlaceholder: "Masalan: kech keladi, beshik kerak",
+  capacityOver: (guests, capacity) =>
+    `${guests} mehmon — xona sig'imi ${capacity}. Qo'shimcha joy kerak bo'lishi mumkin.`,
+  guestsWord: (n) => `${n} mehmon`,
+  openChat: "Suhbat",
+  duplicate: "Nusxalash",
+  extendStay: "Uzaytirish",
+  guestQr: "Mehmon QR",
+  unblock: "Ochish",
 }
 
+/** Prop bilan kelgan qisman override'ni default ustiga qo'yadi. */
 export function resolveLabels(partial?: Partial<CalendarLabels>): CalendarLabels {
   return partial ? { ...defaultLabels, ...partial } : defaultLabels
 }

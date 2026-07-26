@@ -17,7 +17,7 @@ function CalendarGridLayerImpl({ originDay, days, dayWidth, bodyWidth, todayCol,
   for (let c = 0; c < days; c++) if (isWeekendColumn(originDay, c)) weekendCols.push(c)
 
   const gridlines: CSSProperties = {
-    backgroundImage: `repeating-linear-gradient(90deg, var(--color-neutral-200) 0, var(--color-neutral-200) 0.5px, transparent 0.5px, transparent ${dayWidth}px)`,
+    backgroundImage: `repeating-linear-gradient(90deg, var(--color-neutral-200) 0, var(--color-neutral-200) 1px, transparent 1px, transparent ${dayWidth}px)`,
   }
 
   return (
@@ -37,17 +37,12 @@ function CalendarGridLayerImpl({ originDay, days, dayWidth, bodyWidth, todayCol,
       {todayCol >= 0 && (
         <div className="absolute inset-y-0 bg-brand-50" style={{ left: todayCol * dayWidth, width: dayWidth }} />
       )}
-      {/* O'tmish (bugundan oldingi kunlar) — xira gray + diagonal shtrix: "bu yerga bron ochilmaydi".
-          Boshqa washlar ustida turadi, chiziqlar ostida. */}
+      {/* O'tmish (bugundan oldingi kunlar) — bu yerga bron ochilmaydi. TEKIS, juda xira neytral
+          wash (diagonal shtrix EMAS — u butun fonni "chizilgan"dek ko'rsatardi). Chiziqlar ostida. */}
       {pastCol > 0 && (
         <div
-          className="absolute inset-y-0 bg-neutral-100/70"
-          style={{
-            left: 0,
-            width: Math.min(pastCol, days) * dayWidth,
-            backgroundImage:
-              "repeating-linear-gradient(45deg, var(--color-neutral-200) 0, var(--color-neutral-200) 1px, transparent 1px, transparent 7px)",
-          }}
+          className="absolute inset-y-0 bg-neutral-50"
+          style={{ left: 0, width: Math.min(pastCol, days) * dayWidth }}
         />
       )}
       {/* Vertikal kun chiziqlari — washlar ustida */}

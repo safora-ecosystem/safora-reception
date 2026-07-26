@@ -1,7 +1,7 @@
 import { useCallback, useRef, type PointerEvent as ReactPointerEvent, type RefObject } from "react"
 import {
   BAR_VPAD,
-  barRect,
+  barRectFromDays,
   columnFromX,
   epochDay,
   freeSpanAround,
@@ -22,6 +22,8 @@ interface DragConfig {
   railWidth: number
   today: string
   bookings: CalendarBooking[]
+  checkInFrac: number
+  checkOutFrac: number
   onCommit: (draft: CalendarDraft) => void
 }
 
@@ -40,6 +42,9 @@ const clamp = (n: number, lo: number, hi: number) => (n < lo ? lo : n > hi ? hi 
 const EDGE = 56
 const MAX_SPEED = 22
 
+const DRAG_OPACITY = "1"
+const HOVER_OPACITY = "0.4"
+
 function draftFromState(s: DragState, originDay: number): CalendarDraft {
   const min = Math.min(s.startDay, s.curDay)
   const max = Math.max(s.startDay, s.curDay)
@@ -54,6 +59,7 @@ export function useCalendarDrag(config: DragConfig) {
   const dragRef = useRef<DragState | null>(null)
   const pointerXRef = useRef(0)
   const rafRef = useRef<number | null>(null)
+  const hoverRef = useRef<{ roomId: string; day: number } | null>(null)
 
   const paint = useCallback(() => {
     const s = dragRef.current
@@ -61,7 +67,15 @@ export function useCalendarDrag(config: DragConfig) {
     if (!s || !ov) return
     const draft = draftFromState(s, config.originDay)
     const bodyWidth = config.days * config.dayWidth
-    const r = barRect(draft.start, draft.end, config.originDay, config.dayWidth, bodyWidth)
+    const r = barRectFromDays(
+      Math.min(s.startDay, s.curDay),
+      Math.max(s.startDay, s.curDay) + 1,
+      config.dayWidth,
+      bodyWidth,
+      config.checkInFrac,
+      config.checkOutFrac,
+    )
+    ov.style.opacity = DRAG_OPACITY
     paintSelectionShape(
       ov,
       r.left,
@@ -89,6 +103,46 @@ export function useCalendarDrag(config: DragConfig) {
       paint()
     }
   }, [config, paint])
+
+  const paintHover = useCallback(
+    (e: ReactPointerEvent, roomId: string, rowTop: number) => {
+      const scroller = config.scrollRef.current
+      const ov = config.overlayRef.current
+      if (!scroller || !ov) return
+      const rect = scroller.getBoundingClientRect()
+      const day = columnFromX(e.clientX, rect.left, scroller.scrollLeft, config.railWidth, config.dayWidth)
+      const prev = hoverRef.current
+      if (prev && prev.roomId === roomId && prev.day === day) return
+      hoverRef.current = { roomId, day }
+      const minDay = Math.max(0, epochDay(config.today) - config.originDay)
+      const draft = {
+        roomId,
+        start: isoFromEpochDay(config.originDay + day),
+        end: isoFromEpochDay(config.originDay + day + 1),
+      }
+      const target = e.currentTarget as HTMLElement
+      if (day < minDay || day > config.days - 1 || hasConflict(draft, config.bookings)) {
+        ov.style.display = "none"
+        target.style.cursor = "not-allowed"
+        return
+      }
+      target.style.cursor = ""
+      const bodyWidth = config.days * config.dayWidth
+      const r = barRectFromDays(day, day + 1, config.dayWidth, bodyWidth, config.checkInFrac, config.checkOutFrac)
+      ov.style.opacity = HOVER_OPACITY
+      paintSelectionShape(
+        ov,
+        r.left,
+        r.width,
+        rowTop + BAR_VPAD,
+        config.rowHeight - 2 * BAR_VPAD,
+        r.clippedStart,
+        r.clippedEnd,
+        false,
+      )
+    },
+    [config],
+  )
 
   const stopAutoScroll = useCallback(() => {
     if (rafRef.current != null) {
@@ -146,6 +200,7 @@ export function useCalendarDrag(config: DragConfig) {
       const span = freeSpanAround(roomId, day0, config.bookings, config.originDay, minDay, config.days - 1)
       const day = clamp(day0, span.lo, span.hi)
       pointerXRef.current = e.clientX
+      hoverRef.current = null
       dragRef.current = {
         roomId,
         rowTop,
@@ -162,13 +217,16 @@ export function useCalendarDrag(config: DragConfig) {
   )
 
   const move = useCallback(
-    (e: ReactPointerEvent) => {
-      if (!dragRef.current) return
-      pointerXRef.current = e.clientX
-      apply()
-      syncAutoScroll()
+    (e: ReactPointerEvent, roomId: string, rowTop: number) => {
+      if (dragRef.current) {
+        pointerXRef.current = e.clientX
+        apply()
+        syncAutoScroll()
+        return
+      }
+      paintHover(e, roomId, rowTop)
     },
-    [apply, syncAutoScroll],
+    [apply, syncAutoScroll, paintHover],
   )
 
   const finish = useCallback(
@@ -195,7 +253,14 @@ export function useCalendarDrag(config: DragConfig) {
     stopAutoScroll()
     const ov = config.overlayRef.current
     if (ov) ov.style.display = "none"
-  }, [config, stopAutoScroll])
+  }, [config])
 
-  return { start, move, finish, cancel }
+  const hoverEnd = useCallback(() => {
+    if (dragRef.current) return
+    hoverRef.current = null
+    const ov = config.overlayRef.current
+    if (ov) ov.style.display = "none"
+  }, [config])
+
+  return { start, move, finish, cancel, hoverEnd }
 }

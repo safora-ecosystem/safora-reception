@@ -153,6 +153,30 @@ export type Room = {
   floor: number | null
   /** Decimal backend'da — string yoki number bo'lib kelishi mumkin. */
   rate?: number | string
+  /** Standart joy soni. `null` = belgilanmagan (UI mehmon soni haqida gapirmaydi).
+      QAT'IY CHEGARA EMAS — sig'imdan ortiq mehmon faqat ogohlantirish chiqaradi. */
+  capacity?: number | null
+}
+
+/** Hujjat turlari — backend `guest_doc_type` enum'i bilan bir xil. */
+export type GuestDocType = "passport" | "id_card" | "birth_certificate" | "driver_license" | "other"
+
+/** Bronda yashovchi bitta mehmon. Asosiysi (`isPrimary`) bron ustunlari bilan sinxron:
+    mehmon QR check-in aynan uning telefonining oxirgi 4 raqamiga tayanadi. */
+export type BookingGuest = {
+  id: string
+  fullName: string
+  phone: string | null
+  docType: GuestDocType | null
+  docNumber: string | null
+  isPrimary: boolean
+}
+
+export type GuestInput = {
+  fullName: string
+  phone?: string
+  docType?: GuestDocType
+  docNumber?: string
 }
 
 export type Booking = {
@@ -173,6 +197,25 @@ export type Booking = {
   checkedOutAt?: string | null
   createdAt?: string
   room: { id: string; number: string }
+  /** Resepshn eslatmasi (smenalar orasida ma'lumot uzatish). */
+  note?: string | null
+  /** To'liq ro'yxat FAQAT `GET /bookings/:id` javobida — kalendar ro'yxatida sanoq keladi. */
+  guests?: BookingGuest[]
+  _count?: { guests: number }
+}
+
+/** Mehmonsiz bandlik: ta'mir, chuqur tozalash yoki ushlab turish. Bron EMAS — alohida jadval,
+    chunki hisobotlar bronlarni status bo'yicha sanaydi va blok o'sha raqamlarga kirib ketardi. */
+export type RoomBlockKind = "maintenance" | "cleaning" | "hold" | "other"
+
+export type RoomBlock = {
+  id: string
+  kind: RoomBlockKind
+  reason: string | null
+  /** date-only (ISO); `endDate` exclusive — bronlar bilan bir xil konvensiya. */
+  startDate: string
+  endDate: string
+  room: { id: string; number: string }
 }
 
 export const listRooms = () => api<Room[]>("/rooms")
@@ -186,17 +229,75 @@ export const listBookings = (from?: string, to?: string) => {
   return api<Booking[]>(`/bookings${q ? `?${q}` : ""}`)
 }
 
-export type CreateBookingBody = {
+export type BulkBookingRoom = {
   roomId: string
-  guestName: string
-  guestPhone?: string
-  checkInDate: string
-  checkOutDate: string
   totalAmount: number
+  paidAmount?: number
 }
 
-export const createBooking = (body: CreateBookingBody) => api<Booking>("/bookings", { method: "POST", body })
+export type CreateBookingsBody = {
+  guestName: string
+  guestPhone: string
+  guestDocType?: GuestDocType
+  guestDocNumber?: string
+  guests?: GuestInput[]
+  note?: string
+  checkInDate: string
+  checkOutDate: string
+  rooms: BulkBookingRoom[]
+}
 
+export const createBookings = (body: CreateBookingsBody) =>
+  api<Booking[]>("/bookings/bulk", { method: "POST", body })
+
+export const getBooking = (id: string) => api<Booking>(`/bookings/${id}`)
+
+// ── Mehmonlar ─────────────────────────────────────────────────────────────────
+// Hammasi TO'LIQ bronni qaytaradi — modal bitta javob bilan yangilanadi.
+
+export const addBookingGuest = (bookingId: string, body: GuestInput) =>
+  api<Booking>(`/bookings/${bookingId}/guests`, { method: "POST", body })
+
+export const updateBookingGuest = (bookingId: string, guestId: string, body: Partial<GuestInput>) =>
+  api<Booking>(`/bookings/${bookingId}/guests/${guestId}`, { method: "PATCH", body })
+
+// PATCH bodyless — api() content-type qo'ymaydi (Fastify bo'sh-body gotcha).
+export const setPrimaryGuest = (bookingId: string, guestId: string) =>
+  api<Booking>(`/bookings/${bookingId}/guests/${guestId}/primary`, { method: "PATCH" })
+
+export const removeBookingGuest = (bookingId: string, guestId: string) =>
+  api<Booking>(`/bookings/${bookingId}/guests/${guestId}`, { method: "DELETE" })
+
+// ── Xona bloklari ─────────────────────────────────────────────────────────────
+
+export const listRoomBlocks = (from?: string, to?: string) => {
+  const qs = new URLSearchParams()
+  if (from) qs.set("from", from)
+  if (to) qs.set("to", to)
+  const q = qs.toString()
+  return api<RoomBlock[]>(`/room-blocks${q ? `?${q}` : ""}`)
+}
+
+export type CreateRoomBlockBody = {
+  roomId: string
+  kind?: RoomBlockKind
+  reason?: string
+  startDate: string
+  endDate: string
+}
+
+export const createRoomBlock = (body: CreateRoomBlockBody) =>
+  api<RoomBlock>("/room-blocks", { method: "POST", body })
+
+export const updateRoomBlock = (id: string, body: Partial<CreateRoomBlockBody>) =>
+  api<RoomBlock>(`/room-blocks/${id}`, { method: "PATCH", body })
+
+export const removeRoomBlock = (id: string) =>
+  api<{ ok: true }>(`/room-blocks/${id}`, { method: "DELETE" })
+
+/** Faqat o'zgargan maydonlar yuboriladi (PATCH semantikasi). Xona yoki sana o'zgarishini server
+    faqat `booked` holatda qabul qiladi (aks holda 409) va create bilan AYNAN bir xil overlap
+    qulfidan o'tkazadi — ya'ni klient tekshiruvi qulaylik, haqiqiy chegara serverda. */
 export type UpdateBookingBody = {
   roomId?: string
   guestName?: string
@@ -204,6 +305,10 @@ export type UpdateBookingBody = {
   checkInDate?: string
   checkOutDate?: string
   totalAmount?: number
+  /** To'langan summa; server `paidAmount ≤ totalAmount` shartini majburlaydi. */
+  paidAmount?: number
+  /** Bo'sh satr = eslatmani tozalash (`undefined` = tegilmadi). */
+  note?: string
 }
 
 export const updateBooking = (id: string, body: UpdateBookingBody) =>

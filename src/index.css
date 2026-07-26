@@ -102,6 +102,9 @@
   --color-cal-out-surface: var(--cal-out-surface);
   --color-cal-out-foreground: var(--cal-out-foreground);
   --color-cal-out-border: var(--cal-out-border);
+  --color-cal-block-surface: var(--cal-block-surface);
+  --color-cal-block-foreground: var(--cal-block-foreground);
+  --color-cal-block-border: var(--cal-block-border);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -178,15 +181,19 @@
 
   
   
-  --cal-in-surface: #b5e4c6; 
-  --cal-in-foreground: #067a48; 
-  --cal-in-border: #86cc9f;
-  --cal-booked-surface: #bfd9f7; 
-  --cal-booked-foreground: #1a5fb4; 
-  --cal-booked-border: #92bef0;
-  --cal-out-surface: #e6e6e5; 
-  --cal-out-foreground: #6a6d72;
-  --cal-out-border: #d0d0cf;
+  --cal-in-surface: #9be3ba; 
+  --cal-in-foreground: #04653a; 
+  --cal-in-border: #4cbf87;
+  --cal-booked-surface: #a8d0fa; 
+  --cal-booked-foreground: #134f96; 
+  --cal-booked-border: #5aa3f0;
+  --cal-out-surface: #e0dcd3; 
+  --cal-out-foreground: #5c564b; 
+  --cal-out-border: #bdb7aa;
+  
+  --cal-block-surface: #d5dae2;
+  --cal-block-foreground: #414a58; 
+  --cal-block-border: #93a0b3;
 
   --border: var(--color-neutral-200);
   --input: var(--color-neutral-200);
@@ -245,6 +252,18 @@
       var(--color-neutral-300) 1.5px,
       transparent 1.5px,
       transparent 7px
+    );
+  }
+
+  
+  .bar-blocked {
+    background-color: var(--cal-block-surface);
+    background-image: repeating-linear-gradient(
+      45deg,
+      var(--cal-block-border),
+      var(--cal-block-border) 2px,
+      transparent 2px,
+      transparent 8px
     );
   }
 }

@@ -11,7 +11,7 @@ type PlaceholderPageProps = {
 
 export function PlaceholderPage({ title, description, icon: Icon, note }: PlaceholderPageProps) {
   return (
-    <PageLayout title={title} description={description}>
+    <PageLayout title={title}>
       <Card className="min-h-[22rem]">
         <CardContent className="flex flex-1 flex-col items-center justify-center gap-3 py-12 text-center">
           <span className="flex size-11 items-center justify-center rounded-full bg-neutral-100">
@@ -19,9 +19,8 @@ export function PlaceholderPage({ title, description, icon: Icon, note }: Placeh
           </span>
           <div className="max-w-xs">
             <p className="text-sm font-medium text-neutral-700">Keyingi bosqichda</p>
-            <p className="mt-1 text-xs text-neutral-500">
-              {note ?? "Bu ekran tez orada shu yerda ochiladi."}
-            </p>
+            {}
+            <p className="mt-1 text-xs text-neutral-500">{note ?? description}</p>
           </div>
         </CardContent>
       </Card>

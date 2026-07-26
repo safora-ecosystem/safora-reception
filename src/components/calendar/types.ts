@@ -1,7 +1,9 @@
-import type { ReactNode } from "react"
+import type { ComponentType, ReactNode } from "react"
 
 
-export type CalendarStatus = "booked" | "checked_in" | "checked_out" | "cancelled"
+export type CalendarStatus = "booked" | "checked_in" | "checked_out" | "cancelled" | "blocked"
+
+export type CalendarBlockKind = "maintenance" | "cleaning" | "hold" | "other"
 
 export interface CalendarPayment {
   total: number
@@ -15,6 +17,7 @@ export interface CalendarRoom {
   sublabel?: string
   order?: number
   rate?: number
+  capacity?: number
 }
 
 export interface CalendarBooking {
@@ -30,6 +33,9 @@ export interface CalendarBooking {
   checkedInAt?: string | null
   checkedOutAt?: string | null
   createdAt?: string
+  guestCount?: number
+  note?: string | null
+  blockKind?: CalendarBlockKind
   meta?: Record<string, unknown>
 }
 
@@ -42,6 +48,8 @@ export interface StatusVisual {
   bar: string
   text?: string
   border?: string
+  strip?: string
+  icon?: ComponentType<{ className?: string }>
   hidden?: boolean
 }
 
@@ -53,6 +61,7 @@ export interface CalendarLabels {
   nights: (n: number) => string
   money: (amount: number) => string
   statusText: Record<CalendarStatus, string>
+  blockKindText: Record<CalendarBlockKind, string>
   checkInTime: string
   checkOutTime: string
   nightsWord: string
@@ -92,6 +101,51 @@ export interface CalendarLabels {
   amount: string
   lockedHint: string
   noChanges: string
+
+  rooms: string
+  roomsSelected: (n: number) => string
+  roomSearch: string
+  roomsEmpty: string
+  busy: string
+  selectedBusy: string
+  pastStart: string
+  summary: string
+  quickNights: string
+  prepayment: string
+  paymentUnpaid: string
+  paymentPartial: string
+  paymentFull: string
+  prepaymentTooBig: string
+  create: string
+  groupHint: (n: number) => string
+
+  modeBooking: string
+  modeBlock: string
+  blockTitle: string
+  blockReason: string
+  blockReasonHint: string
+  blockKind: string
+  createBlock: string
+  blockHint: string
+
+  companions: string
+  addGuest: string
+  removeGuest: string
+  primaryGuest: string
+  makePrimary: string
+  document: string
+  docNumber: string
+  docTypeText: Record<string, string>
+  note: string
+  notePlaceholder: string
+  capacityOver: (guests: number, capacity: number) => string
+  guestsWord: (n: number) => string
+
+  openChat: string
+  duplicate: string
+  extendStay: string
+  guestQr: string
+  unblock: string
 }
 
 export interface CalendarDraft {
@@ -100,9 +154,50 @@ export interface CalendarDraft {
   end: string
 }
 
-export interface CalendarCreateInput extends CalendarDraft {
+export interface CalendarCreateRoom {
+  roomId: string
+  totalAmount: number
+  paidAmount: number
+}
+
+export interface CalendarGuest {
+  id: string
+  fullName: string
+  phone: string | null
+  docType: string | null
+  docNumber: string | null
+  isPrimary: boolean
+}
+
+export interface CalendarGuestInput {
+  fullName: string
+  phone?: string
+  docType?: string
+  docNumber?: string
+}
+
+export type CalendarCreateInput =
+  | ({ mode: "booking" } & CalendarBookingInput)
+  | ({ mode: "block" } & CalendarBlockInput)
+
+export interface CalendarBookingInput {
+  start: string
+  end: string
   guestName: string
-  guestPhone?: string
+  guestPhone: string
+  guestDocType?: string
+  guestDocNumber?: string
+  guests?: CalendarGuestInput[]
+  note?: string
+  rooms: CalendarCreateRoom[]
+}
+
+export interface CalendarBlockInput {
+  start: string
+  end: string
+  roomIds: string[]
+  kind: CalendarBlockKind
+  reason?: string
 }
 
 export interface BookingEditPatch {
@@ -112,6 +207,8 @@ export interface BookingEditPatch {
   start?: string
   end?: string
   totalAmount?: number
+  paidAmount?: number
+  note?: string
 }
 
 export interface ReservationCalendarProps {
@@ -134,7 +231,22 @@ export interface ReservationCalendarProps {
   onCheckIn?: (id: string) => void | Promise<void>
   onCheckOut?: (id: string) => void | Promise<void>
   onCancel?: (id: string) => void | Promise<void>
-  onSelectBooking?: (booking: CalendarBooking) => void
+  onSelectBooking?: (booking: CalendarBooking | null) => void
+
+  guests?: CalendarGuest[] | null
+  guestsLoading?: boolean
+  onAddGuest?: (bookingId: string, guest: CalendarGuestInput) => void | Promise<void>
+  onUpdateGuest?: (
+    bookingId: string,
+    guestId: string,
+    patch: Partial<CalendarGuestInput>,
+  ) => void | Promise<void>
+  onRemoveGuest?: (bookingId: string, guestId: string) => void | Promise<void>
+  onSetPrimaryGuest?: (bookingId: string, guestId: string) => void | Promise<void>
+
+  onRemoveBlock?: (id: string) => void | Promise<void>
+  onDuplicate?: (booking: CalendarBooking) => void
+  onOpenChat?: (booking: CalendarBooking) => void
   onEditBooking?: (id: string, patch: BookingEditPatch) => void | Promise<void>
   onMoveBooking?: (id: string, next: CalendarDraft) => void | Promise<void>
 

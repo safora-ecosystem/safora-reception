@@ -35,6 +35,8 @@ interface MoveConfig {
   lanes: Lane[]
   laneTops: number[]
   bookings: CalendarBooking[]
+  checkInFrac: number
+  checkOutFrac: number
   onCommit: (id: string, next: CalendarDraft) => void
 }
 
@@ -76,7 +78,7 @@ export function useCalendarMove(config: MoveConfig): CalendarMoveHandlers {
     if (!s || !ov) return
     const draft = draftOf(s, config.originDay, config.lanes)
     const bodyWidth = config.days * config.dayWidth
-    const r = barRect(draft.start, draft.end, config.originDay, config.dayWidth, bodyWidth)
+    const r = barRect(draft.start, draft.end, config.originDay, config.dayWidth, bodyWidth, config.checkInFrac, config.checkOutFrac)
     paintSelectionShape(
       ov,
       r.left,

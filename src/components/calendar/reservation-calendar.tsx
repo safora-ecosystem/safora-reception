@@ -11,22 +11,22 @@ import {
 import { useVirtualizer } from "@tanstack/react-virtual"
 import { cn } from "@/lib/utils"
 import { CalendarBar } from "./calendar-bar"
+import { CalendarBarTooltip } from "./calendar-bar-tooltip"
 import { CalendarCreateDialog } from "./calendar-create-dialog"
 import { CalendarDetailModal } from "./calendar-detail-modal"
 import { CalendarGridLayer } from "./calendar-grid-layer"
 import { CalendarGroupRow } from "./calendar-group-row"
 import { CalendarHeader } from "./calendar-header"
 import { CalendarRail } from "./calendar-rail"
-import { addDays, epochDay, isoFromEpochDay, laneOffsets, todayColumn } from "./geometry"
+import { addDays, dayFraction, epochDay, isoFromEpochDay, laneOffsets, todayColumn } from "./geometry"
 import { resolveLabels } from "./labels"
 import { resolveStatusConfig } from "./status-config"
 import { useCalendarDrag } from "./use-calendar-drag"
 import { useCalendarMove } from "./use-calendar-move"
+import { useCalendarTooltip } from "./use-calendar-tooltip"
 import { useBookingIndex, useLanes } from "./use-lanes"
-import type { CalendarBooking, CalendarDraft, CalendarRoom, ReservationCalendarProps } from "./types"
+import type { CalendarBooking, CalendarDraft, ReservationCalendarProps } from "./types"
 
-
-const GROUP_HEIGHT = 52
 
 export interface ReservationCalendarHandle {
   openCreate: (roomId?: string, start?: string) => void
@@ -41,9 +41,9 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
       bookings,
       range,
       dayWidth = 48,
-      rowHeight = 44,
-      railWidth = 180,
-      headerHeight = 74,
+      rowHeight = 52,
+      railWidth = 200,
+      headerHeight = 104,
       groupByFloor = true,
       overscan = 10,
       matchIds,
@@ -54,6 +54,15 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
       onCancel,
       onEditBooking,
       onMoveBooking,
+      guests = null,
+      guestsLoading = false,
+      onAddGuest,
+      onUpdateGuest,
+      onRemoveGuest,
+      onSetPrimaryGuest,
+      onRemoveBlock,
+      onDuplicate,
+      onOpenChat,
       isLoading = false,
       error = null,
       className,
@@ -65,6 +74,10 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
     )
     const labels = useMemo(() => resolveLabels(props.labels), [props.labels])
     const statusConfig = useMemo(() => resolveStatusConfig(props.statusConfig), [props.statusConfig])
+    const checkInFrac = useMemo(() => dayFraction(labels.checkInTime), [labels.checkInTime])
+    const checkOutFrac = useMemo(() => dayFraction(labels.checkOutTime), [labels.checkOutTime])
+
+    const groupHeight = Math.round(rowHeight * 1.1)
 
     const originDay = epochDay(range.start)
     const bodyWidth = range.days * dayWidth
@@ -82,13 +95,7 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
     }, [])
 
     const lanes = useLanes(rooms, groupByFloor, collapsed)
-    const bookingIndex = useBookingIndex(bookings, originDay, dayWidth, bodyWidth, statusConfig)
-    const roomsById = useMemo(() => {
-      const m = new Map<string, CalendarRoom>()
-      for (const r of rooms) m.set(r.id, r)
-      return m
-    }, [rooms])
-
+    const bookingIndex = useBookingIndex(bookings, originDay, dayWidth, bodyWidth, statusConfig, checkInFrac, checkOutFrac)
     const occupancy = useMemo(() => {
       const days = range.days
       const total = rooms.length
@@ -147,19 +154,25 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
     )
     const [createDraft, setCreateDraft] = useState<CalendarDraft | null>(null)
 
+    const { state: tooltipState, handlers: tooltip } = useCalendarTooltip()
+
     const scrollRef = useRef<HTMLDivElement>(null)
     const overlayRef = useRef<HTMLDivElement>(null)
 
     const rowVirtualizer = useVirtualizer({
       count: lanes.length,
       getScrollElement: () => scrollRef.current,
-      estimateSize: (i) => (lanes[i].kind === "group" ? GROUP_HEIGHT : rowHeight),
+      estimateSize: (i) => (lanes[i].kind === "group" ? groupHeight : rowHeight),
       getItemKey: (i) => lanes[i].id,
       overscan,
       scrollMargin: headerHeight,
     })
     const virtualItems = rowVirtualizer.getVirtualItems()
     const totalHeight = rowVirtualizer.getTotalSize()
+
+    useEffect(() => {
+      rowVirtualizer.measure()
+    }, [rowHeight, groupHeight, rowVirtualizer])
 
     const focusDateRef = useRef(today)
     const scrollToDate = useCallback(
@@ -177,10 +190,11 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
       if (el) el.scrollBy({ left: dir * el.clientWidth * 0.85, behavior: "smooth" })
     }, [])
     const handleScroll = useCallback(() => {
+      tooltip.hide()
       const el = scrollRef.current
       if (!el) return
       focusDateRef.current = isoFromEpochDay(originDay + Math.floor((el.scrollLeft + el.clientWidth / 2) / dayWidth))
-    }, [originDay, dayWidth])
+    }, [originDay, dayWidth, tooltip])
 
     const initedRef = useRef(false)
     useEffect(() => {
@@ -202,16 +216,19 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
       },
       [onSelectBooking],
     )
-    const closeSelected = useCallback(() => setSelectedId(null), [])
+    const closeSelected = useCallback(() => {
+      setSelectedId(null)
+      onSelectBooking?.(null)
+    }, [onSelectBooking])
 
     const dragConfig = useMemo(
-      () => ({ scrollRef, overlayRef, originDay, days: range.days, dayWidth, rowHeight, railWidth, today, bookings, onCommit: setCreateDraft }),
-      [originDay, range.days, dayWidth, rowHeight, railWidth, today, bookings],
+      () => ({ scrollRef, overlayRef, originDay, days: range.days, dayWidth, rowHeight, railWidth, today, bookings, checkInFrac, checkOutFrac, onCommit: setCreateDraft }),
+      [originDay, range.days, dayWidth, rowHeight, railWidth, today, bookings, checkInFrac, checkOutFrac],
     )
     const drag = useCalendarDrag(dragConfig)
 
     const canMove = onMoveBooking != null
-    const laneTops = useMemo(() => laneOffsets(lanes, rowHeight, GROUP_HEIGHT), [lanes, rowHeight])
+    const laneTops = useMemo(() => laneOffsets(lanes, rowHeight, groupHeight), [lanes, rowHeight, groupHeight])
     const moveConfig = useMemo(
       () => ({
         scrollRef,
@@ -222,16 +239,18 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
         rowHeight,
         railWidth,
         headerHeight,
-        groupHeight: GROUP_HEIGHT,
+        groupHeight,
         today,
         lanes,
         laneTops,
         bookings,
+        checkInFrac,
+        checkOutFrac,
         onCommit: (id: string, next: CalendarDraft) => {
           void onMoveBooking?.(id, next)
         },
       }),
-      [originDay, range.days, dayWidth, rowHeight, railWidth, headerHeight, today, lanes, laneTops, bookings, onMoveBooking],
+      [originDay, range.days, dayWidth, rowHeight, railWidth, headerHeight, groupHeight, today, lanes, laneTops, bookings, checkInFrac, checkOutFrac, onMoveBooking],
     )
     const moveDrag = useCalendarMove(moveConfig)
 
@@ -292,6 +311,7 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
                   dayWidth={dayWidth}
                   bodyWidth={bodyWidth}
                   headerHeight={headerHeight}
+                  railWidth={railWidth}
                   todayCol={todayCol}
                   labels={labels}
                   occupancy={occupancy}
@@ -308,8 +328,11 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
                 />
               </div>
 
-              {/* body */}
-              <div className="relative" style={{ gridColumn: 2, gridRow: 2 }}>
+              {/* body — `isolate`: o'z stacking context'i. Aks holda bar'lardagi z-index (hover z-20,
+                  selected z-30) SIBLING sticky rail (z-20) / header (z-30) bilan raqobatlashadi va gorizontal
+                  scroll'da rail ostiga kirgan bar hover'da uning USTIGA chiqib ketadi. Isolate → hamma bar
+                  z-index'i body ichida qamaladi, body esa rail/header ostida qoladi. */}
+              <div className="relative isolate" style={{ gridColumn: 2, gridRow: 2 }}>
                 <CalendarGridLayer
                   originDay={originDay}
                   days={range.days}
@@ -342,12 +365,13 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
                     <Fragment key={lane.id}>
                       {/* Drag-to-create catcher — bars ostida (z-5), bo'sh joyda pointerdown'ni tutadi. */}
                       <div
-                        className="absolute left-0 z-[5] cursor-crosshair"
+                        className="hairline-b absolute left-0 z-[5] cursor-crosshair"
                         style={{ top: rowTop, height: vi.size, width: bodyWidth }}
                         onPointerDown={(e) => drag.start(e, lane.room.id, rowTop)}
-                        onPointerMove={drag.move}
+                        onPointerMove={(e) => drag.move(e, lane.room.id, rowTop)}
                         onPointerUp={drag.finish}
                         onPointerCancel={drag.cancel}
+                        onPointerLeave={drag.hoverEnd}
                       />
                       {bars?.map((pb) => (
                         <CalendarBar
@@ -364,6 +388,7 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
                           movable={canMove && pb.booking.status === "booked"}
                           dimmed={matchIds != null && !matchIds.has(pb.booking.id)}
                           move={moveDrag}
+                          tooltip={tooltip}
                         />
                       ))}
                     </Fragment>
@@ -371,38 +396,53 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
                 })}
 
                 {/* Drag/ghost tanlash overlay'i — ref bilan mutatsiya (render'dan tashqari).
-                    Ikki qatlam (tashqi chegara + ichki fill) + diagonal clip'ni paintSelectionShape
-                    o'rnatadi → tanlov to'rtburchak emas, "aktiv bron" (tape-chart) ko'rinishida.
-                    data-conflict tashqi qatlamda; ichki fill group-data bilan hamohang rangda. */}
+                    CalendarBar bilan AYNAN bir tuzilish: tashqi qatlam = brand kontur, ichkarisi =
+                    yumshoq brand tint fill → "yaratilajak bron" o'zi yaratadigan bar shaklida
+                    ko'rinadi (qiya uchlar ham). Shakl/pozitsiyani paintSelectionShape o'rnatadi;
+                    data-conflict ikkala qatlamni ham qizilga almashtiradi (band katak). */}
                 <div
                   ref={overlayRef}
                   data-conflict="false"
-                  className="group pointer-events-none absolute z-[15] hidden overflow-hidden rounded-[7px] bg-brand-500 data-[conflict=true]:bg-destructive"
+                  className="group pointer-events-none absolute z-[15] hidden bg-brand-500 p-[2px] data-[conflict=true]:bg-destructive"
                 >
-                  <div className="absolute rounded-[6px] bg-brand-500/20 group-data-[conflict=true]:bg-destructive/20" />
+                  <span className="block size-full bg-brand-100 group-data-[conflict=true]:bg-destructive-surface" />
                 </div>
               </div>
             </div>
           </div>
         )}
 
+        {/* Umumiy custom hover tooltip — document.body'ga portal qilinadi (scroller kesmasin). */}
+        <CalendarBarTooltip state={tooltipState} labels={labels} statusConfig={statusConfig} />
+
         <CalendarDetailModal
           booking={selectedBooking}
           rooms={rooms}
           bookings={bookings}
           labels={labels}
+          today={today}
+          guests={guests}
+          guestsLoading={guestsLoading}
           onClose={closeSelected}
           onCheckIn={onCheckIn}
           onCheckOut={onCheckOut}
           onCancel={onCancel}
           onEdit={onEditBooking}
+          onAddGuest={onAddGuest}
+          onUpdateGuest={onUpdateGuest}
+          onRemoveGuest={onRemoveGuest}
+          onSetPrimaryGuest={onSetPrimaryGuest}
+          onRemoveBlock={onRemoveBlock}
+          onDuplicate={onDuplicate}
+          onOpenChat={onOpenChat}
         />
 
         <CalendarCreateDialog
           draft={createDraft}
-          roomLabel={createDraft ? (roomsById.get(createDraft.roomId)?.label ?? "") : ""}
+          rooms={rooms}
           bookings={bookings}
           labels={labels}
+          today={today}
           onClose={() => setCreateDraft(null)}
           onSubmit={async (input) => {
             await onCreateBooking?.(input)

@@ -33,21 +33,21 @@ function CalendarGroupRowImpl({ rowTop, height, days, dayWidth, avail, rate }: C
         return (
           <div
             key={c}
-            className="flex flex-col items-center justify-center gap-1"
+            className="flex flex-col items-center justify-center gap-0.5"
             style={{ width: dayWidth }}
           >
             {free != null && (
               <span
                 className={cn(
-                  "text-[0.75rem] font-semibold tabular-nums",
-                  free <= 0 ? "text-destructive" : "text-neutral-600",
+                  "text-[0.8125rem] font-semibold tabular-nums",
+                  free <= 0 ? "text-destructive" : "text-neutral-700",
                 )}
               >
                 {Math.max(0, free)}
               </span>
             )}
             {showRate && (
-              <span className="rounded-full border border-border bg-white px-1.5 py-px text-[0.625rem] leading-tight font-medium text-neutral-500 tabular-nums">
+              <span className="rounded-full border border-border bg-white px-1.5 py-px text-[0.6875rem] leading-tight font-medium text-neutral-500 tabular-nums">
                 {compact(rate)}
               </span>
             )}
