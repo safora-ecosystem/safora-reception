@@ -11,7 +11,7 @@ type PageLayoutProps = {
 export function PageLayout({ breadcrumb, title, description, actions, children }: PageLayoutProps) {
   return (
     <div className="px-6 py-6 sm:px-8 sm:py-7">
-      <div className="max-w-[1280px]">
+      <div className="mx-auto w-full max-w-[1760px]">
         {breadcrumb && breadcrumb.length > 0 && (
           <nav aria-label="breadcrumb" className="mb-2 flex items-center gap-2 text-xs">
             {breadcrumb.map((segment, i) => (
