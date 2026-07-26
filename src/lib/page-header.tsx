@@ -38,5 +38,6 @@ export function useSetPageHeader(title: ReactNode, actions?: ReactNode): void {
   actionsRef.current = actions
   useEffect(() => {
     setHeader({ title, actions: actionsRef.current })
+    if (typeof title === "string" && title) document.title = `${title} · Safora`
   }, [title, setHeader])
 }

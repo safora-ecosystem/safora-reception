@@ -12,7 +12,7 @@ export function Topbar() {
   const user = getSession()?.user
   const initial = (user?.name ?? "?").trim().charAt(0).toUpperCase()
 
-  const { title, actions } = usePageHeader()
+  const { actions } = usePageHeader()
 
   const { query, setQuery } = useTopbarSearch()
   const inputRef = useRef<HTMLInputElement>(null)
@@ -33,14 +33,7 @@ export function Topbar() {
   return (
     <header className="flex h-[4.5rem] shrink-0 items-center gap-3 rounded-panel border border-border bg-white px-4 sm:px-5">
       {}
-      {title ? (
-        <h1 className="hidden shrink-0 truncate text-lg font-semibold tracking-tight text-neutral-900 sm:block sm:max-w-52 lg:max-w-none">
-          {title}
-        </h1>
-      ) : null}
-
-      {}
-      <div className="relative min-w-0 flex-1">
+      <div className="relative w-full min-w-0 max-w-[26rem]">
         <Icon
           icon={Search01Icon}
           className="pointer-events-none absolute top-1/2 left-4 size-[1.125rem] -translate-y-1/2 text-neutral-400"
@@ -60,6 +53,8 @@ export function Topbar() {
           <span className="text-xs leading-none">K</span>
         </kbd>
       </div>
+
+      <div className="min-w-0 flex-1" aria-hidden />
 
       {}
       {actions ? <div className="hidden shrink-0 items-center gap-2 sm:flex">{actions}</div> : null}
