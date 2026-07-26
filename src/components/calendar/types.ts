@@ -146,6 +146,28 @@ export interface CalendarLabels {
   extendStay: string
   guestQr: string
   unblock: string
+
+  paymentHistory: string
+  receivePayment: string
+  paymentNotePlaceholder: string
+  paymentMethodText: Record<string, string>
+  voidPayment: string
+  voidReasonPlaceholder: string
+  voided: string
+  paidReadOnlyHint: string
+  confirm: string
+
+  activityText: Record<string, string>
+  activityFallback: string
+  activityFieldText: Record<string, string>
+
+  debtOnCheckOut: (remaining: number) => string
+  checkOutAnyway: string
+  cancelPaidWarning: (paid: number) => string
+  cancelAnyway: string
+  earlyCheckInWarning: (date: string) => string
+  checkInAnyway: string
+  back: string
 }
 
 export interface CalendarDraft {
@@ -158,6 +180,26 @@ export interface CalendarCreateRoom {
   roomId: string
   totalAmount: number
   paidAmount: number
+}
+
+export interface CalendarPaymentEntry {
+  id: string
+  amount: number
+  method: string
+  note?: string | null
+  receivedByName?: string | null
+  at?: string
+  voided?: boolean
+  voidReason?: string | null
+  canVoid?: boolean
+}
+
+export interface CalendarActivityEntry {
+  id: string
+  action: string
+  actorName?: string | null
+  at: string
+  data?: Record<string, unknown> | null
 }
 
 export interface CalendarGuest {
@@ -243,6 +285,12 @@ export interface ReservationCalendarProps {
   ) => void | Promise<void>
   onRemoveGuest?: (bookingId: string, guestId: string) => void | Promise<void>
   onSetPrimaryGuest?: (bookingId: string, guestId: string) => void | Promise<void>
+
+  payments?: CalendarPaymentEntry[] | null
+  onRecordPayment?: (bookingId: string, input: { amount: number; note?: string }) => void | Promise<void>
+  onVoidPayment?: (bookingId: string, paymentId: string, reason: string) => void | Promise<void>
+  activity?: CalendarActivityEntry[] | null
+  activityLoading?: boolean
 
   onRemoveBlock?: (id: string) => void | Promise<void>
   onDuplicate?: (booking: CalendarBooking) => void

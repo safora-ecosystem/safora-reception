@@ -14,7 +14,8 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { listSessions, revokeOtherSessions, revokeSession } from "@/lib/api"
 import { ROLE_LABEL, getSession } from "@/lib/auth"
-import { playMessageChime, requestDesktopPermission, useNotifyPrefs } from "@/lib/notify"
+import { TONES, playMessageChime, previewTone, requestDesktopPermission, useNotifyPrefs } from "@/lib/notify"
+import { cn } from "@/lib/utils"
 
 export function SettingsPage() {
   const qc = useQueryClient()
@@ -84,6 +85,30 @@ export function SettingsPage() {
           >
             <Row label="Ovozli signal" hint="Mehmon yoki jamoadan xabar kelganda.">
               <Toggle checked={prefs.sound} onChange={(v) => set({ sound: v })} label="Ovozli signal" />
+            </Row>
+            <Row label="Ovoz turi" hint="Tanlaganingizda eshitiladi.">
+              <div className="flex gap-1 rounded-control bg-neutral-100 p-0.5">
+                {TONES.map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    aria-pressed={prefs.tone === t.id}
+                    title={t.hint}
+                    onClick={() => {
+                      set({ tone: t.id })
+                      previewTone(t.id)
+                    }}
+                    className={cn(
+                      "rounded-[0.5rem] px-2.5 py-1 text-[0.8125rem] font-medium transition-colors",
+                      prefs.tone === t.id
+                        ? "bg-white text-neutral-900 shadow-xs"
+                        : "text-neutral-500 hover:text-neutral-800",
+                    )}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
             </Row>
             <Row label="Brauzer bildirishnomasi" hint="Tab fonda bo'lganda ish stolida ko'rinadi.">
               <Toggle

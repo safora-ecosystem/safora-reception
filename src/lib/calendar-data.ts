@@ -6,9 +6,11 @@ import {
   defaultLabels,
   generateMockData,
   type BookingEditPatch,
+  type CalendarActivityEntry,
   type CalendarBooking,
   type CalendarCreateInput,
   type CalendarDraft,
+  type CalendarPaymentEntry,
   type CalendarRange,
   type CalendarRoom,
 } from "@/components/calendar"
@@ -21,21 +23,26 @@ import {
   createBookings as apiCreateBookings,
   createRoomBlock,
   getBooking,
+  getBookingActivity,
   listBookings,
   listRoomBlocks,
   listRooms,
+  recordBookingPayment,
   removeBookingGuest,
   removeRoomBlock,
   setPrimaryGuest as apiSetPrimaryGuest,
   updateBooking as apiUpdateBooking,
   updateBookingGuest,
+  voidBookingPayment,
   type Booking,
   type BookingGuest,
+  type BookingPayment,
   type GuestInput,
   type Room,
   type RoomBlock,
   type UpdateBookingBody,
 } from "@/lib/api"
+import { getSession } from "@/lib/auth"
 
 const BLOCK_PREFIX = "block:"
 export const isBlockId = (id: string) => id.startsWith(BLOCK_PREFIX)
@@ -62,6 +69,12 @@ export interface CalendarData {
   updateGuest: (bookingId: string, guestId: string, patch: Partial<LooseGuestInput>) => Promise<void>
   removeGuest: (bookingId: string, guestId: string) => Promise<void>
   makeGuestPrimary: (bookingId: string, guestId: string) => Promise<void>
+
+  payments: CalendarPaymentEntry[] | null
+  recordPayment?: (bookingId: string, input: { amount: number; note?: string }) => Promise<void>
+  voidPayment?: (bookingId: string, paymentId: string, reason: string) => Promise<void>
+  activity: CalendarActivityEntry[] | null
+  activityLoading: boolean
 }
 
 type LooseGuestInput = { fullName: string; phone?: string; docType?: string; docNumber?: string }
@@ -271,6 +284,10 @@ export function useMockCalendarData(roomCount = 24): CalendarData {
     updateGuest,
     removeGuest,
     makeGuestPrimary,
+    // Mock'da ledger/tarix yo'q — modal eski yig'ma to'lov kartasi + statik timeline'ga tushadi.
+    payments: null,
+    activity: null,
+    activityLoading: false,
   }
 }
 
@@ -389,6 +406,10 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
   const invalidate = useCallback(() => {
     void qc.invalidateQueries({ queryKey: ["bookings"] })
     void qc.invalidateQueries({ queryKey: ["room-blocks"] })
+    // Har mutatsiya faoliyat logiga yozadi, tahrir esa ledger'ga ham (adjustment) —
+    // ochiq modal eski tarix/to'lovlarni ko'rsatib qolmasin.
+    void qc.invalidateQueries({ queryKey: ["booking-guests"] })
+    void qc.invalidateQueries({ queryKey: ["booking-activity"] })
   }, [qc])
 
   const onError = useCallback(
@@ -511,19 +532,42 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
 
   const moveBooking = useCallback(
     async (id: string, next: CalendarDraft) => {
+      // Sudrashdan OLDINGI holat — "Qaytarish" shu joyga qaytaradi. Tasodifiy drag front-deskda
+      // tez-tez bo'ladi (umumiy sichqonchali stol); tasdiqlash oynasi har ko'chirishni
+      // sekinlashtirgan bo'lardi, undo esa faqat xatoni to'g'irlaydi.
+      const prev = (bookingsQ.data ?? []).find((b) => b.id === id)
       try {
         await apiUpdateBooking(id, {
           roomId: next.roomId,
           checkInDate: next.start,
           checkOutDate: next.end,
         })
-        toast.success("Bron ko'chirildi")
         invalidate()
+        toast.success("Bron ko'chirildi", {
+          action: prev
+            ? {
+                label: "Qaytarish",
+                onClick: () => {
+                  apiUpdateBooking(id, {
+                    roomId: prev.room.id,
+                    checkInDate: prev.checkInDate.slice(0, 10),
+                    checkOutDate: prev.checkOutDate.slice(0, 10),
+                  })
+                    .then(() => {
+                      toast.success("Bron joyiga qaytarildi")
+                      invalidate()
+                    })
+                    // Eski katakni oradan boshqa xodim band qilgan bo'lishi mumkin (409).
+                    .catch((e) => onError(e, "Qaytarilmadi"))
+                },
+              }
+            : undefined,
+        })
       } catch (e) {
         onError(e, "Bron ko'chirilmadi")
       }
     },
-    [invalidate, onError],
+    [bookingsQ.data, invalidate, onError],
   )
 
   const removeBlock = useCallback(
@@ -539,9 +583,10 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
     [invalidate, onError],
   )
 
-  // ── Tanlangan bronning mehmonlari ────────────────────────────────────────
+  // ── Tanlangan bronning mehmonlari + to'lov ledgeri ───────────────────────
   // Ro'yxat so'rovi faqat SONNI beradi (200 bron × qatorlar oynani sekinlashtirardi), to'liq
-  // ro'yxat modal ochilganda shu query bilan keladi. Blok tanlansa umuman so'ralmaydi.
+  // ro'yxat (mehmonlar VA to'lovlar — bitta javob) modal ochilganda shu query bilan keladi.
+  // Blok tanlansa umuman so'ralmaydi.
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const guestsQ = useQuery({
     queryKey: ["booking-guests", selectedId],
@@ -551,11 +596,82 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
   })
   const guests = guestsQ.data?.guests ?? null
 
+  // Faoliyat tarixi — alohida endpoint (log jadvalidan), modal ochiq turganda yuklanadi.
+  const activityQ = useQuery({
+    queryKey: ["booking-activity", selectedId],
+    queryFn: () => getBookingActivity(selectedId as string),
+    enabled: enabled && selectedId != null && !isBlockId(selectedId),
+    staleTime: 15_000,
+  })
+  const activity = useMemo<CalendarActivityEntry[] | null>(
+    () =>
+      activityQ.data?.map((e) => ({
+        id: e.id,
+        action: e.action,
+        actorName: e.actor?.name ?? null,
+        at: e.createdAt,
+        data: e.data,
+      })) ?? null,
+    [activityQ.data],
+  )
+
+  // Ledger qatori → yadro shakli. `canVoid` SHU YERDA hisoblanadi (yadro qoida bilmaydi):
+  // o'z yozuvi + 15 daqiqa oynasi. Muddat o'tsa tugma chiqmaydi; chegara baribir serverda.
+  const myUserId = getSession()?.user.id
+  const payments = useMemo<CalendarPaymentEntry[] | null>(() => {
+    const rows = guestsQ.data?.payments
+    if (!rows) return null
+    const now = Date.now()
+    return rows.map((p: BookingPayment) => ({
+      id: p.id,
+      amount: Number(p.amount),
+      method: p.method,
+      note: p.note,
+      receivedByName: p.receivedBy?.name ?? null,
+      at: p.createdAt,
+      voided: p.voidedAt != null,
+      voidReason: p.voidReason,
+      canVoid:
+        p.voidedAt == null &&
+        p.receivedBy?.id === myUserId &&
+        now - new Date(p.createdAt).getTime() <= 15 * 60_000,
+    }))
+  }, [guestsQ.data?.payments, myUserId])
+
   const refreshGuests = useCallback(() => {
     void qc.invalidateQueries({ queryKey: ["booking-guests"] })
+    void qc.invalidateQueries({ queryKey: ["booking-activity"] })
     // Bar'dagi mehmon soni va asosiy mehmon ismi ham o'zgargan bo'lishi mumkin.
     void qc.invalidateQueries({ queryKey: ["bookings"] })
   }, [qc])
+
+  const recordPayment = useCallback(
+    async (bookingId: string, input: { amount: number; note?: string }) => {
+      try {
+        await recordBookingPayment(bookingId, input)
+        toast.success("To'lov qabul qilindi")
+        refreshGuests()
+      } catch (e) {
+        onError(e, "To'lov yozilmadi")
+        throw e // forma ochiq qolsin — xodim summani qaytadan termasin
+      }
+    },
+    [refreshGuests, onError],
+  )
+
+  const voidPayment = useCallback(
+    async (bookingId: string, paymentId: string, reason: string) => {
+      try {
+        await voidBookingPayment(bookingId, paymentId, reason)
+        toast.success("To'lov storno qilindi")
+        refreshGuests()
+      } catch (e) {
+        onError(e, "Storno bajarilmadi")
+        throw e
+      }
+    },
+    [refreshGuests, onError],
+  )
 
   /** Mehmon amallari bir xil qolipda: bajarish → xabar → ikkala keshni yangilash. */
   const guestAction = useCallback(
@@ -621,5 +737,10 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
     updateGuest,
     removeGuest,
     makeGuestPrimary,
+    payments,
+    recordPayment,
+    voidPayment,
+    activity,
+    activityLoading: activityQ.isLoading,
   }
 }

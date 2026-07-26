@@ -19,6 +19,8 @@ export type {
   CalendarCreateRoom,
   CalendarGuest,
   CalendarGuestInput,
+  CalendarPaymentEntry,
+  CalendarActivityEntry,
   BookingEditPatch,
   StatusVisual,
   StatusConfig,

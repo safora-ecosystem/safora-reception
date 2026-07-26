@@ -1,30 +1,59 @@
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { ChevronLeft, Loader2, Send } from "lucide-react"
+import {
+  Archive,
+  ArchiveRestore,
+  ChevronDown,
+  ChevronLeft,
+  CornerUpLeft,
+  Loader2,
+  Send,
+  X,
+} from "lucide-react"
 import { toast } from "sonner"
+import { UserGroupIcon, UserMultiple02Icon, UserStar01Icon } from "@hugeicons/core-free-icons"
 import { getSession } from "@/lib/auth"
 import {
+  archiveConversation,
+  archiveTeamThread,
   chatRtSubscribe,
+  getGroupUnread,
   listChatMessages,
   listConversations,
+  listGroupMessages,
   listTeamMessages,
   listTeamThreads,
   markChatRead,
+  markGroupRead,
   markTeamRead,
+  reactGroupMessage,
+  reactGuestMessage,
+  reactTeamMessage,
   sendChatMessage,
+  sendGroupMessage,
   sendTeamMessage,
   type ChatConversation,
   type ChatMessage,
+  type GroupMessage,
+  type ReactionView,
   type TeamMessage,
   type TeamThread,
 } from "@/lib/api"
 import {
+  REACTION_CHAR,
+  REACTION_ORDER,
+  aggregateReactions,
   appendLiveMessage,
+  appendGroupMessage,
   conversationsKey,
+  groupMessagesKey,
+  groupUnreadKey,
   messagesKey,
   teamMessagesKey,
   teamThreadsKey,
   teamUnreadKey,
+  updateGroupReactions,
+  updateGuestReactions,
   useChat,
 } from "@/lib/chat-realtime"
 import { shortDate } from "@/lib/format"
@@ -32,6 +61,7 @@ import { useSetPageHeader } from "@/lib/page-header"
 import { usePermissions } from "@/lib/permissions"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
+import { Icon, type IconData } from "@/components/ui/icon"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
 
@@ -62,8 +92,22 @@ function listTime(iso: string): string {
   const d = new Date(iso)
   return sameDay(d, new Date()) ? messageTime(iso) : shortDate(iso)
 }
+function dayLabel(iso: string): string {
+  const d = new Date(iso)
+  const now = new Date()
+  if (sameDay(d, now)) return "Bugun"
+  const yesterday = new Date(now)
+  yesterday.setDate(now.getDate() - 1)
+  if (sameDay(d, yesterday)) return "Kecha"
+  return shortDate(iso)
+}
+/** Bitta "guruh" — bir tomondan, orasi 5 daqiqadan oshmagan xabarlar (messenger odati). */
+const GROUP_GAP_MIN = 5
+function minutesBetween(a: string, b: string): number {
+  return Math.abs(new Date(b).getTime() - new Date(a).getTime()) / 60_000
+}
 
-type Tab = "guests" | "team"
+type Tab = "guests" | "team" | "group"
 
 export function ChatPage() {
   useSetPageHeader("Suhbat")
@@ -77,6 +121,7 @@ export function ChatPage() {
   const [teamSel, setTeamSel] = useState<string | null>(null)
   // Tor ekranda ro'yxat va yozishmalar almashib turadi; md+ da ikkalasi yonma-yon.
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [showArchive, setShowArchive] = useState(false)
   const qc = useQueryClient()
 
   const conversations = useQuery({
@@ -102,6 +147,31 @@ export function ChatPage() {
     })
   }, [threads.data])
 
+  const activeConv = convItems.filter((c) => !c.archived)
+  const archivedConv = convItems.filter((c) => c.archived)
+  const activeTeam = teamItems.filter((t) => !t.archived)
+  const archivedTeam = teamItems.filter((t) => t.archived)
+
+  const archiveConv = useMutation({
+    mutationFn: (input: { bookingId: string; archived: boolean }) =>
+      archiveConversation(input.bookingId, input.archived),
+    onSuccess: (_r, input) => {
+      void qc.invalidateQueries({ queryKey: conversationsKey })
+      toast(input.archived ? "Suhbat arxivlandi" : "Suhbat arxivdan chiqarildi")
+    },
+    onError: () => toast.error("Amalni bajarib bo'lmadi"),
+  })
+  const archiveTeam = useMutation({
+    mutationFn: (input: { userId: string; archived: boolean }) =>
+      archiveTeamThread(input.userId, input.archived),
+    onSuccess: (_r, input) => {
+      void qc.invalidateQueries({ queryKey: teamThreadsKey })
+      void qc.invalidateQueries({ queryKey: teamUnreadKey })
+      toast(input.archived ? "Suhbat arxivlandi" : "Suhbat arxivdan chiqarildi")
+    },
+    onError: () => toast.error("Amalni bajarib bo'lmadi"),
+  })
+
   function openGuest(bookingId: string) {
     setGuestSel(bookingId)
     setMobileOpen(true)
@@ -123,11 +193,11 @@ export function ChatPage() {
   // Keng ekranda o'ng panel bo'sh turmasin — birinchi qator o'z-o'zidan ochiladi
   // (mobileOpen'ga tegilmaydi, ya'ni telefonda ro'yxat ko'rinaverdi).
   useEffect(() => {
-    if (!guestSel && convItems.length > 0) setGuestSel(convItems[0]!.bookingId)
-  }, [guestSel, convItems])
+    if (!guestSel && activeConv.length > 0) setGuestSel(activeConv[0]!.bookingId)
+  }, [guestSel, activeConv])
   useEffect(() => {
-    if (!teamSel && teamItems.length > 0) setTeamSel(teamItems[0]!.user.id)
-  }, [teamSel, teamItems])
+    if (!teamSel && activeTeam.length > 0) setTeamSel(activeTeam[0]!.user.id)
+  }, [teamSel, activeTeam])
 
   const selectedConv = convItems.find((c) => c.bookingId === guestSel) ?? null
   const selectedMate = teamItems.find((t) => t.user.id === teamSel) ?? null
@@ -144,11 +214,26 @@ export function ChatPage() {
           {canGuest && canTeam ? (
             <div className="shrink-0 p-3 pb-0">
               <div className="flex gap-0.5 rounded-control bg-neutral-100 p-0.5">
-                <TabButton active={tab === "guests"} onClick={() => setTab("guests")}>
+                <TabButton
+                  icon={UserStar01Icon}
+                  active={tab === "guests"}
+                  onClick={() => setTab("guests")}
+                >
                   Mehmonlar
                 </TabButton>
-                <TabButton active={tab === "team"} onClick={() => setTab("team")}>
+                <TabButton
+                  icon={UserMultiple02Icon}
+                  active={tab === "team"}
+                  onClick={() => setTab("team")}
+                >
                   Jamoa
+                </TabButton>
+                <TabButton
+                  icon={UserGroupIcon}
+                  active={tab === "group"}
+                  onClick={() => setTab("group")}
+                >
+                  Guruhlar
                 </TabButton>
               </div>
             </div>
@@ -166,7 +251,9 @@ export function ChatPage() {
           )}
 
           <div className="app-scroll mt-3 min-h-0 flex-1 overflow-y-auto border-t border-border">
-            {tab === "guests" ? (
+            {tab === "group" ? (
+              <GroupListTeaser onOpen={() => setMobileOpen(true)} />
+            ) : tab === "guests" ? (
               convItems.length === 0 ? (
                 <EmptyList
                   text={
@@ -176,13 +263,14 @@ export function ChatPage() {
                   }
                 />
               ) : (
-                <ul className="divide-hairline">
-                  {convItems.map((c) => (
+                <ul className="flex flex-col gap-px p-2">
+                  {activeConv.map((c) => (
                     <GuestRow
                       key={c.bookingId}
                       conv={c}
                       active={c.bookingId === guestSel}
                       onClick={() => openGuest(c.bookingId)}
+                      onArchive={() => archiveConv.mutate({ bookingId: c.bookingId, archived: true })}
                     />
                   ))}
                 </ul>
@@ -190,16 +278,70 @@ export function ChatPage() {
             ) : teamItems.length === 0 ? (
               <EmptyList text={threads.isSuccess ? "Jamoada boshqa xodim yo'q." : "Yuklanmoqda…"} />
             ) : (
-              <ul className="divide-hairline">
-                {teamItems.map((t) => (
+              <ul className="flex flex-col gap-px p-2">
+                {activeTeam.map((t) => (
                   <TeamRow
                     key={t.user.id}
                     thread={t}
                     active={t.user.id === teamSel}
                     onClick={() => openTeam(t.user.id)}
+                    onArchive={() => archiveTeam.mutate({ userId: t.user.id, archived: true })}
                   />
                 ))}
               </ul>
+            )}
+
+            {/* Arxiv — o'chirish emas, ro'yxatni tartiblash. Suhbat arxivda ham ishlayveradi. */}
+            {tab !== "group" && (tab === "guests" ? archivedConv : archivedTeam).length > 0 && (
+              <div className="hairline-t">
+                <button
+                  type="button"
+                  onClick={() => setShowArchive((v) => !v)}
+                  className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-xs font-medium text-neutral-500 transition-colors hover:bg-neutral-50"
+                >
+                  <Archive className="size-3.5" strokeWidth={1.75} />
+                  Arxiv
+                  <span className="tabular-nums">
+                    {(tab === "guests" ? archivedConv : archivedTeam).length}
+                  </span>
+                  <ChevronDown
+                    className={cn(
+                      "ml-auto size-3.5 transition-transform",
+                      showArchive && "rotate-180",
+                    )}
+                    strokeWidth={2}
+                  />
+                </button>
+                {showArchive && (
+                  <ul className="flex flex-col gap-px p-2 pt-0">
+                    {tab === "guests"
+                      ? archivedConv.map((c) => (
+                          <GuestRow
+                            key={c.bookingId}
+                            conv={c}
+                            active={c.bookingId === guestSel}
+                            archivedRow
+                            onClick={() => openGuest(c.bookingId)}
+                            onArchive={() =>
+                              archiveConv.mutate({ bookingId: c.bookingId, archived: false })
+                            }
+                          />
+                        ))
+                      : archivedTeam.map((t) => (
+                          <TeamRow
+                            key={t.user.id}
+                            thread={t}
+                            active={t.user.id === teamSel}
+                            archivedRow
+                            onClick={() => openTeam(t.user.id)}
+                            onArchive={() =>
+                              archiveTeam.mutate({ userId: t.user.id, archived: false })
+                            }
+                          />
+                        ))}
+                  </ul>
+                )}
+              </div>
             )}
           </div>
         </aside>
@@ -210,7 +352,9 @@ export function ChatPage() {
             mobileOpen ? "flex" : "hidden",
           )}
         >
-          {tab === "guests" ? (
+          {tab === "group" ? (
+            <GroupThread onBack={() => setMobileOpen(false)} />
+          ) : tab === "guests" ? (
             selectedConv ? (
               <GuestThread conv={selectedConv} onBack={() => setMobileOpen(false)} />
             ) : (
@@ -231,10 +375,12 @@ export function ChatPage() {
 
 function GuestThread({ conv, onBack }: { conv: ChatConversation; onBack: () => void }) {
   const qc = useQueryClient()
-  const hotelId = getSession()?.user.hotelId ?? ""
+  const me = getSession()?.user
+  const hotelId = me?.hotelId ?? ""
   const { client } = useChat()
   const bookingId = conv.bookingId
   const [draft, setDraft] = useState("")
+  const [replyTo, setReplyTo] = useState<ThreadItem | null>(null)
   const [loadingOlder, setLoadingOlder] = useState(false)
 
   const messages = useQuery({
@@ -260,7 +406,23 @@ function GuestThread({ conv, onBack }: { conv: ChatConversation; onBack: () => v
       getToken: async () => (await chatRtSubscribe(channel)).token,
     })
     sub.on("publication", (ctx) => {
-      const data = ctx.data as { type?: string; message?: ChatMessage } | undefined
+      const data = ctx.data as
+        | {
+            type?: string
+            message?: ChatMessage
+            messageId?: string
+            reactions?: Array<{ emoji: string; userId: string }>
+          }
+        | undefined
+      if (data?.type === "reaction" && data.messageId) {
+        updateGuestReactions(
+          qc,
+          bookingId,
+          data.messageId,
+          aggregateReactions(data.reactions ?? [], me?.id ?? null),
+        )
+        return
+      }
       if (data?.type !== "message" || !data.message) return
       appendLiveMessage(qc, bookingId, data.message)
       if (data.message.senderType === "guest") void markChatRead(bookingId).catch(() => {})
@@ -271,16 +433,29 @@ function GuestThread({ conv, onBack }: { conv: ChatConversation; onBack: () => v
       sub.unsubscribe()
       client.removeSubscription(sub)
     }
-  }, [client, bookingId, hotelId, qc])
+  }, [client, bookingId, hotelId, qc, me?.id])
 
+  // Optimistik yuborish: Enter darhol draftni bo'shatadi va so'rovni yo'lda qoldiradi —
+  // ketma-ket tez yozilgan xabarlar bir-birini KUTMAYDI (aks holda pending paytidagi Enter
+  // jimgina yutilib ketardi). Xato bo'lsa matn draftga qaytadi, yo'qolmaydi.
   const send = useMutation({
-    mutationFn: (text: string) => sendChatMessage(bookingId, text),
+    mutationFn: (input: { text: string; replyToId?: string }) =>
+      sendChatMessage(bookingId, input.text, input.replyToId),
     onSuccess: (msg) => {
       appendLiveMessage(qc, bookingId, msg)
-      setDraft("")
       void qc.invalidateQueries({ queryKey: conversationsKey })
     },
-    onError: () => toast.error("Xabar yuborilmadi"),
+    onError: (_err, input) => {
+      toast.error("Xabar yuborilmadi")
+      setDraft((d) => (d ? d : input.text))
+    },
+  })
+
+  const react = useMutation({
+    mutationFn: (input: { messageId: string; emoji: string | null }) =>
+      reactGuestMessage(input.messageId, input.emoji),
+    onSuccess: (res) => updateGuestReactions(qc, bookingId, res.messageId, res.reactions),
+    onError: () => toast.error("Reaksiya yuborilmadi"),
   })
 
   async function loadOlder() {
@@ -303,6 +478,7 @@ function GuestThread({ conv, onBack }: { conv: ChatConversation; onBack: () => v
 
   return (
     <ThreadShell
+      threadKey={bookingId}
       title={conv.guestName}
       subtitle={`${conv.roomNumber}-xona${conv.bookingStatus !== "checked_in" ? " · mehmon chiqib ketgan" : ""}`}
       onBack={onBack}
@@ -319,14 +495,30 @@ function GuestThread({ conv, onBack }: { conv: ChatConversation; onBack: () => v
       items={thread.map((m) => ({
         id: m.id,
         mine: m.senderType === "staff",
+        author: m.senderType === "staff" ? "Siz" : conv.guestName,
         text: m.text,
         at: m.createdAt,
+        reply: m.replyTo
+          ? {
+              id: m.replyTo.id,
+              label: m.replyTo.senderType === "staff" ? "Siz" : conv.guestName,
+              text: m.replyTo.text,
+            }
+          : null,
+        reactions: m.reactions ?? [],
       }))}
+      replyTo={replyTo}
+      onReply={setReplyTo}
+      onCancelReply={() => setReplyTo(null)}
+      onReact={(id, emoji) => react.mutate({ messageId: id, emoji })}
       draft={draft}
       onDraft={setDraft}
       onSend={() => {
         const text = draft.trim()
-        if (text && !send.isPending) send.mutate(text)
+        if (!text) return
+        setDraft("")
+        setReplyTo(null)
+        send.mutate({ text, replyToId: replyTo?.id })
       }}
       pending={send.isPending}
     />
@@ -340,6 +532,7 @@ function TeamThread({ thread, onBack }: { thread: TeamThread; onBack: () => void
   const meId = getSession()?.user.id ?? ""
   const otherId = thread.user.id
   const [draft, setDraft] = useState("")
+  const [replyTo, setReplyTo] = useState<ThreadItem | null>(null)
 
   const messages = useQuery({
     queryKey: teamMessagesKey(otherId),
@@ -359,33 +552,158 @@ function TeamThread({ thread, onBack }: { thread: TeamThread; onBack: () => void
       .catch(() => {})
   }, [last, meId, otherId, qc])
 
+  // Optimistik yuborish — GuestThread'dagi bilan bir xil sabab: pending paytidagi Enter yutilmasin.
   const send = useMutation({
-    mutationFn: (text: string) => sendTeamMessage(otherId, text),
+    mutationFn: (input: { text: string; replyToId?: string }) =>
+      sendTeamMessage(otherId, input.text, input.replyToId),
     onSuccess: (msg) => {
       qc.setQueryData<{ messages: TeamMessage[] }>(teamMessagesKey(otherId), (old) =>
         !old || old.messages.some((m) => m.id === msg.id)
           ? old
           : { messages: [...old.messages, msg] },
       )
-      setDraft("")
       void qc.invalidateQueries({ queryKey: teamThreadsKey })
     },
-    onError: () => toast.error("Xabar yuborilmadi"),
+    onError: (_err, input) => {
+      toast.error("Xabar yuborilmadi")
+      setDraft((d) => (d ? d : input.text))
+    },
+  })
+
+  const react = useMutation({
+    mutationFn: (input: { messageId: string; emoji: string | null }) =>
+      reactTeamMessage(input.messageId, input.emoji),
+    onSuccess: (res) => {
+      qc.setQueryData<{ messages: TeamMessage[] }>(teamMessagesKey(otherId), (old) =>
+        old
+          ? {
+              messages: old.messages.map((m) =>
+                m.id === res.messageId ? { ...m, reactions: res.reactions } : m,
+              ),
+            }
+          : old,
+      )
+    },
+    onError: () => toast.error("Reaksiya yuborilmadi"),
   })
 
   return (
     <ThreadShell
+      threadKey={otherId}
       title={thread.user.name}
       subtitle={ROLE_LABEL[thread.user.role] ?? thread.user.role}
       onBack={onBack}
       loading={messages.isLoading}
       emptyText="Hali yozishmagansiz — birinchi xabarni yozing."
-      items={items.map((m) => ({ id: m.id, mine: m.senderId === meId, text: m.text, at: m.createdAt }))}
+      items={items.map((m) => ({
+        id: m.id,
+        mine: m.senderId === meId,
+        author: m.senderId === meId ? "Siz" : thread.user.name,
+        text: m.text,
+        at: m.createdAt,
+        reply: m.replyTo
+          ? {
+              id: m.replyTo.id,
+              label: m.replyTo.senderId === meId ? "Siz" : thread.user.name,
+              text: m.replyTo.text,
+            }
+          : null,
+        reactions: m.reactions ?? [],
+      }))}
+      replyTo={replyTo}
+      onReply={setReplyTo}
+      onCancelReply={() => setReplyTo(null)}
+      onReact={(id, emoji) => react.mutate({ messageId: id, emoji })}
       draft={draft}
       onDraft={setDraft}
       onSend={() => {
         const text = draft.trim()
-        if (text && !send.isPending) send.mutate(text)
+        if (!text) return
+        setDraft("")
+        setReplyTo(null)
+        send.mutate({ text, replyToId: replyTo?.id })
+      }}
+      pending={send.isPending}
+    />
+  )
+}
+
+// ── Jamoa guruhi ─────────────────────────────────────────────────────────────
+
+function GroupThread({ onBack }: { onBack: () => void }) {
+  const qc = useQueryClient()
+  const meId = getSession()?.user.id ?? ""
+  const [draft, setDraft] = useState("")
+  const [replyTo, setReplyTo] = useState<ThreadItem | null>(null)
+
+  const messages = useQuery({ queryKey: groupMessagesKey, queryFn: () => listGroupMessages() })
+  const list = messages.data?.messages ?? []
+  const last = list.length ? list[list.length - 1]! : null
+
+  // Ochiq guruhga kelgan xabar darhol o'qilgan bo'ladi.
+  useEffect(() => {
+    if (!last || last.senderId === meId) return
+    void markGroupRead()
+      .then(() => qc.invalidateQueries({ queryKey: groupUnreadKey }))
+      .catch(() => {})
+  }, [last, meId, qc])
+  useEffect(() => {
+    void markGroupRead()
+      .then(() => qc.invalidateQueries({ queryKey: groupUnreadKey }))
+      .catch(() => {})
+  }, [qc])
+
+  const send = useMutation({
+    mutationFn: (input: { text: string; replyToId?: string }) =>
+      sendGroupMessage(input.text, input.replyToId),
+    onSuccess: (msg) => appendGroupMessage(qc, msg),
+    onError: (_err, input) => {
+      toast.error("Xabar yuborilmadi")
+      setDraft((d) => (d ? d : input.text))
+    },
+  })
+
+  const react = useMutation({
+    mutationFn: (input: { messageId: string; emoji: string | null }) =>
+      reactGroupMessage(input.messageId, input.emoji),
+    onSuccess: (res) => updateGroupReactions(qc, res.messageId, res.reactions),
+    onError: () => toast.error("Reaksiya yuborilmadi"),
+  })
+
+  const items: ThreadItem[] = list.map((m: GroupMessage) => ({
+    id: m.id,
+    mine: m.senderId === meId,
+    author: m.senderId === meId ? "Siz" : m.senderName,
+    text: m.text,
+    at: m.createdAt,
+    reply: m.replyTo
+      ? { id: m.replyTo.id, label: m.replyTo.senderName, text: m.replyTo.text }
+      : null,
+    reactions: m.reactions ?? [],
+  }))
+
+  return (
+    <ThreadShell
+      threadKey="group"
+      title="Jamoa guruhi"
+      subtitle="Barcha xodimlar bitta xonada"
+      onBack={onBack}
+      loading={messages.isLoading}
+      emptyText="Guruh hali jim — birinchi xabarni yozing."
+      items={items}
+      showAuthors
+      replyTo={replyTo}
+      onReply={setReplyTo}
+      onCancelReply={() => setReplyTo(null)}
+      onReact={(id, emoji) => react.mutate({ messageId: id, emoji })}
+      draft={draft}
+      onDraft={setDraft}
+      onSend={() => {
+        const text = draft.trim()
+        if (!text) return
+        setDraft("")
+        setReplyTo(null)
+        send.mutate({ text, replyToId: replyTo?.id })
       }}
       pending={send.isPending}
     />
@@ -394,9 +712,20 @@ function TeamThread({ thread, onBack }: { thread: TeamThread; onBack: () => void
 
 // ── Umumiy qismlar ───────────────────────────────────────────────────────────
 
-type ThreadItem = { id: string; mine: boolean; text: string; at: string }
+type ThreadItem = {
+  id: string
+  mine: boolean
+  author: string
+  text: string
+  at: string
+  reply: { id: string; label: string; text: string } | null
+  reactions: ReactionView[]
+}
+
+type MenuState = { x: number; y: number; item: ThreadItem } | null
 
 function ThreadShell({
+  threadKey,
   title,
   subtitle,
   onBack,
@@ -404,11 +733,17 @@ function ThreadShell({
   items,
   olderSlot,
   emptyText = "Xabarlar yo'q.",
+  showAuthors = false,
+  replyTo,
+  onReply,
+  onCancelReply,
+  onReact,
   draft,
   onDraft,
   onSend,
   pending,
 }: {
+  threadKey: string
   title: string
   subtitle: string
   onBack: () => void
@@ -416,43 +751,125 @@ function ThreadShell({
   items: ThreadItem[]
   olderSlot?: React.ReactNode
   emptyText?: string
+  /** Guruhda begona xabar ustida muallif ismi ko'rinadi. */
+  showAuthors?: boolean
+  replyTo: ThreadItem | null
+  onReply: (item: ThreadItem) => void
+  onCancelReply: () => void
+  onReact: (messageId: string, emoji: string | null) => void
   draft: string
   onDraft: (v: string) => void
   onSend: () => void
   pending: boolean
 }) {
   const scrollRef = useRef<HTMLDivElement>(null)
+  const nearBottomRef = useRef(true)
+  const [showJump, setShowJump] = useState(false)
+  const bubbleRefs = useRef(new Map<string, HTMLDivElement>())
+  const [menu, setMenu] = useState<MenuState>(null)
+  const [flash, setFlash] = useState<string | null>(null)
+
   const lastId = items.length ? items[items.length - 1]!.id : null
+  const firstId = items.length ? items[0]!.id : null
+  const lastMine = items.length ? items[items.length - 1]!.mine : false
 
-  useEffect(() => {
+  // Messenger scroll xulqi: (1) suhbat almashsa — pastga sakrash; (2) eski sahifa TEPAGA
+  // qo'shilsa — ko'rinayotgan xabar joyida qoladi (scrollTop delta bilan tuzatiladi);
+  // (3) yangi xabar kelsa — faqat pastda turgan bo'lsang yoki o'zing yozgan bo'lsang silliq
+  // pastga; tarixni o'qiyotgan odamni pastga TORTMAYMIZ, unga suzuvchi tugma ko'rinadi.
+  const prevRef = useRef<{
+    key: string | null
+    firstId: string | null
+    lastId: string | null
+    height: number
+  }>({ key: null, firstId: null, lastId: null, height: 0 })
+  useLayoutEffect(() => {
     const el = scrollRef.current
-    if (el) el.scrollTop = el.scrollHeight
-  }, [lastId, title])
+    if (!el) return
+    const p = prevRef.current
+    if (p.key !== threadKey || p.lastId === null) {
+      el.scrollTop = el.scrollHeight
+      nearBottomRef.current = true
+      setShowJump(false)
+    } else if (lastId === p.lastId && firstId !== p.firstId) {
+      el.scrollTop += el.scrollHeight - p.height
+    } else if (lastId !== p.lastId && (lastMine || nearBottomRef.current)) {
+      el.scrollTo({ top: el.scrollHeight, behavior: "smooth" })
+    }
+    prevRef.current = { key: threadKey, firstId, lastId, height: el.scrollHeight }
+  }, [threadKey, firstId, lastId, lastMine])
 
-  // Kun ajratkichlari: sana almashganda kichik yorliq.
+  // Kontekst menyu ochiq bo'lsa istalgan bosish/scroll/Esc yopadi.
+  useEffect(() => {
+    if (!menu) return
+    const close = () => setMenu(null)
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && close()
+    window.addEventListener("click", close)
+    window.addEventListener("wheel", close, { passive: true })
+    window.addEventListener("keydown", onKey)
+    return () => {
+      window.removeEventListener("click", close)
+      window.removeEventListener("wheel", close)
+      window.removeEventListener("keydown", onKey)
+    }
+  }, [menu])
+
+  function scrollToMessage(id: string) {
+    const el = bubbleRefs.current.get(id)
+    if (!el) return
+    el.scrollIntoView({ behavior: "smooth", block: "center" })
+    setFlash(id)
+    window.setTimeout(() => setFlash((f) => (f === id ? null : f)), 900)
+  }
+
+  function handleScroll() {
+    const el = scrollRef.current
+    if (!el) return
+    const dist = el.scrollHeight - el.scrollTop - el.clientHeight
+    nearBottomRef.current = dist < 96
+    setShowJump(dist > 400)
+  }
+
+  // Kun yorliqlari + guruhlash: bir tomonning ketma-ket (≤5 daqiqa oralig'idagi) xabarlari
+  // zich turadi va guruh davomida qo'shni burchaklar tekislanadi — lenta shovqinsiz o'qiladi.
   const rendered = useMemo(() => {
     const out: React.ReactNode[] = []
-    let prev: Date | null = null
-    for (const m of items) {
+    let prev: ThreadItem | null = null
+    for (let i = 0; i < items.length; i++) {
+      const m = items[i]!
       const d = new Date(m.at)
-      if (!prev || !sameDay(prev, d)) {
-        out.push(
-          <div key={`sep-${m.id}`} className="flex justify-center py-1.5">
-            <span className="rounded-full bg-neutral-100 px-2.5 py-0.5 text-[0.6875rem] text-neutral-500">
-              {sameDay(d, new Date()) ? "Bugun" : shortDate(m.at)}
-            </span>
-          </div>,
-        )
-        prev = d
+      const newDay = !prev || !sameDay(new Date(prev.at), d)
+      if (newDay) {
+        out.push(<DaySeparator key={`sep-${m.id}`} at={m.at} />)
       }
-      out.push(<Bubble key={m.id} mine={m.mine} text={m.text} at={m.at} />)
+      const groupStart =
+        newDay || !prev || prev.mine !== m.mine || minutesBetween(prev.at, m.at) > GROUP_GAP_MIN
+      out.push(
+        <Bubble
+          key={m.id}
+          item={m}
+          groupStart={groupStart}
+          showAuthor={showAuthors && !m.mine && groupStart}
+          flash={flash === m.id}
+          refFn={(el) => {
+            if (el) bubbleRefs.current.set(m.id, el)
+            else bubbleRefs.current.delete(m.id)
+          }}
+          onReply={() => onReply(m)}
+          onMenu={(x, y) => setMenu({ x, y, item: m })}
+          onReact={(emoji) => onReact(m.id, emoji)}
+          onQuoteClick={m.reply ? () => scrollToMessage(m.reply!.id) : undefined}
+        />,
+      )
+      prev = m
     }
     return out
-  }, [items])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items, flash, showAuthors])
 
   return (
     <>
-      <header className="hairline-b flex shrink-0 items-center gap-3 px-5 py-3">
+      <header className="flex shrink-0 items-center gap-3 px-4 py-2.5">
         <Button
           variant="ghost"
           size="icon-sm"
@@ -462,7 +879,7 @@ function ThreadShell({
         >
           <ChevronLeft />
         </Button>
-        <Avatar size="sm">
+        <Avatar>
           <AvatarFallback>{initials(title)}</AvatarFallback>
         </Avatar>
         <div className="min-w-0">
@@ -471,25 +888,64 @@ function ThreadShell({
         </div>
       </header>
 
-      <div ref={scrollRef} className="app-scroll min-h-0 flex-1 overflow-y-auto px-5 py-4">
-        {loading ? (
-          <div className="flex justify-center py-10">
-            <Loader2 className="size-5 animate-spin text-neutral-400" />
-          </div>
-        ) : (
-          // justify-end — 2-3 ta xabar chatlardagi kabi PASTDA turadi, tepada muallaq emas.
-          <div className="flex min-h-full flex-col justify-end">
-            {olderSlot}
-            {items.length === 0 ? (
-              <p className="pb-6 text-center text-sm text-neutral-400">{emptyText}</p>
-            ) : (
-              <div className="flex flex-col gap-1.5">{rendered}</div>
-            )}
-          </div>
+      {/* Tint lenta — header/composer oq qoladi, xabarlar maydoni esa bir pog'ona quyuqroq:
+          oq bubble'lar shu kontrastda karta kabi o'qiladi (soya ham, border ham kerak emas).
+          [overflow-anchor:none] — tepaga sahifa qo'shilganda joyni O'ZIMIZ tuzatamiz;
+          brauzerning avto-anchor'i bilan qo'shilib ikki marta siljitmasin. */}
+      <div className="relative min-h-0 flex-1 bg-neutral-100">
+        <div
+          ref={scrollRef}
+          onScroll={handleScroll}
+          className="app-scroll h-full overflow-y-auto px-4 py-3 [overflow-anchor:none]"
+        >
+          {loading ? (
+            <div className="flex justify-center py-10">
+              <Loader2 className="size-5 animate-spin text-neutral-400" />
+            </div>
+          ) : (
+            // justify-end — 2-3 ta xabar chatlardagi kabi PASTDA turadi, tepada muallaq emas.
+            <div className="flex min-h-full flex-col justify-end">
+              {olderSlot}
+              {items.length === 0 ? (
+                <p className="pb-6 text-center text-sm text-neutral-400">{emptyText}</p>
+              ) : (
+                <div className="flex flex-col">{rendered}</div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {showJump && (
+          <button
+            type="button"
+            onClick={() =>
+              scrollRef.current?.scrollTo({
+                top: scrollRef.current.scrollHeight,
+                behavior: "smooth",
+              })
+            }
+            aria-label="Oxirgi xabarga"
+            className="absolute right-4 bottom-4 z-10 flex size-9 items-center justify-center rounded-full border border-border bg-white text-neutral-600 shadow-md transition-colors animate-in fade-in zoom-in-95 hover:text-neutral-900"
+          >
+            <ChevronDown className="size-4" />
+          </button>
         )}
       </div>
 
-      <div className="hairline-t flex shrink-0 items-end gap-2 px-4 py-3">
+      {replyTo && (
+        <div className="hairline-t flex items-center gap-2.5 px-4 py-2">
+          <CornerUpLeft className="size-4 shrink-0 text-primary" strokeWidth={2} />
+          <div className="min-w-0 flex-1 border-l-2 border-primary pl-2.5">
+            <p className="text-xs font-medium text-primary">{replyTo.author}</p>
+            <p className="truncate text-xs text-neutral-500">{replyTo.text}</p>
+          </div>
+          <Button variant="ghost" size="icon-xs" onClick={onCancelReply} aria-label="Bekor qilish">
+            <X />
+          </Button>
+        </div>
+      )}
+
+      <div className="flex shrink-0 items-end gap-2 p-3">
         <Textarea
           value={draft}
           onChange={(e) => onDraft(e.target.value)}
@@ -501,11 +957,11 @@ function ThreadShell({
           }}
           placeholder="Xabar yozing…"
           rows={1}
-          className="max-h-32 min-h-10 flex-1 resize-none"
+          className="max-h-36 min-h-10 flex-1 resize-none rounded-[1.25rem] border-transparent bg-neutral-100 px-4 py-2.5 shadow-none focus-visible:border-transparent focus-visible:ring-2 focus-visible:ring-ring/25"
         />
         <Button
           size="icon"
-          className="size-10 shrink-0"
+          className="size-10 shrink-0 rounded-full"
           onClick={onSend}
           disabled={!draft.trim() || pending}
           aria-label="Yuborish"
@@ -513,15 +969,273 @@ function ThreadShell({
           {pending ? <Loader2 className="animate-spin" /> : <Send className="size-4" />}
         </Button>
       </div>
+
+      {menu && (
+        <MessageMenu
+          menu={menu}
+          onReply={() => {
+            onReply(menu.item)
+            setMenu(null)
+          }}
+          onReact={(emoji) => {
+            const mine = menu.item.reactions.find((r) => r.mine)?.emoji
+            onReact(menu.item.id, mine === emoji ? null : emoji)
+            setMenu(null)
+          }}
+        />
+      )}
     </>
   )
 }
 
+/** O'ng tugma menyusi — reaksiyalar qatori + javob. Kursor yonida, chegaradan chiqmaydi. */
+function MessageMenu({
+  menu,
+  onReply,
+  onReact,
+}: {
+  menu: NonNullable<MenuState>
+  onReply: () => void
+  onReact: (emoji: string) => void
+}) {
+  const W = 200
+  const H = 100
+  const x = Math.min(menu.x, window.innerWidth - W - 8)
+  const y = Math.min(menu.y, window.innerHeight - H - 8)
+  const mine = menu.item.reactions.find((r) => r.mine)?.emoji
+
+  return (
+    <div
+      className="fixed z-50 w-[200px] overflow-hidden rounded-xl border border-border bg-popover shadow-lg animate-in fade-in zoom-in-95 duration-100"
+      style={{ left: x, top: y }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div className="flex items-center justify-between gap-1 p-1.5">
+        {REACTION_ORDER.map((emoji) => (
+          <button
+            key={emoji}
+            type="button"
+            onClick={() => onReact(emoji)}
+            className={cn(
+              "flex size-9 items-center justify-center rounded-lg text-lg transition-transform hover:scale-125 hover:bg-neutral-100",
+              mine === emoji && "bg-accent",
+            )}
+            aria-label={emoji}
+          >
+            {REACTION_CHAR[emoji]}
+          </button>
+        ))}
+      </div>
+      <button
+        type="button"
+        onClick={onReply}
+        className="hairline-t flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-neutral-800 transition-colors hover:bg-neutral-50"
+      >
+        <CornerUpLeft className="size-4 text-neutral-500" strokeWidth={1.75} />
+        Javob berish
+      </button>
+    </div>
+  )
+}
+
+function DaySeparator({ at }: { at: string }) {
+  return (
+    // sticky — Telegram'dagi kabi joriy kun yorlig'i scroll paytida tepada suzib turadi;
+    // keyingi kun yetib kelganda o'z-o'zidan almashadi (bir xil top'dagi sticky'lar navbati).
+    <div className="sticky top-1.5 z-10 my-1.5 flex justify-center">
+      <span className="rounded-full bg-neutral-200/70 px-2.5 py-0.5 text-[0.6875rem] font-medium text-neutral-600 backdrop-blur-sm">
+        {dayLabel(at)}
+      </span>
+    </div>
+  )
+}
+
+/** Trackpad swipe bo'sag'asi — gorizontal harakat shu pikseldan oshsa reply. */
+const SWIPE_TRIGGER = 70
+
+function Bubble({
+  item,
+  groupStart,
+  showAuthor = false,
+  flash,
+  refFn,
+  onReply,
+  onMenu,
+  onReact,
+  onQuoteClick,
+}: {
+  item: ThreadItem
+  groupStart: boolean
+  showAuthor?: boolean
+  flash: boolean
+  refFn: (el: HTMLDivElement | null) => void
+  onReply: () => void
+  onMenu: (x: number, y: number) => void
+  onReact: (emoji: string | null) => void
+  onQuoteClick?: () => void
+}) {
+  const [dx, setDx] = useState(0)
+  const acc = useRef(0)
+  const idleTimer = useRef<number | null>(null)
+  const fired = useRef(false)
+  const touchStart = useRef<{ x: number; y: number } | null>(null)
+
+  function resetSwipe() {
+    acc.current = 0
+    fired.current = false
+    setDx(0)
+  }
+
+  // Trackpad: ikki barmoq gorizontal harakati wheel deltaX bo'lib keladi. Yo'nalishdan
+  // qat'i nazar bo'sag'adan oshsa reply — natural scrolling ikkala tomonga bo'lishi mumkin.
+  function onWheel(e: React.WheelEvent) {
+    if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return
+    acc.current += e.deltaX
+    setDx(Math.max(-40, Math.min(0, -Math.abs(acc.current) * 0.35)))
+    if (!fired.current && Math.abs(acc.current) > SWIPE_TRIGGER) {
+      fired.current = true
+      onReply()
+    }
+    if (idleTimer.current) window.clearTimeout(idleTimer.current)
+    idleTimer.current = window.setTimeout(resetSwipe, 180)
+  }
+
+  function onTouchStart(e: React.TouchEvent) {
+    const t = e.touches[0]
+    if (t) touchStart.current = { x: t.clientX, y: t.clientY }
+  }
+  function onTouchMove(e: React.TouchEvent) {
+    const start = touchStart.current
+    const t = e.touches[0]
+    if (!start || !t) return
+    const ddx = t.clientX - start.x
+    if (Math.abs(ddx) <= Math.abs(t.clientY - start.y)) return
+    setDx(Math.max(-40, Math.min(0, ddx * 0.5)))
+    if (!fired.current && ddx < -SWIPE_TRIGGER) {
+      fired.current = true
+      onReply()
+    }
+  }
+  function onTouchEnd() {
+    touchStart.current = null
+    resetSwipe()
+  }
+
+  return (
+    <div
+      ref={refFn}
+      onWheel={onWheel}
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+      className={cn(
+        "flex animate-in fade-in slide-in-from-bottom-1 duration-200",
+        item.mine ? "justify-end" : "justify-start",
+        groupStart ? "mt-2" : "mt-0.5",
+      )}
+    >
+      <div
+        onDoubleClick={onReply}
+        onContextMenu={(e) => {
+          e.preventDefault()
+          onMenu(e.clientX, e.clientY)
+        }}
+        style={{ transform: dx ? `translateX(${dx}px)` : undefined }}
+        className={cn(
+          "max-w-[min(80%,26rem)] rounded-2xl px-3.5 py-2 transition-transform",
+          // O'z tomonidagi pastki burchak doim tekis (guruh o'rtasida — qo'shnilik, oxirida —
+          // "dum"); yuqori burchak esa faqat guruh davomida tekislanadi.
+          item.mine
+            ? "rounded-br-md bg-primary text-primary-foreground"
+            : "rounded-bl-md bg-white text-neutral-900",
+          !groupStart && (item.mine ? "rounded-tr-md" : "rounded-tl-md"),
+          flash && "ring-2 ring-ring/60",
+        )}
+      >
+        {showAuthor && (
+          <span className="mb-0.5 block text-[0.6875rem] font-medium text-primary">
+            {item.author}
+          </span>
+        )}
+        {item.reply && (
+          <button
+            type="button"
+            onClick={onQuoteClick}
+            className={cn(
+              "mb-1 block w-full rounded-lg border-l-2 px-2 py-1 text-left",
+              item.mine ? "border-white/60 bg-white/15" : "border-primary bg-neutral-100",
+            )}
+          >
+            <span
+              className={cn(
+                "block text-[0.6875rem] font-medium",
+                item.mine ? "text-on-fill-70" : "text-primary",
+              )}
+            >
+              {item.reply.label}
+            </span>
+            <span
+              className={cn(
+                "block truncate text-[0.6875rem]",
+                item.mine ? "text-on-fill-55" : "text-neutral-500",
+              )}
+            >
+              {item.reply.text}
+            </span>
+          </button>
+        )}
+
+        <p className="text-sm break-words whitespace-pre-wrap">
+          {item.text}
+          {/* Vaqt oxirgi matn qatorining bo'sh joyiga suzib kiradi (Telegram usuli) —
+              alohida qator band qilmaydi. select-none: matn nusxalanganda vaqt ilashmaydi. */}
+          <span
+            title={`${shortDate(item.at)}, ${messageTime(item.at)}`}
+            className={cn(
+              "float-right mt-2 ml-2 text-[0.625rem] leading-none tabular-nums select-none",
+              item.mine ? "text-on-fill-55" : "text-neutral-400",
+            )}
+          >
+            {messageTime(item.at)}
+          </span>
+        </p>
+
+        {item.reactions.length > 0 && (
+          <span className="mt-1 flex flex-wrap gap-1">
+            {item.reactions.map((r) => (
+              <button
+                key={r.emoji}
+                type="button"
+                onClick={() => onReact(r.mine ? null : r.emoji)}
+                className={cn(
+                  "inline-flex items-center gap-0.5 rounded-full px-1.5 py-px text-[0.6875rem] tabular-nums transition-colors",
+                  item.mine
+                    ? r.mine
+                      ? "bg-white/30"
+                      : "bg-white/15 hover:bg-white/25"
+                    : r.mine
+                      ? "bg-accent text-accent-foreground"
+                      : "bg-neutral-100 hover:bg-neutral-200",
+                )}
+              >
+                {REACTION_CHAR[r.emoji]}
+                {r.count > 1 && <span>{r.count}</span>}
+              </button>
+            ))}
+          </span>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function TabButton({
+  icon,
   active,
   onClick,
   children,
 }: {
+  icon: IconData
   active: boolean
   onClick: () => void
   children: string
@@ -532,10 +1246,11 @@ function TabButton({
       aria-pressed={active}
       onClick={onClick}
       className={cn(
-        "flex-1 rounded-[0.625rem] px-3 py-1.5 text-[0.8125rem] font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
+        "flex flex-1 items-center justify-center gap-1.5 rounded-[0.625rem] px-2 py-1.5 text-[0.8125rem] font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
         active ? "bg-white text-neutral-900 shadow-xs" : "text-neutral-500 hover:text-neutral-800",
       )}
     >
+      <Icon icon={icon} className="size-4 shrink-0" />
       {children}
     </button>
   )
@@ -553,6 +1268,42 @@ function EmptyPane({ text }: { text: string }) {
   )
 }
 
+// ── "Guruhlar" teaser ────────────────────────────────────────────────────────
+// Hali qurilmagan bo'limning reklama ko'rgazmasi — modal-karta EMAS, haqiqiy guruh
+// suhbati ko'rinishida (founder g'oyasi 2026-07-27): jamoa ish haqida yozishmoqda,
+// oxirgi xabarni Safora jamoasi qoldirgan — "tez kunda qo'shamiz 😊". Reklama
+// lentaning o'zida yashaydi. Kontent statik, composer o'chirilgan — halol "tez orada".
+
+/** Guruh tabining chap paneli — bitta umumiy xona qatori (jonli unread bilan). */
+function GroupListTeaser({ onOpen }: { onOpen: () => void }) {
+  const unreadQ = useQuery({ queryKey: groupUnreadKey, queryFn: getGroupUnread, staleTime: 15_000 })
+  const unread = unreadQ.data?.unread ?? 0
+  return (
+    <div className="p-2">
+      <button
+        type="button"
+        onClick={onOpen}
+        className="flex w-full items-center gap-3 rounded-control bg-accent px-3 py-2.5 text-left"
+      >
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
+          <Icon icon={UserGroupIcon} className="size-5" strokeWidth={1.75} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-baseline justify-between gap-2">
+            <p className="truncate text-sm font-medium text-neutral-900">Jamoa guruhi</p>
+            {unread > 0 && (
+              <span className="inline-flex h-5 min-w-[1.25rem] shrink-0 items-center justify-center rounded-full bg-primary px-1.5 text-[0.6875rem] font-medium tabular-nums text-primary-foreground">
+                {unread}
+              </span>
+            )}
+          </div>
+          <p className="mt-0.5 truncate text-xs text-neutral-500">Barcha xodimlar bitta xonada</p>
+        </div>
+      </button>
+    </div>
+  )
+}
+
 function RowShell({
   active,
   onClick,
@@ -560,6 +1311,8 @@ function RowShell({
   time,
   preview,
   unread,
+  archivedRow,
+  onArchive,
 }: {
   active: boolean
   onClick: () => void
@@ -567,31 +1320,39 @@ function RowShell({
   time: string | null
   preview: string
   unread: number
+  archivedRow?: boolean
+  onArchive: () => void
 }) {
   return (
-    <li>
+    <li className="group/row relative">
       <button
         type="button"
         onClick={onClick}
         className={cn(
-          "flex w-full items-center gap-3 px-4 py-3 text-left transition-colors",
-          active ? "bg-accent" : "hover:bg-neutral-50",
+          "flex w-full items-center gap-3 rounded-control px-3 py-2.5 text-left transition-colors",
+          active ? "bg-accent" : "hover:bg-neutral-100",
         )}
       >
-        <Avatar size="sm">
+        <Avatar size="lg">
           <AvatarFallback>{initials(name)}</AvatarFallback>
         </Avatar>
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline justify-between gap-2">
             <p className="truncate text-sm font-medium text-neutral-900">{name}</p>
             {time && (
-              <span className="shrink-0 text-[0.6875rem] tabular-nums text-neutral-400">
-                {time}
-              </span>
+              <span className="shrink-0 text-[0.6875rem] tabular-nums text-neutral-400">{time}</span>
             )}
           </div>
           <div className="mt-0.5 flex items-center justify-between gap-2">
-            <p className="truncate text-xs text-neutral-500">{preview}</p>
+            {/* O'qilmagani bor suhbat previewda ham bilinadi — badge'gacha ko'z ilg'aydi. */}
+            <p
+              className={cn(
+                "truncate pr-5 text-xs",
+                unread > 0 ? "font-medium text-neutral-800" : "text-neutral-500",
+              )}
+            >
+              {preview}
+            </p>
             {unread > 0 && (
               <span className="inline-flex h-5 min-w-[1.25rem] shrink-0 items-center justify-center rounded-full bg-primary px-1.5 text-[0.6875rem] font-medium tabular-nums text-primary-foreground">
                 {unread}
@@ -599,6 +1360,23 @@ function RowShell({
             )}
           </div>
         </div>
+      </button>
+      {/* Hover'da arxiv tugmasi — qatorni ochmasdan arxivlash/chiqarish. */}
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation()
+          onArchive()
+        }}
+        title={archivedRow ? "Arxivdan chiqarish" : "Arxivlash"}
+        aria-label={archivedRow ? "Arxivdan chiqarish" : "Arxivlash"}
+        className="absolute right-2.5 bottom-2 hidden size-6 items-center justify-center rounded-md text-neutral-400 transition-colors group-hover/row:flex hover:bg-neutral-200/70 hover:text-neutral-700"
+      >
+        {archivedRow ? (
+          <ArchiveRestore className="size-3.5" strokeWidth={1.75} />
+        ) : (
+          <Archive className="size-3.5" strokeWidth={1.75} />
+        )}
       </button>
     </li>
   )
@@ -608,10 +1386,14 @@ function GuestRow({
   conv,
   active,
   onClick,
+  onArchive,
+  archivedRow,
 }: {
   conv: ChatConversation
   active: boolean
   onClick: () => void
+  onArchive: () => void
+  archivedRow?: boolean
 }) {
   return (
     <RowShell
@@ -621,6 +1403,8 @@ function GuestRow({
       time={listTime(conv.lastMessageAt)}
       preview={`${conv.lastMessageSender === "staff" ? "Siz: " : ""}${conv.lastMessagePreview ?? `${conv.roomNumber}-xona`}`}
       unread={conv.unread}
+      archivedRow={archivedRow}
+      onArchive={onArchive}
     />
   )
 }
@@ -629,10 +1413,14 @@ function TeamRow({
   thread,
   active,
   onClick,
+  onArchive,
+  archivedRow,
 }: {
   thread: TeamThread
   active: boolean
   onClick: () => void
+  onArchive: () => void
+  archivedRow?: boolean
 }) {
   return (
     <RowShell
@@ -646,31 +1434,8 @@ function TeamRow({
           : (ROLE_LABEL[thread.user.role] ?? thread.user.role)
       }
       unread={thread.unread}
+      archivedRow={archivedRow}
+      onArchive={onArchive}
     />
-  )
-}
-
-function Bubble({ mine, text, at }: { mine: boolean; text: string; at: string }) {
-  return (
-    <div className={cn("flex", mine ? "justify-end" : "justify-start")}>
-      <div
-        className={cn(
-          "max-w-[78%] rounded-2xl px-3.5 py-2",
-          mine
-            ? "rounded-br-md bg-primary text-primary-foreground"
-            : "rounded-bl-md bg-neutral-100 text-neutral-900",
-        )}
-      >
-        <p className="text-sm break-words whitespace-pre-wrap">{text}</p>
-        <p
-          className={cn(
-            "mt-0.5 text-[0.625rem] tabular-nums",
-            mine ? "text-primary-foreground/70" : "text-neutral-400",
-          )}
-        >
-          {messageTime(at)}
-        </p>
-      </div>
-    </div>
   )
 }

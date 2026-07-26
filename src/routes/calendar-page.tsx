@@ -97,6 +97,21 @@ export function CalendarPage() {
     return ids
   }, [filterActive, query, statusFilter, data.bookings])
 
+  const todayOps = useMemo(() => {
+    const t = todayIso()
+    let arrivals = 0
+    let departures = 0
+    let overdue = 0
+    for (const b of data.bookings) {
+      if (b.status === "booked" && b.start === t) arrivals++
+      else if (b.status === "checked_in") {
+        if (b.end === t) departures++
+        else if (b.end < t) overdue++
+      }
+    }
+    return { arrivals, departures, overdue }
+  }, [data.bookings])
+
   const { data: hotel } = useQuery({
     queryKey: ["hotel-branding"],
     queryFn: getHotelBranding,
@@ -133,15 +148,33 @@ export function CalendarPage() {
               ]}
             />
 
-            {matchIds && (
+            {matchIds ? (
               <span className="text-xs font-medium text-neutral-500 tabular-nums">
                 {matchIds.size} ta topildi
               </span>
+            ) : (
+              (todayOps.arrivals > 0 || todayOps.departures > 0 || todayOps.overdue > 0) && (
+                <span className="text-xs text-neutral-500 tabular-nums">
+                  Bugun:{" "}
+                  {[
+                    todayOps.arrivals > 0 && `${todayOps.arrivals} kirish`,
+                    todayOps.departures > 0 && `${todayOps.departures} chiqish`,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                  {todayOps.overdue > 0 && (
+                    <>
+                      {(todayOps.arrivals > 0 || todayOps.departures > 0) && " · "}
+                      <span className="font-medium text-warning">{todayOps.overdue} kechikkan</span>
+                    </>
+                  )}
+                </span>
+              )
             )}
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            {}
+            {/* View mode (zoom) — segmented */}
             <div className="flex h-9 items-center gap-0.5 rounded-xl bg-neutral-100 p-1">
               {VIEW_MODES.map((v) => (
                 <button
@@ -161,7 +194,7 @@ export function CalendarPage() {
               ))}
             </div>
 
-            {}
+            {/* Navigatsiya — scroll (paging emas) */}
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
@@ -190,7 +223,7 @@ export function CalendarPage() {
               </Button>
             </div>
 
-            {}
+            {/* To'liq ekran — sahifani to'ldiradi (system fullscreen EMAS), qayta bosilsa/Esc yopadi */}
             <div className="mx-0.5 h-5 w-px bg-neutral-200" aria-hidden />
             <Button
               variant="outline"
@@ -230,6 +263,7 @@ export function CalendarPage() {
             onEditBooking={data.editBooking}
             onMoveBooking={data.moveBooking}
             onRemoveBlock={data.removeBlock}
+            // Bar tanlanganda mehmonlar ro'yxati yuklanadi; yopilganda (`null`) to'xtaydi.
             onSelectBooking={(b) => data.selectGuestsFor(b?.id ?? null)}
             guests={data.guests}
             guestsLoading={data.guestsLoading}
@@ -237,6 +271,7 @@ export function CalendarPage() {
             onUpdateGuest={data.updateGuest}
             onRemoveGuest={data.removeGuest}
             onSetPrimaryGuest={data.makeGuestPrimary}
+            // Per-suhbat marshrut hali yo'q (SESSION.md "keyingi qadamlar") — hozircha inbox'ga.
             onOpenChat={() => navigate({ to: "/chat" })}
             onDuplicate={(b) => calRef.current?.openCreate(b.roomId)}
           />

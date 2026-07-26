@@ -117,6 +117,53 @@ export const defaultLabels: CalendarLabels = {
   extendStay: "Uzaytirish",
   guestQr: "Mehmon QR",
   unblock: "Ochish",
+
+  paymentHistory: "To'lovlar",
+  receivePayment: "To'lov qabul qilish",
+  paymentNotePlaceholder: "Izoh (ixtiyoriy)",
+  paymentMethodText: {
+    cash: "Naqd",
+    card: "Karta",
+    transfer: "O'tkazma",
+    adjustment: "Qo'lda tuzatish",
+  },
+  voidPayment: "Storno",
+  voidReasonPlaceholder: "Sabab (majburiy)",
+  voided: "Bekor qilingan",
+  paidReadOnlyHint: "To'langan summa faqat to'lov qabul qilish orqali o'zgaradi",
+  confirm: "Tasdiqlash",
+
+  activityText: {
+    "booking.created": "Bron ochildi",
+    "booking.updated": "Bron o'zgartirildi",
+    "booking.checked_in": "Mehmon kirdi",
+    "booking.checked_out": "Mehmon chiqdi",
+    "booking.cancelled": "Bron bekor qilindi",
+    "booking.guest_added": "Mehmon qo'shildi",
+    "booking.guest_removed": "Mehmon o'chirildi",
+    "booking.primary_changed": "Asosiy mehmon almashdi",
+    "payment.recorded": "To'lov qabul qilindi",
+    "payment.voided": "To'lov storno qilindi",
+  },
+  activityFallback: "Amal",
+  activityFieldText: {
+    room: "Xona",
+    checkIn: "Kirish",
+    checkOut: "Chiqish",
+    totalAmount: "Summa",
+    paidAmount: "To'langan",
+    guestName: "Mehmon",
+  },
+
+  debtOnCheckOut: (remaining) =>
+    `Qoldiq ${groupThousands(remaining)} so'm — mehmon hali to'lamagan.`,
+  checkOutAnyway: "Qarz bilan chiqarish",
+  cancelPaidWarning: (paid) =>
+    `Bu bronda ${groupThousands(paid)} so'm to'lov qabul qilingan — bekor qilishda pul mehmonga qaytarilishi kerak.`,
+  cancelAnyway: "Baribir bekor qilish",
+  earlyCheckInWarning: (date) => `Bron ${date}da boshlanadi — mehmon bugun kiritilsinmi?`,
+  checkInAnyway: "Bugun kiritish",
+  back: "Ortga",
 }
 
 /** Prop bilan kelgan qisman override'ni default ustiga qo'yadi. */

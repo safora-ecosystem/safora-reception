@@ -36,11 +36,13 @@ import { addDays, hasConflict, nightsBetween } from "./geometry"
 import { Field, ReadValue, Section, StayCard } from "./modal-parts"
 import type {
   BookingEditPatch,
+  CalendarActivityEntry,
   CalendarBooking,
   CalendarGuest,
   CalendarGuestInput,
   CalendarLabels,
   CalendarPayment,
+  CalendarPaymentEntry,
   CalendarRoom,
   CalendarStatus,
 } from "./types"

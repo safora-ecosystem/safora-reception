@@ -77,7 +77,11 @@ function CalendarBarImpl({
   tooltip,
 }: CalendarBarProps) {
   const nights = nightsBetween(booking.start, booking.end)
-  const overdue = booking.status === "checked_in" && epochDay(booking.end) < epochDay(today)
+  // Amber diqqat konturi ikki operatsion og'riqqa: (1) ichkarida, chiqish kuni o'tgan;
+  // (2) kelishi kerak edi, kelmagan (no-show nomzodi — bekor qilinsin yoki kiritilsin).
+  const overdue =
+    (booking.status === "checked_in" && epochDay(booking.end) < epochDay(today)) ||
+    (booking.status === "booked" && epochDay(booking.start) < epochDay(today))
   const barHeight = rowHeight - 2 * BAR_VPAD
   const showIcon = rect.width >= ICON_MIN_PX
   const showPayment = booking.payment != null && rect.width >= PAYMENT_MIN_PX

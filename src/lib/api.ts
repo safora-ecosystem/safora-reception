@@ -228,6 +228,26 @@ export type GuestInput = {
   docNumber?: string
 }
 
+/** To'lov usuli. MVP'da amalda faqat `cash`; `adjustment` — eski `PATCH paidAmount` yo'lidan
+    tushgan qo'lda tuzatish (manfiy bo'lishi mumkin). */
+export type PaymentMethod = "cash" | "card" | "transfer" | "adjustment"
+
+/** To'lov LEDGERI qatori — append-only: o'chirilmaydi, xato yozuv storno (`voided*`) bilan
+    bekor qilinadi va ro'yxatda ko'rinib qoladi. `bookings.paidAmount` = shu qatorlarning
+    (storno bo'lmaganlarining) yig'indisi. */
+export type BookingPayment = {
+  id: string
+  /** Decimal — string/number bo'lib keladi. Manfiy = adjustment (pasaytirish). */
+  amount: number | string
+  method: PaymentMethod
+  note: string | null
+  receivedBy: { id: string; name: string } | null
+  voidedAt: string | null
+  voidedBy: { id: string; name: string } | null
+  voidReason: string | null
+  createdAt: string
+}
+
 export type Booking = {
   id: string
   guestName: string
@@ -250,6 +270,8 @@ export type Booking = {
   note?: string | null
   /** To'liq ro'yxat FAQAT `GET /bookings/:id` javobida — kalendar ro'yxatida sanoq keladi. */
   guests?: BookingGuest[]
+  /** To'lov ledgeri — FAQAT detal javobida (`GET /bookings/:id` va mutatsiya javoblari). */
+  payments?: BookingPayment[]
   _count?: { guests: number }
 }
 
@@ -366,6 +388,30 @@ export const updateBooking = (id: string, body: UpdateBookingBody) =>
 export const checkInBooking = (id: string) => api<Booking>(`/bookings/${id}/check-in`, { method: "PATCH" })
 export const checkOutBooking = (id: string) => api<Booking>(`/bookings/${id}/check-out`, { method: "PATCH" })
 export const cancelBooking = (id: string) => api<Booking>(`/bookings/${id}/cancel`, { method: "PATCH" })
+
+// ── To'lov ledgeri ───────────────────────────────────────────────────────────
+// `payments.record` ruxsati bilan. Yozuvlar o'chirilmaydi — faqat storno (sabab majburiy);
+// resepshn O'Z yozuvini 15 daqiqa ichida storno qila oladi, keyin menejer/rahbar kerak.
+
+export const recordBookingPayment = (bookingId: string, body: { amount: number; note?: string }) =>
+  api<Booking>(`/bookings/${bookingId}/payments`, { method: "POST", body })
+
+export const voidBookingPayment = (bookingId: string, paymentId: string, reason: string) =>
+  api<Booking>(`/bookings/${bookingId}/payments/${paymentId}/void`, {
+    method: "POST",
+    body: { reason },
+  })
+
+/** Bron faoliyat tarixi (kim ochdi, kim kiritdi, pul qanday o'zgardi) — detal timeline'i. */
+export type BookingActivity = {
+  id: string
+  action: string
+  data: Record<string, unknown> | null
+  createdAt: string
+  actor: { id: string; name: string } | null
+}
+
+export const getBookingActivity = (id: string) => api<BookingActivity[]>(`/bookings/${id}/activity`)
 
 // ── Mehmonlar direktoriyasi (GET /guests) ────────────────────────────────────
 
@@ -557,6 +603,7 @@ export type ChatConversation = {
   lastMessagePreview: string | null
   lastMessageSender: ChatSender | null
   unread: number
+  archived: boolean
 }
 
 export type ChatMessage = {
@@ -567,6 +614,8 @@ export type ChatMessage = {
   senderUserId: string | null
   text: string
   createdAt: string
+  replyTo?: { id: string; text: string; senderType: "guest" | "staff" } | null
+  reactions?: ReactionView[]
 }
 
 /** Keyset sahifa: items yangi→eski tartibda; nextCursor = eskiroq sahifa uchun (yoki null). */
@@ -579,8 +628,11 @@ export const listChatMessages = (bookingId: string, cursor?: string) => {
   return api<ChatPage<ChatMessage>>(`/chat/conversations/${bookingId}/messages${qs}`)
 }
 
-export const sendChatMessage = (bookingId: string, text: string) =>
-  api<ChatMessage>(`/chat/conversations/${bookingId}/messages`, { method: "POST", body: { text } })
+export const sendChatMessage = (bookingId: string, text: string, replyToId?: string) =>
+  api<ChatMessage>(`/chat/conversations/${bookingId}/messages`, {
+    method: "POST",
+    body: { text, ...(replyToId ? { replyToId } : {}) },
+  })
 
 // POST bodyless — api() content-type qo'ymaydi (Fastify bo'sh-body gotcha).
 export const markChatRead = (bookingId: string) =>
@@ -625,6 +677,7 @@ export type TeamThread = {
   lastMessagePreview: string | null
   lastMessageMine: boolean
   unread: number
+  archived: boolean
 }
 
 export type TeamMessage = {
@@ -632,6 +685,8 @@ export type TeamMessage = {
   senderId: string
   text: string
   createdAt: string
+  replyTo?: { id: string; text: string; senderId: string } | null
+  reactions?: ReactionView[]
 }
 
 export const listTeamThreads = () => api<TeamThread[]>("/chat/team/threads")
@@ -639,9 +694,64 @@ export const listTeamMessages = (userId: string, before?: string) =>
   api<{ messages: TeamMessage[] }>(
     `/chat/team/threads/${userId}/messages${before ? `?before=${before}` : ""}`,
   )
-export const sendTeamMessage = (userId: string, text: string) =>
-  api<TeamMessage>(`/chat/team/threads/${userId}/messages`, { method: "POST", body: { text } })
+export const sendTeamMessage = (userId: string, text: string, replyToId?: string) =>
+  api<TeamMessage>(`/chat/team/threads/${userId}/messages`, {
+    method: "POST",
+    body: { text, ...(replyToId ? { replyToId } : {}) },
+  })
 export const markTeamRead = (userId: string) =>
   api<{ ok: boolean }>(`/chat/team/threads/${userId}/read`, { method: "POST" })
 export const getTeamUnread = () => api<{ unread: number }>("/chat/team/unread")
 
+export type ReactionView = { emoji: string; count: number; mine: boolean }
+
+export const reactTeamMessage = (messageId: string, emoji: string | null) =>
+  api<{ messageId: string; reactions: ReactionView[] }>(`/chat/team/messages/${messageId}/react`, {
+    method: "POST",
+    body: emoji ? { emoji } : {},
+  })
+
+export const reactGuestMessage = (messageId: string, emoji: string | null) =>
+  api<{ messageId: string; reactions: ReactionView[] }>(`/chat/messages/${messageId}/react`, {
+    method: "POST",
+    body: emoji ? { emoji } : {},
+  })
+
+export const archiveTeamThread = (userId: string, archived: boolean) =>
+  api<{ ok: boolean; archived: boolean }>(`/chat/team/threads/${userId}/archive`, {
+    method: "POST",
+    body: { archived },
+  })
+
+export const archiveConversation = (bookingId: string, archived: boolean) =>
+  api<{ ok: boolean; archived: boolean }>(`/chat/conversations/${bookingId}/archive`, {
+    method: "POST",
+    body: { archived },
+  })
+
+// ── Jamoa guruhi (GET/POST /chat/group) ──────────────────────────────────────
+
+export type GroupMessage = {
+  id: string
+  senderId: string
+  senderName: string
+  text: string
+  createdAt: string
+  replyTo?: { id: string; text: string; senderName: string } | null
+  reactions?: ReactionView[]
+}
+
+export const listGroupMessages = (before?: string) =>
+  api<{ messages: GroupMessage[] }>(`/chat/group/messages${before ? `?before=${before}` : ""}`)
+export const sendGroupMessage = (text: string, replyToId?: string) =>
+  api<GroupMessage>("/chat/group/messages", {
+    method: "POST",
+    body: { text, ...(replyToId ? { replyToId } : {}) },
+  })
+export const markGroupRead = () => api<{ ok: boolean }>("/chat/group/read", { method: "POST" })
+export const getGroupUnread = () => api<{ unread: number }>("/chat/group/unread")
+export const reactGroupMessage = (messageId: string, emoji: string | null) =>
+  api<{ messageId: string; reactions: ReactionView[] }>(`/chat/group/messages/${messageId}/react`, {
+    method: "POST",
+    body: emoji ? { emoji } : {},
+  })

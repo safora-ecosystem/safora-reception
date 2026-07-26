@@ -1,9 +1,17 @@
 import { useEffect, useState } from "react"
 
-export type NotifyPrefs = { sound: boolean; desktop: boolean }
+export type ToneId = "marimba" | "bell" | "pop"
+
+export type NotifyPrefs = { sound: boolean; desktop: boolean; tone: ToneId }
 
 const KEY = "safora_notify"
-const DEFAULTS: NotifyPrefs = { sound: true, desktop: false }
+const DEFAULTS: NotifyPrefs = { sound: true, desktop: false, tone: "marimba" }
+
+export const TONES: Array<{ id: ToneId; label: string; hint: string }> = [
+  { id: "marimba", label: "Marimba", hint: "Iliq, yumshoq — Teams uslubi" },
+  { id: "bell", label: "Qo'ng'iroqcha", hint: "Bitta past jarang" },
+  { id: "pop", label: "Tomchi", hint: "Qisqa suv tomchisi" },
+]
 
 export function readNotifyPrefs(): NotifyPrefs {
   try {
@@ -44,45 +52,97 @@ export function useNotifyPrefs() {
 
 let ctx: AudioContext | null = null
 
-export function playMessageChime(): void {
-  if (!readNotifyPrefs().sound) return
+function ensureCtx(): AudioContext {
+  ctx ??= new AudioContext()
+  if (ctx.state === "suspended") void ctx.resume()
+  return ctx
+}
+
+function marimbaHit(ac: AudioContext, out: AudioNode, freq: number, at: number, vol: number): void {
+  const layers: Array<[number, number, number]> = [
+    [1, vol, 0.55],
+    [4, vol * 0.14, 0.1],
+  ]
+  for (const [mult, v, dur] of layers) {
+    const osc = ac.createOscillator()
+    const gain = ac.createGain()
+    osc.type = "sine"
+    osc.frequency.value = freq * mult
+    gain.gain.setValueAtTime(0.0001, at)
+    gain.gain.exponentialRampToValueAtTime(v, at + 0.012)
+    gain.gain.exponentialRampToValueAtTime(0.0001, at + dur)
+    osc.connect(gain)
+    gain.connect(out)
+    osc.start(at)
+    osc.stop(at + dur + 0.05)
+  }
+}
+
+function toneMarimba(ac: AudioContext, out: AudioNode, t0: number): void {
+  marimbaHit(ac, out, 440, t0, 0.5)
+  marimbaHit(ac, out, 329.63, t0 + 0.16, 0.45)
+}
+
+function toneBell(ac: AudioContext, out: AudioNode, t0: number): void {
+  const partials: Array<[number, number, number]> = [
+    [493.88, 0.45, 1.0],
+    [987.77, 0.12, 0.5],
+    [1975.5, 0.04, 0.25],
+  ]
+  for (const [freq, vol, dur] of partials) {
+    const osc = ac.createOscillator()
+    const gain = ac.createGain()
+    osc.type = "sine"
+    osc.frequency.value = freq
+    gain.gain.setValueAtTime(0.0001, t0)
+    gain.gain.exponentialRampToValueAtTime(vol, t0 + 0.005)
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur)
+    osc.connect(gain)
+    gain.connect(out)
+    osc.start(t0)
+    osc.stop(t0 + dur + 0.05)
+  }
+}
+
+function tonePop(ac: AudioContext, out: AudioNode, t0: number): void {
+  const osc = ac.createOscillator()
+  const gain = ac.createGain()
+  osc.type = "sine"
+  osc.frequency.setValueAtTime(700, t0)
+  osc.frequency.exponentialRampToValueAtTime(320, t0 + 0.08)
+  gain.gain.setValueAtTime(0.0001, t0)
+  gain.gain.exponentialRampToValueAtTime(0.5, t0 + 0.007)
+  gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.25)
+  osc.connect(gain)
+  gain.connect(out)
+  osc.start(t0)
+  osc.stop(t0 + 0.3)
+}
+
+const PLAYERS: Record<ToneId, (ac: AudioContext, out: AudioNode, t0: number) => void> = {
+  marimba: toneMarimba,
+  bell: toneBell,
+  pop: tonePop,
+}
+
+export function previewTone(tone: ToneId): void {
   try {
-    ctx ??= new AudioContext()
-    if (ctx.state === "suspended") void ctx.resume()
-
-    const t0 = ctx.currentTime
-    const master = ctx.createGain()
-    master.gain.value = 0.9
-    const lp = ctx.createBiquadFilter()
+    const ac = ensureCtx()
+    const lp = ac.createBiquadFilter()
     lp.type = "lowpass"
-    lp.frequency.value = 2600
-    lp.Q.value = 0.7
-    master.connect(lp)
-    lp.connect(ctx.destination)
-
-    const pluck = (freq: number, at: number, vol: number) => {
-      const layers: Array<[OscillatorType, number, number]> = [
-        ["triangle", 1, 1],
-        ["sine", 2, 0.3],
-      ]
-      for (const [type, mult, v] of layers) {
-        const osc = ctx!.createOscillator()
-        const gain = ctx!.createGain()
-        osc.type = type
-        osc.frequency.value = freq * mult
-        gain.gain.setValueAtTime(0.0001, at)
-        gain.gain.exponentialRampToValueAtTime(vol * v, at + 0.008)
-        gain.gain.exponentialRampToValueAtTime(0.0001, at + 0.5)
-        osc.connect(gain)
-        gain.connect(master)
-        osc.start(at)
-        osc.stop(at + 0.55)
-      }
-    }
-    pluck(659.25, t0, 0.5)
-    pluck(987.77, t0 + 0.11, 0.55)
+    lp.frequency.value = 1600
+    lp.Q.value = 0.5
+    lp.connect(ac.destination)
+    const player = PLAYERS[tone] ?? PLAYERS[DEFAULTS.tone]
+    player(ac, lp, ac.currentTime)
   } catch {
   }
+}
+
+export function playMessageChime(): void {
+  const prefs = readNotifyPrefs()
+  if (!prefs.sound) return
+  previewTone(prefs.tone)
 }
 
 export function showDesktopNotification(title: string, body: string): void {
