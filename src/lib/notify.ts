@@ -50,20 +50,37 @@ export function playMessageChime(): void {
     ctx ??= new AudioContext()
     if (ctx.state === "suspended") void ctx.resume()
 
-    const now = ctx.currentTime
-    for (const [i, freq] of [659.25, 783.99].entries()) {
-      const at = now + i * 0.09
-      const osc = ctx.createOscillator()
-      const gain = ctx.createGain()
-      osc.type = "sine"
-      osc.frequency.value = freq
-      gain.gain.setValueAtTime(0.0001, at)
-      gain.gain.exponentialRampToValueAtTime(0.42, at + 0.012)
-      gain.gain.exponentialRampToValueAtTime(0.0001, at + 0.32)
-      osc.connect(gain).connect(ctx.destination)
-      osc.start(at)
-      osc.stop(at + 0.34)
+    const t0 = ctx.currentTime
+    const master = ctx.createGain()
+    master.gain.value = 0.9
+    const lp = ctx.createBiquadFilter()
+    lp.type = "lowpass"
+    lp.frequency.value = 2600
+    lp.Q.value = 0.7
+    master.connect(lp)
+    lp.connect(ctx.destination)
+
+    const pluck = (freq: number, at: number, vol: number) => {
+      const layers: Array<[OscillatorType, number, number]> = [
+        ["triangle", 1, 1],
+        ["sine", 2, 0.3],
+      ]
+      for (const [type, mult, v] of layers) {
+        const osc = ctx!.createOscillator()
+        const gain = ctx!.createGain()
+        osc.type = type
+        osc.frequency.value = freq * mult
+        gain.gain.setValueAtTime(0.0001, at)
+        gain.gain.exponentialRampToValueAtTime(vol * v, at + 0.008)
+        gain.gain.exponentialRampToValueAtTime(0.0001, at + 0.5)
+        osc.connect(gain)
+        gain.connect(master)
+        osc.start(at)
+        osc.stop(at + 0.55)
+      }
     }
+    pluck(659.25, t0, 0.5)
+    pluck(987.77, t0 + 0.11, 0.55)
   } catch {
   }
 }

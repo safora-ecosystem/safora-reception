@@ -2,6 +2,7 @@ import { Outlet, useLocation } from "@tanstack/react-router"
 import { NoticeBanner } from "@/components/layout/notice-banner"
 import { Sidebar } from "@/components/layout/sidebar"
 import { Topbar } from "@/components/layout/topbar"
+import { ChatRealtimeProvider } from "@/lib/chat-realtime"
 import { PageHeaderProvider } from "@/lib/page-header"
 import { TopbarSearchProvider } from "@/lib/topbar-search"
 import { cn } from "@/lib/utils"
@@ -11,6 +12,7 @@ export function RootLayout() {
 
   return (
     <PageHeaderProvider>
+      <ChatRealtimeProvider>
       <TopbarSearchProvider>
         <div className="flex h-svh gap-3 bg-background p-3 text-foreground">
           <Sidebar />
@@ -30,6 +32,7 @@ export function RootLayout() {
           </div>
         </div>
       </TopbarSearchProvider>
+      </ChatRealtimeProvider>
     </PageHeaderProvider>
   )
 }

@@ -643,3 +643,5 @@ export const sendTeamMessage = (userId: string, text: string) =>
   api<TeamMessage>(`/chat/team/threads/${userId}/messages`, { method: "POST", body: { text } })
 export const markTeamRead = (userId: string) =>
   api<{ ok: boolean }>(`/chat/team/threads/${userId}/read`, { method: "POST" })
+export const getTeamUnread = () => api<{ unread: number }>("/chat/team/unread")
+
