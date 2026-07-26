@@ -318,6 +318,96 @@ export const checkInBooking = (id: string) => api<Booking>(`/bookings/${id}/chec
 export const checkOutBooking = (id: string) => api<Booking>(`/bookings/${id}/check-out`, { method: "PATCH" })
 export const cancelBooking = (id: string) => api<Booking>(`/bookings/${id}/cancel`, { method: "PATCH" })
 
+// ── Mehmonlar direktoriyasi (GET /guests) ────────────────────────────────────
+
+/** `in_house` — hozir yashayapti · `arriving` — kutilmoqda · `past` — chiqib ketgan. */
+export type GuestState = "in_house" | "arriving" | "past"
+
+/** Bir ODAM (bron emas): takroriy tashriflar bitta qatorga yig'ilgan. Kalit — telefon
+    (bor bo'lsa), aks holda normalizatsiyalangan ism. Yig'ish backendda. */
+export type DirectoryGuest = {
+  key: string
+  fullName: string
+  phone: string | null
+  docType: GuestDocType | null
+  docNumber: string | null
+  stays: number
+  nights: number
+  totalPaid: number
+  firstStay: string
+  lastStay: string
+  state: GuestState
+  currentRoom: string | null
+  currentBookingId: string | null
+  note: string | null
+}
+
+export const listGuests = () => api<DirectoryGuest[]>("/guests")
+
+// ── Xizmat so'rovlari (GET/POST/PATCH /service-requests) ─────────────────────
+
+export type ServiceType = "taxi" | "cleaning" | "food" | "amenity" | "other"
+export type ServiceRequestStatus = "new" | "in_progress" | "done" | "cancelled"
+
+/** Mehmon buyurtmasi. `title`/`commissionRate` katalogdan SNAPSHOT — katalog keyin
+    o'zgarsa ham bu yozuv o'z paytidagi shartni aytib turadi. */
+export type ServiceRequest = {
+  id: string
+  title: string
+  type: ServiceType
+  note: string | null
+  status: ServiceRequestStatus
+  source: "guest" | "staff"
+  amount: string
+  commissionRate: string
+  createdAt: string
+  acceptedAt: string | null
+  completedAt: string | null
+  room: { id: string; number: string; type: string }
+  booking: { id: string; guestName: string; guestPhone: string | null } | null
+  service: { id: string; name: string } | null
+  assignedTo: { id: string; name: string; role: string } | null
+}
+
+export type ServiceRequestStats = {
+  windowDays: number
+  counts: Record<ServiceRequestStatus, number>
+  revenue: number
+  commission: number
+}
+
+/** Mehmonxona xizmat katalogi (`GET /services`) — so'rov yaratishda tanlanadi. */
+export type ServiceCatalogItem = {
+  id: string
+  name: string
+  type: ServiceType
+  commissionRate: string
+  active: boolean
+}
+
+export const listServiceRequests = (status?: ServiceRequestStatus) =>
+  api<ServiceRequest[]>(`/service-requests${status ? `?status=${status}` : ""}`)
+
+export const getServiceRequestStats = () => api<ServiceRequestStats>("/service-requests/stats")
+
+export type CreateServiceRequestBody = {
+  roomId: string
+  bookingId?: string
+  serviceId?: string
+  title?: string
+  type?: ServiceType
+  note?: string
+  amount?: number
+}
+
+export const createServiceRequest = (body: CreateServiceRequestBody) =>
+  api<ServiceRequest>("/service-requests", { method: "POST", body })
+
+export const updateServiceRequest = (
+  id: string,
+  body: { status?: ServiceRequestStatus; note?: string; amount?: number; assignedToId?: string },
+) => api<ServiceRequest>(`/service-requests/${id}`, { method: "PATCH", body })
+
 // ── Faol seanslar (qurilmalar) ────────────────────────────────────────────────
 
 export type ActiveSession = {

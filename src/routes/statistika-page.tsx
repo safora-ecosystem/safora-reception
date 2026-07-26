@@ -124,7 +124,7 @@ export function StatistikaPage() {
         </Button>
       }
     >
-      <div className="flex grow flex-col gap-4">
+      <div className="flex min-h-0 grow flex-col gap-4">
         <StatGrid>
           {snapshot.map((s) => (
             <StatCard
@@ -140,8 +140,13 @@ export function StatistikaPage() {
 
         {/* Ihcham operatsion qator: bandlik chart'i · suhbatlar · bugungi harakat. Desktop-first
             (front-desk): xl'da 3 ustun bitta qatorda ekran balandligini to'ldiradi (grow + 1fr
-            qator → kartalar cho'ziladi), undan tor ekranda ustma-ust va tabiiy balandlik. */}
-        <div className="grid grid-cols-1 gap-4 xl:min-h-0 xl:grow xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)] xl:grid-rows-1">
+            qator → kartalar cho'ziladi), undan tor ekranda ustma-ust va tabiiy balandlik.
+
+            `[&>*]:min-h-0` — CSS grid gotcha: grid elementi sukut bo'yicha `min-height: auto`,
+            ya'ni KONTENTIDAN kichrayolmaydi. Band kunda "Bugungi harakat" ro'yxati uzun bo'lib
+            butun qatorni cho'zib yuborardi (yonidagi bandlik grafigi ekran bo'yiga sudralardi),
+            ro'yxatning o'z ichki scroll'i esa hech qachon ishga tushmasdi. */}
+        <div className="grid grid-cols-1 gap-4 xl:min-h-0 xl:grow xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)] xl:grid-rows-1 xl:[&>*]:min-h-0">
           <WeeklyOccupancy days={week.days} todayIndex={week.todayIndex} />
 
           <ChatPanel />

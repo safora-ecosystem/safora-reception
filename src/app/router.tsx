@@ -1,11 +1,12 @@
 import { createRootRoute, createRoute, createRouter, redirect } from "@tanstack/react-router"
-import { ClipboardList, DoorOpen, LifeBuoy } from "lucide-react"
 import { RootLayout } from "./root-layout"
 import { LoginPage } from "@/routes/login-page"
 import { StatistikaPage } from "@/routes/statistika-page"
 import { CalendarPage } from "@/routes/calendar-page"
+import { GuestsPage } from "@/routes/guests-page"
+import { RequestsPage } from "@/routes/requests-page"
+import { HelpPage } from "@/routes/help-page"
 import { SettingsPage } from "@/routes/settings-page"
-import { PlaceholderPage } from "@/routes/placeholder-page"
 import { ChatPage } from "@/routes/chat-page"
 import { staffLogout } from "@/lib/api"
 import { isAuthed } from "@/lib/auth"
@@ -42,25 +43,13 @@ const calendarRoute = createRoute({
 const guestsRoute = createRoute({
   getParentRoute: () => appLayoutRoute,
   path: "/guests",
-  component: () => (
-    <PlaceholderPage
-      title="Mehmonlar"
-      description="Ro'yxatdan o'tgan va joriy mehmonlar."
-      icon={DoorOpen}
-    />
-  ),
+  component: GuestsPage,
 })
 
 const requestsRoute = createRoute({
   getParentRoute: () => appLayoutRoute,
   path: "/requests",
-  component: () => (
-    <PlaceholderPage
-      title="So'rovlar"
-      description="Mehmon so'rovlari va topshiriqlar."
-      icon={ClipboardList}
-    />
-  ),
+  component: RequestsPage,
 })
 
 const chatRoute = createRoute({
@@ -78,9 +67,7 @@ const settingsRoute = createRoute({
 const helpRoute = createRoute({
   getParentRoute: () => appLayoutRoute,
   path: "/help",
-  component: () => (
-    <PlaceholderPage title="Yordam" description="Qo'llanma va yordam markazi." icon={LifeBuoy} />
-  ),
+  component: HelpPage,
 })
 
 const logoutRoute = createRoute({
