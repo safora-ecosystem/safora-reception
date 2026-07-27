@@ -39,15 +39,17 @@ type ApiOptions = {
   body?: unknown
   token?: string
   signal?: AbortSignal
+  /** Standart 15s. Fayl yuklashda uzunroq: sekin mobil ulanishda 8MB shunga sig'maydi. */
+  timeoutMs?: number
 }
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 async function rawFetch(
   path: string,
-  { method = "GET", body, signal }: ApiOptions,
+  { method = "GET", body, signal, timeoutMs: callerTimeout }: ApiOptions,
   token?: string,
-  timeoutMs = DEFAULT_TIMEOUT_MS,
+  timeoutMs = callerTimeout ?? DEFAULT_TIMEOUT_MS,
 ) {
   const hasBody = body !== undefined
   // Timeout har urinishda YANGI (bir martalik); chaqiruvchi signalini (mas. unmount) ham hurmat qilamiz.
@@ -58,16 +60,19 @@ async function rawFetch(
     if (signal.aborted) controller.abort(signal.reason)
     else signal.addEventListener("abort", onCallerAbort, { once: true })
   }
+  // Fayl yuklash (profil rasmi) — FormData JSON'ga o'ralmaydi va content-type QO'YILMAYDI:
+  // uni brauzer o'zi yozadi, chunki multipart chegara satri (boundary) shu yerda tug'iladi.
+  const isForm = typeof FormData !== "undefined" && body instanceof FormData
   try {
     return await fetch(`${BASE_URL}${path}`, {
       method,
       // Only advertise a JSON body when we actually send one — Fastify rejects an empty
       // `application/json` body with 400, so bodyless GET/DELETE must NOT set content-type.
       headers: {
-        ...(hasBody ? { "content-type": "application/json" } : {}),
+        ...(hasBody && !isForm ? { "content-type": "application/json" } : {}),
         ...(token ? { authorization: `Bearer ${token}` } : {}),
       },
-      ...(hasBody ? { body: JSON.stringify(body) } : {}),
+      ...(hasBody ? { body: isForm ? (body as FormData) : JSON.stringify(body) } : {}),
       signal: controller.signal,
     })
   } finally {
@@ -189,6 +194,22 @@ export async function api<T>(path: string, options: ApiOptions = {}): Promise<T>
   const payload = await res.json().catch(() => null)
   if (!res.ok) throw new ApiError(res.status, payload)
   return payload as T
+}
+
+/** Xatoni odam o'qiydigan matnga aylantiradi — boshqa panellardagi bilan BIR XIL funksiya.
+    Server o'z xabarini bergan bo'lsa (masalan kvota tugagani) aynan u ko'rsatiladi: u kontekstni
+    bizdan yaxshi biladi. Faqat status'dan bilinadigan holatlar undan oldin tekshiriladi. */
+export function apiErrorText(err: unknown, fallback = "Xatolik yuz berdi"): string {
+  if (err instanceof ApiError) {
+    if (err.status === 401) return "Seans muddati tugadi — qayta kiring"
+    if (err.status === 403) return "Bu amalga ruxsatingiz yo'q"
+    if (err.status >= 500) return "Server xatosi — birozdan so'ng qayta urining"
+    const serverMsg = (err.body as { message?: unknown } | null)?.message
+    if (typeof serverMsg === "string" && serverMsg) return serverMsg
+    return fallback
+  }
+  if (err instanceof NetworkError) return err.message
+  return fallback
 }
 
 // ── core-api domen tiplari (reception ishlatadigan qismi) ──────────────────
@@ -755,3 +776,26 @@ export const reactGroupMessage = (messageId: string, emoji: string | null) =>
     method: "POST",
     body: emoji ? { emoji } : {},
   })
+
+// ── Profil rasmi — POST/DELETE /users/me/avatar ─────────────────────────────
+// Yo'lda `:id` yo'q: xodim FAQAT o'z rasmini almashtiradi. Rasm serverda 256² WebP'ga siqiladi
+// (8MB surat ≈ 5–15 KB) va cdn.safora.uz dan beriladi. Oyiga 3 marta — kvota serverda.
+
+export type AvatarResult = {
+  avatarUrl: string | null
+  /** Shu oynada nechta almashtirish qoldi. */
+  remaining: number
+  resetsAt: string | null
+}
+
+/** 8MB — serverdagi chegara bilan bir xil; klientda tekshirish shunchaki tezroq javob beradi. */
+export const AVATAR_MAX_BYTES = 8 * 1024 * 1024
+
+export const uploadMyAvatar = (file: File) => {
+  const form = new FormData()
+  form.append("file", file)
+  // 60s: sekin mobil internetda 8MB standart 15s ga sig'maydi va yuklash "timeout" bo'lardi.
+  return api<AvatarResult>("/users/me/avatar", { method: "POST", body: form, timeoutMs: 60_000 })
+}
+
+export const removeMyAvatar = () => api<AvatarResult>("/users/me/avatar", { method: "DELETE" })

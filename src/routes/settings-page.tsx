@@ -1,7 +1,9 @@
+import { useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { LogOut, Volume2 } from "lucide-react"
 import { toast } from "sonner"
 import { PageLayout } from "@/components/layout/page-layout"
+import { AvatarUploader } from "@/components/shared/avatar-uploader"
 import {
   Loading,
   Row,
@@ -20,6 +22,7 @@ import { cn } from "@/lib/utils"
 export function SettingsPage() {
   const qc = useQueryClient()
   const user = getSession()?.user
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(user?.avatarUrl ?? null)
   const { prefs, set } = useNotifyPrefs()
 
   const { data: sessions, isLoading } = useQuery({
@@ -60,14 +63,15 @@ export function SettingsPage() {
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:items-start">
         <div className="flex flex-col gap-4">
           <Section title="Profil" hint="Hisobingiz ma'lumoti.">
-            <div className="flex items-center gap-3.5 px-4 py-4">
-              <div className="grid size-12 shrink-0 place-items-center rounded-full bg-accent text-lg font-semibold text-accent-foreground">
-                {(user?.name ?? "?").trim().charAt(0).toUpperCase()}
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="truncate font-medium text-neutral-900">{user?.name ?? "Xodim"}</p>
-                <p className="truncate text-sm text-neutral-500 tabular-nums">{user?.staffHandle}</p>
-              </div>
+            <AvatarUploader
+              name={user?.name ?? "Xodim"}
+              avatarUrl={avatarUrl}
+              onChange={setAvatarUrl}
+            />
+            <div className="hairline-t flex items-center gap-3.5 px-4 py-3">
+              <p className="min-w-0 flex-1 truncate text-sm text-neutral-500 tabular-nums">
+                {user?.staffHandle}
+              </p>
               {user && <Badge variant="secondary">{ROLE_LABEL[user.role]}</Badge>}
             </div>
             <Row label="Ruhsatlar" hint="Nima qila olishingizni rahbar belgilaydi." />

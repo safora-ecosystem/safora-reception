@@ -6,6 +6,7 @@ export type StaffUser = {
   role: StaffRole
   name: string
   staffHandle: string
+  avatarUrl?: string | null
 }
 
 export const ROLE_LABEL: Record<StaffRole, string> = {
@@ -46,6 +47,14 @@ export function updateTokens(accessToken: string, refreshToken: string): void {
   if (!current) return
   const store = inSession ? sessionStorage : localStorage
   store.setItem(KEY, JSON.stringify({ ...current, accessToken, refreshToken }))
+}
+
+export function updateAvatar(avatarUrl: string | null): void {
+  const inSession = sessionStorage.getItem(KEY) !== null
+  const current = getSession()
+  if (!current) return
+  const store = inSession ? sessionStorage : localStorage
+  store.setItem(KEY, JSON.stringify({ ...current, user: { ...current.user, avatarUrl } }))
 }
 
 export function clearSession(): void {
