@@ -693,7 +693,7 @@ export async function staffLogout(): Promise<void> {
 // ── Jamoa chati (GET/POST /chat/team) ────────────────────────────────────────
 
 export type TeamThread = {
-  user: { id: string; name: string; role: string }
+  user: { id: string; name: string; role: string; avatarUrl?: string | null }
   lastMessageAt: string | null
   lastMessagePreview: string | null
   lastMessageMine: boolean

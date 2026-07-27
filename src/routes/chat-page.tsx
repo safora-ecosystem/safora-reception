@@ -59,7 +59,7 @@ import {
 import { shortDate } from "@/lib/format"
 import { useSetPageHeader } from "@/lib/page-header"
 import { usePermissions } from "@/lib/permissions"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { PersonAvatar } from "@/components/shared/person-avatar"
 import { Button } from "@/components/ui/button"
 import { Icon, type IconData } from "@/components/ui/icon"
 import { Textarea } from "@/components/ui/textarea"
@@ -73,10 +73,6 @@ const ROLE_LABEL: Record<string, string> = {
   housekeeper: "Tozalash xodimi",
 }
 
-function initials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean).slice(0, 2)
-  return parts.map((w) => w[0]!.toUpperCase()).join("") || "?"
-}
 const two = (n: number) => String(n).padStart(2, "0")
 function messageTime(iso: string): string {
   const d = new Date(iso)
@@ -593,6 +589,7 @@ function TeamThread({ thread, onBack }: { thread: TeamThread; onBack: () => void
       threadKey={otherId}
       title={thread.user.name}
       subtitle={ROLE_LABEL[thread.user.role] ?? thread.user.role}
+      avatarUrl={thread.user.avatarUrl}
       onBack={onBack}
       loading={messages.isLoading}
       emptyText="Hali yozishmagansiz — birinchi xabarni yozing."
@@ -729,6 +726,7 @@ function ThreadShell({
   threadKey,
   title,
   subtitle,
+  avatarUrl,
   onBack,
   loading,
   items,
@@ -747,6 +745,8 @@ function ThreadShell({
   threadKey: string
   title: string
   subtitle: string
+  /** Xodim suhbatida uning profil rasmi; mehmon va guruhda yo'q. */
+  avatarUrl?: string | null
   onBack: () => void
   loading: boolean
   items: ThreadItem[]
@@ -880,9 +880,7 @@ function ThreadShell({
         >
           <ChevronLeft />
         </Button>
-        <Avatar>
-          <AvatarFallback>{initials(title)}</AvatarFallback>
-        </Avatar>
+        <PersonAvatar name={title} avatarUrl={avatarUrl} />
         <div className="min-w-0">
           <p className="truncate text-sm font-medium text-neutral-900">{title}</p>
           <p className="truncate text-xs text-neutral-500">{subtitle}</p>
@@ -1309,6 +1307,7 @@ function RowShell({
   active,
   onClick,
   name,
+  avatarUrl,
   time,
   preview,
   unread,
@@ -1318,6 +1317,7 @@ function RowShell({
   active: boolean
   onClick: () => void
   name: string
+  avatarUrl?: string | null
   time: string | null
   preview: string
   unread: number
@@ -1334,9 +1334,7 @@ function RowShell({
           active ? "bg-accent" : "hover:bg-neutral-100",
         )}
       >
-        <Avatar size="lg">
-          <AvatarFallback>{initials(name)}</AvatarFallback>
-        </Avatar>
+        <PersonAvatar name={name} avatarUrl={avatarUrl} size="lg" />
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline justify-between gap-2">
             <p className="truncate text-sm font-medium text-neutral-900">{name}</p>
@@ -1428,6 +1426,7 @@ function TeamRow({
       active={active}
       onClick={onClick}
       name={thread.user.name}
+      avatarUrl={thread.user.avatarUrl}
       time={thread.lastMessageAt ? listTime(thread.lastMessageAt) : null}
       preview={
         thread.lastMessagePreview
