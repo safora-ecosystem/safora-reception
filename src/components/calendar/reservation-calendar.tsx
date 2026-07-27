@@ -62,6 +62,11 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
       onUpdateGuest,
       onRemoveGuest,
       onSetPrimaryGuest,
+      payments = null,
+      onRecordPayment,
+      onVoidPayment,
+      activity = null,
+      activityLoading = false,
       onRemoveBlock,
       onDuplicate,
       onOpenChat,
@@ -431,6 +436,11 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
           today={today}
           guests={guests}
           guestsLoading={guestsLoading}
+          payments={payments}
+          onRecordPayment={onRecordPayment}
+          onVoidPayment={onVoidPayment}
+          activity={activity}
+          activityLoading={activityLoading}
           onClose={closeSelected}
           onCheckIn={onCheckIn}
           onCheckOut={onCheckOut}

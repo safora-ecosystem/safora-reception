@@ -271,6 +271,13 @@ export function CalendarPage() {
             onUpdateGuest={data.updateGuest}
             onRemoveGuest={data.removeGuest}
             onSetPrimaryGuest={data.makeGuestPrimary}
+            // To'lov ledgeri: rahbar `payments.record`ni o'chirsa tugma umuman chiqmaydi
+            // (server ham 403 qaytaradi — UI yolg'on va'da bermaydi).
+            payments={data.payments}
+            onRecordPayment={can("payments.record") ? data.recordPayment : undefined}
+            onVoidPayment={can("payments.record") ? data.voidPayment : undefined}
+            activity={data.activity}
+            activityLoading={data.activityLoading}
             // Per-suhbat marshrut hali yo'q (SESSION.md "keyingi qadamlar") — hozircha inbox'ga.
             onOpenChat={() => navigate({ to: "/chat" })}
             onDuplicate={(b) => calRef.current?.openCreate(b.roomId)}

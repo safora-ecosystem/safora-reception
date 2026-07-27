@@ -130,6 +130,7 @@ export const defaultLabels: CalendarLabels = {
   voidPayment: "Storno",
   voidReasonPlaceholder: "Sabab (majburiy)",
   voided: "Bekor qilingan",
+  paymentOverRemaining: "To'lov qoldiqdan oshmasligi kerak",
   paidReadOnlyHint: "To'langan summa faqat to'lov qabul qilish orqali o'zgaradi",
   confirm: "Tasdiqlash",
 

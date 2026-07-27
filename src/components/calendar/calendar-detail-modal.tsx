@@ -31,7 +31,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
-import { DocFields } from "./form-parts"
+import { DocFields, MoneyInput } from "./form-parts"
 import { addDays, hasConflict, nightsBetween } from "./geometry"
 import { Field, ReadValue, Section, StayCard } from "./modal-parts"
 import type {
@@ -56,6 +56,11 @@ interface CalendarDetailModalProps {
   today: string
   guests?: CalendarGuest[] | null
   guestsLoading?: boolean
+  payments?: CalendarPaymentEntry[] | null
+  onRecordPayment?: (bookingId: string, input: { amount: number; note?: string }) => void | Promise<void>
+  onVoidPayment?: (bookingId: string, paymentId: string, reason: string) => void | Promise<void>
+  activity?: CalendarActivityEntry[] | null
+  activityLoading?: boolean
   onClose: () => void
   onCheckIn?: (id: string) => void | Promise<void>
   onCheckOut?: (id: string) => void | Promise<void>
@@ -241,6 +246,11 @@ function DetailBody({
   today,
   guests,
   guestsLoading,
+  payments,
+  onRecordPayment,
+  onVoidPayment,
+  activity,
+  activityLoading,
   onClose,
   onCheckIn,
   onCheckOut,
@@ -257,6 +267,10 @@ function DetailBody({
   const [busy, setBusy] = useState(false)
   const [pickerOpen, setPickerOpen] = useState(false)
   const [adding, setAdding] = useState(false)
+  // Harakat guard'lari: qarz bilan chiqish / to'lovli bronni bekor qilish / erta kirish —
+  // bitta bosishda EMAS, ogohlantirish + aniq tasdiq bilan. null = oddiy tugmalar.
+  const [confirming, setConfirming] = useState<null | "checkout" | "cancel" | "checkin">(null)
+  const [payFormOpen, setPayFormOpen] = useState(false)
 
   const [guestName, setGuestName] = useState(b.label)
   const [guestPhone, setGuestPhone] = useState(b.sublabel ?? "")
@@ -264,7 +278,6 @@ function DetailBody({
   const [start, setStart] = useState(b.start)
   const [end, setEnd] = useState(b.end)
   const [amount, setAmount] = useState(String(b.payment?.total ?? 0))
-  const [paid, setPaid] = useState(String(b.payment?.paid ?? 0))
   const [note, setNote] = useState(b.note ?? "")
 
   // Server qoidasi bilan bir xil: kelmagan mehmonni ko'chirish mumkin, ichkaridagini esa faqat
@@ -287,10 +300,10 @@ function DetailBody({
   const conflict = editing && (canRelocate || canExtend) && hasConflict({ roomId, start, end }, bookings, b.id)
 
   const amountNum = Number(amount.replace(/\s/g, ""))
-  const paidNum = Number(paid.replace(/\s/g, ""))
-  // Avans jami summadan oshmaydi — server ham aynan shu shartni majburlaydi (400).
-  const amountValid =
-    Number.isFinite(amountNum) && amountNum >= 0 && Number.isFinite(paidNum) && paidNum >= 0 && paidNum <= amountNum
+  const paidNow = b.payment?.paid ?? 0
+  // Summa to'langan puldan past tushmasin — aks holda server 400 qaytaradi (paid ≤ total).
+  // To'langan summaning O'ZI endi bu formada tahrirlanmaydi: u faqat ledger orqali o'zgaradi.
+  const amountValid = Number.isFinite(amountNum) && amountNum >= 0 && amountNum >= paidNow
   const phoneDigits = guestPhone.replace(/\D/g, "")
   const dirty =
     guestName.trim() !== b.label ||
@@ -299,7 +312,6 @@ function DetailBody({
     start !== b.start ||
     end !== b.end ||
     amountNum !== (b.payment?.total ?? 0) ||
-    paidNum !== (b.payment?.paid ?? 0) ||
     note.trim() !== (b.note ?? "")
   const valid =
     guestName.trim().length > 0 && phoneDigits.length >= MIN_PHONE_DIGITS && nights >= 1 && amountValid && !conflict
@@ -338,7 +350,8 @@ function DetailBody({
     // Chiqish sanasi ikkala holatda ham o'zgaradi — uzaytirish `checked_in` uchun ham ochiq.
     if ((canRelocate || canExtend) && end !== b.end) patch.end = end
     if (amountNum !== (b.payment?.total ?? 0)) patch.totalAmount = amountNum
-    if (paidNum !== (b.payment?.paid ?? 0)) patch.paidAmount = paidNum
+    // paidAmount bu yerdan ATAYLAB yuborilmaydi: to'langan pul faqat ledger (to'lov qabul
+    // qilish / storno) orqali o'zgaradi — "raqamni to'g'irlab qo'yish" yo'li yopiq.
     if (note.trim() !== (b.note ?? "")) patch.note = note.trim()
 
     setBusy(true)
@@ -359,7 +372,6 @@ function DetailBody({
     setStart(b.start)
     setEnd(b.end)
     setAmount(String(b.payment?.total ?? 0))
-    setPaid(String(b.payment?.paid ?? 0))
     setNote(b.note ?? "")
     setEditing(false)
   }
@@ -621,39 +633,85 @@ function DetailBody({
                       {labels.nightlyRate} {labels.money(editRoom?.rate ?? 0)} × {nights} = {labels.money(suggested)}
                     </button>
                   )}
-                </Field>
-                <Field label={labels.paid}>
-                  <Input value={paid} onChange={(e) => setPaid(e.target.value)} inputMode="numeric" />
-                  {paidNum > amountNum && (
+                  {!amountValid && amountNum < paidNow && (
                     <span className="text-xs font-medium text-destructive">{labels.prepaymentTooBig}</span>
                   )}
                 </Field>
+                {/* To'langan summa tahrirda OCHILMAYDI — u ledger'ning keshi. "Raqamni
+                    to'g'irlab qo'yish" o'rniga to'lov qabul qilish / storno ishlatiladi. */}
+                <Field label={labels.paid}>
+                  <ReadValue>{labels.money(paidNow)}</ReadValue>
+                  <span className="text-xs leading-relaxed text-neutral-400">{labels.paidReadOnlyHint}</span>
+                </Field>
               </div>
             ) : payment ? (
-              <div className="rounded-card bg-neutral-50 p-4">
-                <div className="flex items-baseline justify-between">
-                  <span className="text-xs font-medium text-neutral-500">{labels.total}</span>
-                  <span className="text-sm font-semibold text-neutral-900 tabular-nums">
-                    {labels.money(payment.paid)}
-                    <span className="font-normal text-neutral-400"> / {labels.money(payment.total)}</span>
-                  </span>
-                </div>
-                <div className="mt-2 h-2 overflow-hidden rounded-full bg-neutral-200">
-                  <div
-                    className={cn("h-full rounded-full transition-[width]", ratio >= 1 ? "bg-success" : "bg-warning")}
-                    style={{ width: `${Math.max(ratio * 100, 2)}%` }}
-                  />
-                </div>
-                {remaining > 0 && (
-                  <div className="mt-2 flex items-center justify-between text-xs">
-                    <span className="text-neutral-500">{labels.remaining}</span>
-                    <span className="font-semibold text-warning tabular-nums">{labels.money(remaining)}</span>
+              <div className="flex flex-col gap-2.5">
+                <div className="rounded-card bg-neutral-50 p-4">
+                  <div className="flex items-baseline justify-between">
+                    <span className="text-xs font-medium text-neutral-500">{labels.total}</span>
+                    <span className="text-sm font-semibold text-neutral-900 tabular-nums">
+                      {labels.money(payment.paid)}
+                      <span className="font-normal text-neutral-400"> / {labels.money(payment.total)}</span>
+                    </span>
                   </div>
+                  <div className="mt-2 h-2 overflow-hidden rounded-full bg-neutral-200">
+                    <div
+                      className={cn("h-full rounded-full transition-[width]", ratio >= 1 ? "bg-success" : "bg-warning")}
+                      style={{ width: `${Math.max(ratio * 100, 2)}%` }}
+                    />
+                  </div>
+                  {remaining > 0 && (
+                    <div className="mt-2 flex items-center justify-between text-xs">
+                      <span className="text-neutral-500">{labels.remaining}</span>
+                      <span className="font-semibold text-warning tabular-nums">{labels.money(remaining)}</span>
+                    </div>
+                  )}
+                  {viewRoom?.rate != null && (
+                    <p className="mt-2.5 text-xs text-neutral-500 tabular-nums">
+                      {labels.nightlyRate} {labels.money(viewRoom.rate)} × {nights}
+                    </p>
+                  )}
+                </div>
+
+                {/* ── To'lov LEDGERI: kim, qancha, qachon. Storno chizilib qoladi — o'chirish yo'q. */}
+                {payments && payments.length > 0 && (
+                  <ol className="flex flex-col">
+                    {payments.map((p) => (
+                      <PaymentRow
+                        key={p.id}
+                        payment={p}
+                        labels={labels}
+                        onVoid={
+                          onVoidPayment && p.canVoid
+                            ? (reason) => onVoidPayment(b.id, p.id, reason)
+                            : undefined
+                        }
+                      />
+                    ))}
+                  </ol>
                 )}
-                {viewRoom?.rate != null && (
-                  <p className="mt-2.5 text-xs text-neutral-500 tabular-nums">
-                    {labels.nightlyRate} {labels.money(viewRoom.rate)} × {nights}
-                  </p>
+
+                {onRecordPayment && b.status !== "cancelled" && remaining > 0 && (
+                  payFormOpen ? (
+                    <ReceivePaymentForm
+                      labels={labels}
+                      suggested={remaining}
+                      onCancel={() => setPayFormOpen(false)}
+                      onSubmit={async (input) => {
+                        await onRecordPayment(b.id, input)
+                        setPayFormOpen(false)
+                      }}
+                    />
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-9 self-start rounded-control"
+                      onClick={() => setPayFormOpen(true)}
+                    >
+                      <Plus /> {labels.receivePayment}
+                    </Button>
+                  )
                 )}
               </div>
             ) : (
@@ -680,34 +738,95 @@ function DetailBody({
             boshqa iloji bo'lmaganda. Mobil (ustma-ust) va desktop (yonma-yon) ikkalasida ishlaydi. */}
         <aside className="app-scroll flex flex-col gap-6 bg-neutral-50 p-6 md:overflow-y-auto">
           <Section title={labels.history}>
-            <ol className="flex flex-col gap-3">
-              <TimelineRow done label={labels.historyCreated} at={fmtMoment(b.createdAt, labels)} />
-              <TimelineRow
-                done={b.checkedInAt != null}
-                label={labels.historyCheckedIn}
-                at={fmtMoment(b.checkedInAt, labels)}
-              />
-              <TimelineRow
-                done={b.checkedOutAt != null}
-                label={labels.historyCheckedOut}
-                at={fmtMoment(b.checkedOutAt, labels)}
-              />
-            </ol>
+            {activity != null ? (
+              // Jonli faoliyat tarixi — kim nima qildi (audit log). Hikoya tartibida: eng eski
+              // tepada (bron ochildi → ... → chiqdi), backend esa yangi-birinchi beradi.
+              <ol className="flex flex-col gap-3">
+                {[...activity].reverse().map((e) => (
+                  <ActivityRow key={e.id} entry={e} labels={labels} />
+                ))}
+                {activity.length === 0 && !activityLoading && (
+                  <li className="text-xs text-neutral-400">—</li>
+                )}
+              </ol>
+            ) : (
+              // Manba tarix bermaydi (mock/klon) — statik uch nuqta.
+              <ol className="flex flex-col gap-3">
+                <TimelineRow done label={labels.historyCreated} at={fmtMoment(b.createdAt, labels)} />
+                <TimelineRow
+                  done={b.checkedInAt != null}
+                  label={labels.historyCheckedIn}
+                  at={fmtMoment(b.checkedInAt, labels)}
+                />
+                <TimelineRow
+                  done={b.checkedOutAt != null}
+                  label={labels.historyCheckedOut}
+                  at={fmtMoment(b.checkedOutAt, labels)}
+                />
+              </ol>
+            )}
           </Section>
 
           {!editing && (
             <Section title={labels.actions}>
               <div className="flex flex-col gap-2">
-                {b.status === "booked" && (
-                  <Button size="lg" className="rounded-control" disabled={busy} onClick={() => run(onCheckIn)}>
-                    <LogIn /> {labels.checkIn}
-                  </Button>
-                )}
-                {b.status === "checked_in" && (
-                  <Button size="lg" className="rounded-control" disabled={busy} onClick={() => run(onCheckOut)}>
-                    <LogOut /> {labels.checkOut}
-                  </Button>
-                )}
+                {/* Erta kirish: bron hali boshlanmagan kunda "Kirdi" — tasodifiy bosishdan guard. */}
+                {b.status === "booked" &&
+                  (confirming === "checkin" ? (
+                    <ConfirmBox
+                      tone="warning"
+                      text={labels.earlyCheckInWarning(fmtDay(b.start, labels))}
+                      confirmLabel={labels.checkInAnyway}
+                      backLabel={labels.back}
+                      busy={busy}
+                      onConfirm={() => run(onCheckIn)}
+                      onBack={() => setConfirming(null)}
+                    />
+                  ) : (
+                    <Button
+                      size="lg"
+                      className="rounded-control"
+                      disabled={busy}
+                      onClick={() => (b.start > today ? setConfirming("checkin") : run(onCheckIn))}
+                    >
+                      <LogIn /> {labels.checkIn}
+                    </Button>
+                  ))}
+                {/* QARZ bilan chiqarish — mahsulotning eng muhim guard'i: qoldiq ko'rsatiladi,
+                    xodim yo to'lov qabul qiladi, yo ONGLI ravishda qarz bilan chiqaradi
+                    (ikkalasi ham logga tushadi — rahbar keyin ko'radi). */}
+                {b.status === "checked_in" &&
+                  (confirming === "checkout" ? (
+                    <ConfirmBox
+                      tone="warning"
+                      text={labels.debtOnCheckOut(remaining)}
+                      confirmLabel={labels.checkOutAnyway}
+                      backLabel={labels.back}
+                      busy={busy}
+                      onConfirm={() => run(onCheckOut)}
+                      onBack={() => setConfirming(null)}
+                      extra={
+                        onRecordPayment
+                          ? {
+                              label: labels.receivePayment,
+                              onClick: () => {
+                                setConfirming(null)
+                                setPayFormOpen(true)
+                              },
+                            }
+                          : undefined
+                      }
+                    />
+                  ) : (
+                    <Button
+                      size="lg"
+                      className="rounded-control"
+                      disabled={busy}
+                      onClick={() => (remaining > 0 ? setConfirming("checkout") : run(onCheckOut))}
+                    >
+                      <LogOut /> {labels.checkOut}
+                    </Button>
+                  ))}
 
                 {/* Ikkilamchi amallar — bron yopilgan bo'lsa ham ishlaydi (suhbat tarixi va
                     qaytib keluvchi mehmon uchun nusxalash aynan shunda kerak bo'ladi). */}
@@ -732,17 +851,29 @@ function DetailBody({
                   </Button>
                 )}
 
-                {b.status === "booked" && (
-                  <Button
-                    size="lg"
-                    variant="ghost"
-                    className="rounded-control text-destructive hover:text-destructive"
-                    disabled={busy}
-                    onClick={() => run(onCancel)}
-                  >
-                    {labels.cancel}
-                  </Button>
-                )}
+                {/* To'lovi bor bronni bekor qilish = qaytariladigan pul — tasdiq bilan. */}
+                {b.status === "booked" &&
+                  (confirming === "cancel" ? (
+                    <ConfirmBox
+                      tone="destructive"
+                      text={labels.cancelPaidWarning(payment?.paid ?? 0)}
+                      confirmLabel={labels.cancelAnyway}
+                      backLabel={labels.back}
+                      busy={busy}
+                      onConfirm={() => run(onCancel)}
+                      onBack={() => setConfirming(null)}
+                    />
+                  ) : (
+                    <Button
+                      size="lg"
+                      variant="ghost"
+                      className="rounded-control text-destructive hover:text-destructive"
+                      disabled={busy}
+                      onClick={() => ((payment?.paid ?? 0) > 0 ? setConfirming("cancel") : run(onCancel))}
+                    >
+                      {labels.cancel}
+                    </Button>
+                  ))}
               </div>
             </Section>
           )}
@@ -989,6 +1120,306 @@ function NewGuestRow({
           }}
         >
           <Check /> {labels.save}
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Ledger qatori — kim, qancha, qachon. Storno qilingan yozuv chizilib QOLADI (o'chirilmaydi):
+ * ledger'ning butun ma'nosi shu ko'rinib turishda. `onVoid` faqat container ruxsat bergan
+ * qatorlarda keladi (o'z yozuvi + 15 daqiqa); bosilganda sabab so'raladi — sababsiz storno yo'q.
+ */
+function PaymentRow({
+  payment: p,
+  labels,
+  onVoid,
+}: {
+  payment: CalendarPaymentEntry
+  labels: CalendarLabels
+  onVoid?: (reason: string) => void | Promise<void>
+}) {
+  const [voiding, setVoiding] = useState(false)
+  const [reason, setReason] = useState("")
+  const [busy, setBusy] = useState(false)
+  const negative = p.amount < 0
+  const methodText = labels.paymentMethodText[p.method] ?? p.method
+
+  if (voiding) {
+    return (
+      <li className="my-0.5 rounded-card bg-neutral-50 p-2.5">
+        <p className="mb-2 text-xs font-medium text-neutral-700 tabular-nums">
+          {labels.voidPayment}: {labels.money(Math.abs(p.amount))}
+        </p>
+        <Input
+          autoFocus
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          placeholder={labels.voidReasonPlaceholder}
+        />
+        <div className="mt-2 flex justify-end gap-2">
+          <Button variant="ghost" size="sm" onClick={() => setVoiding(false)} disabled={busy}>
+            {labels.back}
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="text-destructive hover:text-destructive"
+            disabled={busy || reason.trim().length < 3}
+            onClick={async () => {
+              setBusy(true)
+              try {
+                await onVoid?.(reason.trim())
+                setVoiding(false)
+              } finally {
+                setBusy(false)
+              }
+            }}
+          >
+            {labels.voidPayment}
+          </Button>
+        </div>
+      </li>
+    )
+  }
+
+  return (
+    <li className="group flex items-center gap-2.5 rounded-control px-2 py-1.5 transition-colors hover:bg-neutral-50">
+      <div className="min-w-0 flex-1">
+        <p
+          className={cn(
+            "text-sm font-medium tabular-nums",
+            p.voided ? "text-neutral-400 line-through" : negative ? "text-destructive" : "text-neutral-900",
+          )}
+        >
+          {negative ? "−" : ""}
+          {labels.money(Math.abs(p.amount))}
+          <span className="ml-1.5 font-normal text-neutral-400">{methodText}</span>
+        </p>
+        <p className="truncate text-xs text-neutral-500 tabular-nums">
+          {[fmtMoment(p.at, labels), p.receivedByName].filter(Boolean).join(" · ") || "—"}
+          {p.voided && p.voidReason ? (
+            <span className="text-destructive">
+              {" · "}
+              {labels.voided}: {p.voidReason}
+            </span>
+          ) : p.note ? (
+            <span className="text-neutral-400">
+              {" · "}
+              {p.note}
+            </span>
+          ) : null}
+        </p>
+      </div>
+      {onVoid && !p.voided && (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="shrink-0 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+          onClick={() => setVoiding(true)}
+        >
+          {labels.voidPayment}
+        </Button>
+      )}
+    </li>
+  )
+}
+
+/** To'lov qabul qilish — qoldiq oldindan qo'yilgan (eng ko'p holat: to'liq to'lash). */
+function ReceivePaymentForm({
+  labels,
+  suggested,
+  onCancel,
+  onSubmit,
+}: {
+  labels: CalendarLabels
+  /** Qoldiq — forma shu bilan ochiladi va bundan oshiq qabul qilinmaydi (server 400). */
+  suggested: number
+  onCancel: () => void
+  onSubmit: (input: { amount: number; note?: string }) => Promise<void>
+}) {
+  const [amount, setAmount] = useState(String(suggested))
+  const [note, setNote] = useState("")
+  const [busy, setBusy] = useState(false)
+  const amountNum = Number(amount)
+  const tooBig = Number.isFinite(amountNum) && amountNum > suggested
+  const valid = amount !== "" && Number.isFinite(amountNum) && amountNum > 0 && !tooBig
+
+  return (
+    <div className="rounded-card bg-neutral-50 p-3 ring-1 ring-brand-200">
+      <div className="flex items-center gap-2">
+        <MoneyInput value={amount} onChange={setAmount} ariaLabel={labels.amount} className="h-9 w-32" />
+        <Input
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder={labels.paymentNotePlaceholder}
+          className="flex-1"
+        />
+      </div>
+      {tooBig && <p className="mt-1.5 text-xs font-medium text-destructive">{labels.paymentOverRemaining}</p>}
+      <div className="mt-2.5 flex justify-end gap-2">
+        <Button variant="ghost" size="sm" onClick={onCancel} disabled={busy}>
+          <X /> {labels.close}
+        </Button>
+        <Button
+          size="sm"
+          disabled={busy || !valid}
+          onClick={async () => {
+            setBusy(true)
+            try {
+              await onSubmit({ amount: amountNum, ...(note.trim() ? { note: note.trim() } : {}) })
+            } catch {
+              // Xato toast'i container'da; forma ochiq qoladi — summa qayta terilmasin.
+            } finally {
+              setBusy(false)
+            }
+          }}
+        >
+          <Check /> {labels.confirm}
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+/** Faoliyat yozuvining detal satrlari — summalar/sanalar odam o'qiydigan ko'rinishda. */
+function activityDetails(
+  e: CalendarActivityEntry,
+  labels: CalendarLabels,
+): Array<{ text: string; warn?: boolean }> {
+  const d = (e.data ?? {}) as Record<string, unknown>
+  const money = (v: unknown) => labels.money(Number(v ?? 0))
+  switch (e.action) {
+    case "booking.created": {
+      const out: Array<{ text: string }> = []
+      if (d.totalAmount != null) out.push({ text: `${labels.total}: ${money(d.totalAmount)}` })
+      if (d.paidAmount != null) out.push({ text: `${labels.prepayment}: ${money(d.paidAmount)}` })
+      return out
+    }
+    case "booking.updated":
+      return Object.entries(d).flatMap(([k, v]) => {
+        if (!v || typeof v !== "object" || !("from" in (v as object))) return []
+        const { from, to } = v as { from: unknown; to: unknown }
+        const fmt = (x: unknown) =>
+          k === "totalAmount" || k === "paidAmount"
+            ? money(x)
+            : k === "checkIn" || k === "checkOut"
+              ? fmtDay(String(x), labels)
+              : String(x ?? "—")
+        return [{ text: `${labels.activityFieldText[k] ?? k}: ${fmt(from)} → ${fmt(to)}` }]
+      })
+    case "booking.checked_out":
+      // Qarz bilan chiqarilgan — timeline'da ham amber: rahbar/keyingi smena darrov ko'radi.
+      return d.remaining != null ? [{ text: `${labels.remaining}: ${money(d.remaining)}`, warn: true }] : []
+    case "booking.cancelled":
+      return d.paid != null ? [{ text: `${labels.paid}: ${money(d.paid)}`, warn: true }] : []
+    case "payment.recorded":
+      return [
+        {
+          text: `+${money(d.amount)}${
+            typeof d.method === "string" ? ` · ${labels.paymentMethodText[d.method] ?? d.method}` : ""
+          }`,
+        },
+      ]
+    case "payment.voided":
+      return [{ text: `−${money(d.amount)}${typeof d.reason === "string" ? ` · ${d.reason}` : ""}`, warn: true }]
+    case "booking.guest_added":
+    case "booking.guest_removed":
+    case "booking.primary_changed":
+      return typeof d.name === "string" ? [{ text: d.name }] : []
+    default:
+      return []
+  }
+}
+
+function ActivityRow({ entry: e, labels }: { entry: CalendarActivityEntry; labels: CalendarLabels }) {
+  const details = activityDetails(e, labels)
+  return (
+    <li className="flex items-start gap-2.5">
+      <span className="mt-1.5 size-2 shrink-0 rounded-full bg-brand-500" />
+      <div className="min-w-0 flex-1">
+        <p className="text-xs font-medium text-neutral-800">
+          {labels.activityText[e.action] ?? labels.activityFallback}
+        </p>
+        <p className="text-[0.6875rem] text-neutral-400 tabular-nums">
+          {fmtMoment(e.at, labels) ?? "—"}
+          {e.actorName ? ` · ${e.actorName}` : ""}
+        </p>
+        {details.map((det, i) => (
+          <p
+            key={i}
+            className={cn(
+              "text-[0.6875rem] tabular-nums",
+              det.warn ? "font-medium text-warning" : "text-neutral-500",
+            )}
+          >
+            {det.text}
+          </p>
+        ))}
+      </div>
+    </li>
+  )
+}
+
+/**
+ * Harakat guard'i — ogohlantirish + aniq tanlov. `extra` (bo'lsa) TO'G'RI yo'l sifatida birinchi
+ * turadi (masalan "To'lov qabul qilish"), tasdiqlash tugmasi esa ongli chetlab o'tish.
+ */
+function ConfirmBox({
+  tone,
+  text,
+  confirmLabel,
+  backLabel,
+  busy,
+  onConfirm,
+  onBack,
+  extra,
+}: {
+  tone: "warning" | "destructive"
+  text: string
+  confirmLabel: string
+  backLabel: string
+  busy?: boolean
+  onConfirm: () => void
+  onBack: () => void
+  extra?: { label: string; onClick: () => void }
+}) {
+  return (
+    <div
+      className={cn(
+        "flex flex-col gap-2.5 rounded-card p-3",
+        tone === "warning" ? "bg-warning-surface" : "bg-destructive-surface",
+      )}
+    >
+      <p
+        className={cn(
+          "text-xs leading-relaxed font-medium",
+          tone === "warning" ? "text-warning-surface-foreground" : "text-destructive-surface-foreground",
+        )}
+      >
+        {text}
+      </p>
+      <div className="flex flex-col gap-1.5">
+        {extra && (
+          <Button size="sm" className="rounded-control" onClick={extra.onClick} disabled={busy}>
+            {extra.label}
+          </Button>
+        )}
+        <Button
+          size="sm"
+          variant="outline"
+          className={cn(
+            "rounded-control bg-white/70",
+            tone === "destructive" && "text-destructive hover:text-destructive",
+          )}
+          onClick={onConfirm}
+          disabled={busy}
+        >
+          {confirmLabel}
+        </Button>
+        <Button size="sm" variant="ghost" className="rounded-control" onClick={onBack} disabled={busy}>
+          {backLabel}
         </Button>
       </div>
     </div>

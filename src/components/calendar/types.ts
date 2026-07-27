@@ -154,6 +154,7 @@ export interface CalendarLabels {
   voidPayment: string
   voidReasonPlaceholder: string
   voided: string
+  paymentOverRemaining: string
   paidReadOnlyHint: string
   confirm: string
 
