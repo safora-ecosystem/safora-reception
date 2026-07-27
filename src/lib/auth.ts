@@ -1,4 +1,4 @@
-export type StaffRole = "owner" | "manager" | "reception"
+export type StaffRole = "owner" | "manager" | "reception" | "housekeeper"
 
 export type StaffUser = {
   id: string
@@ -12,6 +12,7 @@ export const ROLE_LABEL: Record<StaffRole, string> = {
   owner: "Rahbar",
   manager: "Menejer",
   reception: "Resepshn",
+  housekeeper: "Tozalash xodimi",
 }
 
 export type Session = {

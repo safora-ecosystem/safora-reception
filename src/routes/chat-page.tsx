@@ -70,6 +70,7 @@ const ROLE_LABEL: Record<string, string> = {
   owner: "Rahbar",
   manager: "Menejer",
   reception: "Resepshn",
+  housekeeper: "Tozalash xodimi",
 }
 
 function initials(name: string): string {
