@@ -4,6 +4,8 @@ import { dateForColumn, monthSegments } from "./geometry"
 import type { CalendarLabels } from "./types"
 
 
+const TODAY_WORD_MIN_PX = 46
+
 interface CalendarHeaderProps {
   originDay: number
   days: number
@@ -37,6 +39,15 @@ function CalendarHeaderImpl({
 
   return (
     <div className="hairline-b relative bg-white" style={{ width: bodyWidth, height: headerHeight }}>
+      {}
+      {todayCol >= 0 && (
+        <div
+          className="pointer-events-none absolute inset-y-0 bg-[var(--brand-today)]"
+          style={{ left: todayCol * dayWidth, width: dayWidth }}
+          aria-hidden
+        />
+      )}
+
       {}
       <div className="flex" style={{ height: monthStrip }}>
         {months.map((seg) => (
@@ -73,13 +84,21 @@ function CalendarHeaderImpl({
               )}
               style={{ left: c * dayWidth, width: dayWidth }}
             >
+              {/* Bugungi ustunda hafta kuni o'rniga SO'Z ("Bugun") — sig'sa. Xodim uchun eng
+                  ishonchli belgi shu: rang/pill'ni "tanlangan sana" deb ham o'qish mumkin edi.
+                  Tor zoom'da (kun ustuni ensiz) so'z sig'maydi → hafta kuniga qaytadi, ustunni
+                  wash bilan pill ushlab turadi. */}
               <span
                 className={cn(
-                  "text-[0.6875rem] font-medium tracking-wide uppercase",
-                  isToday ? "text-brand-600" : "text-neutral-400",
+                  "text-[0.6875rem] uppercase",
+                  isToday
+                    ? "font-semibold tracking-tight text-brand-600"
+                    : "font-medium tracking-wide text-neutral-400",
                 )}
               >
-                {labels.weekdaysShort[dow]}
+                {isToday && dayWidth >= TODAY_WORD_MIN_PX
+                  ? labels.today
+                  : labels.weekdaysShort[dow]}
               </span>
               <span
                 className={cn(

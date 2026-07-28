@@ -4,8 +4,7 @@ import { cn } from "@/lib/utils"
 import {
   BAR_RADIUS,
   BAR_VPAD,
-  barClipPath,
-  barRadius,
+  barShapePath,
   barSlant,
   epochDay,
   nightsBetween,
@@ -101,11 +100,20 @@ function CalendarBarImpl({
   const StatusIcon = visual.icon
 
   const slant = barSlant(barHeight, rect.width)
-  const clipPath = barClipPath(slant, rect.clippedStart, rect.clippedEnd)
-  // Kontur qalinligi diqqat holatlarida ikki barobar — ichki radius shunga qarab kichrayadi.
+  // Kontur qalinligi diqqat holatlarida ikki barobar — ichki shakl shunga qarab kichrayadi.
   const strokeWidth = selected || overdue ? 2 : 1
-  const outerRadius = barRadius(BAR_RADIUS, rect.clippedStart, rect.clippedEnd)
-  const innerRadius = barRadius(BAR_RADIUS - strokeWidth, rect.clippedStart, rect.clippedEnd)
+  const clipPath = barShapePath(rect.width, barHeight, slant, BAR_RADIUS, rect.clippedStart, rect.clippedEnd)
+  // Ichki (fill) qatlam har tomondan `strokeWidth`cha kichik. Qiyalik ham shu nisbatda kichrayadi,
+  // aks holda ichki qiya qirra tashqisiga parallel chiqmay kontur uchlarda yo'g'onlashardi.
+  const innerH = Math.max(barHeight - 2 * strokeWidth, 0)
+  const innerClipPath = barShapePath(
+    Math.max(rect.width - 2 * strokeWidth, 0),
+    innerH,
+    barHeight > 0 ? (slant * innerH) / barHeight : slant,
+    BAR_RADIUS - strokeWidth,
+    rect.clippedStart,
+    rect.clippedEnd,
+  )
   // Kontent qiya uchga urilmasin: matn vertikal markazda tursa ham ikonka bar balandligini
   // deyarli to'ldiradi, shuning uchun bo'shliq qiyalikning katta qismicha bo'lishi kerak.
   const inset = Math.round(slant * 0.75) + 6
@@ -171,7 +179,6 @@ function CalendarBarImpl({
         top: rowTop + BAR_VPAD,
         height: barHeight,
         clipPath,
-        borderRadius: outerRadius,
         // Kontur qalinligi = padding. Diqqat holatlarida qalinroq (ring o'rnini bosadi).
         padding: strokeWidth,
       }}
@@ -185,7 +192,7 @@ function CalendarBarImpl({
           visual.bar,
           visual.text,
         )}
-        style={{ clipPath, borderRadius: innerRadius, paddingLeft: inset, paddingRight: inset }}
+        style={{ clipPath: innerClipPath, paddingLeft: inset, paddingRight: inset }}
       >
         {showIcon && StatusIcon && (
           <StatusIcon className={cn("size-4 shrink-0", overdue && "text-warning")} />
