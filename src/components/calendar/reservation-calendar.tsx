@@ -215,9 +215,11 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
     const xHi = colWin.hi * dayWidth
 
     const reduceMotion = useReducedMotion()
+    const [tabVisibleAtMount] = useState(() => typeof document === "undefined" || !document.hidden)
+    const motionOn = !reduceMotion && tabVisibleAtMount
 
     const [chromeSettled, setChromeSettled] = useState(false)
-    const chromeEntering = !reduceMotion && !chromeSettled
+    const chromeEntering = motionOn && !chromeSettled
     const markChromeSettled = useCallback(() => setChromeSettled(true), [])
 
     const revealedRef = useRef<Set<string>>(new Set())
@@ -470,7 +472,7 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
                         if (pb.rect.left >= xHi || pb.rect.left + pb.rect.width <= xLo) return null
                         renderedIds.push(pb.booking.id)
                         // Birinchi marta chizilyapti → navbatdagi kechikish bilan blur'dan chiqadi.
-                        const fresh = !reduceMotion && !revealedRef.current.has(pb.booking.id)
+                        const fresh = motionOn && !revealedRef.current.has(pb.booking.id)
                         // Ochilishda karkas navbatni oladi (`BAR_BASE_DELAY`); u tinchigach
                         // keyingi bo'laklar darrov chiqadi — kechikish faqat birinchi manzara uchun.
                         const enterDelay = fresh
