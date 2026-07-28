@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from "react"
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { Bike, Coffee, Package, Sparkles, Wrench } from "lucide-react"
@@ -30,8 +30,12 @@ import {
   type ServiceType,
 } from "@/lib/api"
 import { money, relativeTime } from "@/lib/format"
+import { playMessageChime, showDesktopNotification } from "@/lib/notify"
 import { cn } from "@/lib/utils"
 
+
+const WAIT_WARN_MIN = 10
+const WAIT_LATE_MIN = 20
 
 const TYPE_META: Record<ServiceType, { label: string; icon: typeof Bike }> = {
   taxi: { label: "Taksi", icon: Bike },
@@ -65,18 +69,80 @@ function apiErr(err: unknown, fallback: string): string {
   return err instanceof ApiError && err.message ? err.message : fallback
 }
 
+function waitedMinutes(iso: string): number {
+  return Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 60_000))
+}
+
+function waitLabel(minutes: number): string {
+  if (minutes < 1) return "hozirgina"
+  if (minutes < 60) return `${minutes} daq`
+  const hours = Math.floor(minutes / 60)
+  return hours < 24 ? `${hours} soat` : `${Math.floor(hours / 24)} kun`
+}
+
+/**
+ * Navbat tartibi: avval hali QABUL QILINMAGANLAR (eng uzoq kutgani yuqorida), keyin ishdagilar.
+ * Resepshn ro'yxatni tepadan pastga ishlaydi — "qaysi biri navbatda?" degan savol qolmasin.
+ * Yopilganlar (bajarildi/bekor) esa yangisidan eskisiga: ular tarix, navbat emas.
+ */
+function queueOrder(a: ServiceRequest, b: ServiceRequest): number {
+  const rank = (r: ServiceRequest) => (r.status === "new" ? 0 : r.status === "in_progress" ? 1 : 2)
+  const byRank = rank(a) - rank(b)
+  if (byRank !== 0) return byRank
+
+  const at = new Date(a.createdAt).getTime()
+  const bt = new Date(b.createdAt).getTime()
+  // Ochiqlar: eski birinchi. Yopilganlar: yangi birinchi.
+  return rank(a) === 2 ? bt - at : at - bt
+}
+
 export function RequestsPage() {
   const qc = useQueryClient()
   const requestsQ = useQuery({
     queryKey: ["service-requests"],
     queryFn: () => listServiceRequests(),
-    refetchInterval: 30_000,
+    // Realtime hali yo'q (buyurtma hodisalari e'lon qilinmaydi), shuning uchun polling.
+    // 15s — mehmon "yuborildi" degandan keyin resepshn ko'radigan eng yomon kechikish.
+    refetchInterval: 15_000,
   })
   const [filter, setFilter] = useState<Filter>("open")
   const [createOpen, setCreateOpen] = useState(false)
   const [closing, setClosing] = useState<ServiceRequest | null>(null)
 
   const all = useMemo(() => requestsQ.data ?? [], [requestsQ.data])
+
+  // Kutish daqiqalari o'zi o'smaydi — javob o'zgarmasa React qayta chizmaydi. Shu taymer
+  // "12 daq" yozuvini va rangni tirik ushlab turadi (so'rov yubormasdan).
+  const [, setTick] = useState(0)
+  useEffect(() => {
+    const timer = setInterval(() => setTick((n) => n + 1), 30_000)
+    return () => clearInterval(timer)
+  }, [])
+
+  // Yangi so'rov kelganini BILDIRAMIZ: resepshn bu sahifaga tikilib o'tirmaydi. Ovoz va
+  // (tab fonda bo'lsa) brauzer bildirishnomasi — chat bilan bir xil sozlama ostida.
+  const seen = useRef<Set<string> | null>(null)
+  useEffect(() => {
+    if (!requestsQ.isSuccess) return
+    const incoming = all.filter((r) => r.status === "new" && r.source === "guest")
+
+    // Birinchi yuklashda jim: sahifa ochilishi "yangi so'rov keldi" degani emas.
+    if (seen.current === null) {
+      seen.current = new Set(incoming.map((r) => r.id))
+      return
+    }
+
+    const fresh = incoming.filter((r) => !seen.current!.has(r.id))
+    for (const r of fresh) seen.current.add(r.id)
+    if (fresh.length === 0) return
+
+    playMessageChime()
+    const first = fresh[0]
+    const title =
+      fresh.length === 1 ? `${first.room.number}-xona: ${first.title}` : `${fresh.length} ta yangi xizmat`
+    showDesktopNotification("Yangi xizmat so'rovi", title)
+    toast(title, { description: "Mehmon QR orqali buyurtma qildi." })
+  }, [all, requestsQ.isSuccess])
 
   const counts = {
     new: all.filter((r) => r.status === "new").length,
@@ -87,13 +153,15 @@ export function RequestsPage() {
     .filter((r) => r.status === "done")
     .reduce((sum, r) => sum + Number(r.amount), 0)
 
-  const rows = all.filter((r) =>
-    filter === "all"
-      ? true
-      : filter === "open"
-        ? r.status === "new" || r.status === "in_progress"
-        : r.status === filter,
-  )
+  const rows = all
+    .filter((r) =>
+      filter === "all"
+        ? true
+        : filter === "open"
+          ? r.status === "new" || r.status === "in_progress"
+          : r.status === filter,
+    )
+    .sort(queueOrder)
 
   const advance = useMutation({
     mutationFn: ({ id, status }: { id: string; status: ServiceRequestStatus }) =>
@@ -173,6 +241,11 @@ export function RequestsPage() {
                   const meta = TYPE_META[request.type] ?? TYPE_META.other
                   const Icon = meta.icon
                   const open = request.status === "new" || request.status === "in_progress"
+                  const waited = waitedMinutes(request.createdAt)
+                  // Kutish faqat QABUL QILINMAGANDA bosim: ishdagi so'rov allaqachon
+                  // kimningdir qo'lida, uni qizil qilib qo'rqitishning ma'nosi yo'q.
+                  const late = request.status === "new" && waited >= WAIT_LATE_MIN
+                  const warn = request.status === "new" && waited >= WAIT_WARN_MIN && !late
                   return (
                     <li
                       key={request.id}
@@ -181,9 +254,11 @@ export function RequestsPage() {
                       <span
                         className={cn(
                           "flex size-10 shrink-0 items-center justify-center rounded-xl",
-                          request.status === "new"
-                            ? "bg-warning-surface text-warning-surface-foreground"
-                            : "bg-neutral-100 text-neutral-500",
+                          late
+                            ? "bg-destructive-surface text-destructive-surface-foreground"
+                            : request.status === "new"
+                              ? "bg-warning-surface text-warning-surface-foreground"
+                              : "bg-neutral-100 text-neutral-500",
                         )}
                       >
                         <Icon className="size-[1.125rem]" strokeWidth={1.75} />
@@ -195,6 +270,22 @@ export function RequestsPage() {
                           <Badge variant={STATUS_META[request.status].variant}>
                             {STATUS_META[request.status].label}
                           </Badge>
+                          {/* Kutish vaqti — ochiq so'rovda ENG muhim raqam, shuning uchun
+                              sarlavha qatorida turadi, izohlar orasida emas. */}
+                          {open && (
+                            <span
+                              className={cn(
+                                "text-xs font-medium tabular-nums",
+                                late
+                                  ? "text-destructive"
+                                  : warn
+                                    ? "text-warning"
+                                    : "text-neutral-400",
+                              )}
+                            >
+                              {waitLabel(waited)}
+                            </span>
+                          )}
                           {request.source === "guest" && (
                             <span className="text-xs text-neutral-400">QR orqali</span>
                           )}
