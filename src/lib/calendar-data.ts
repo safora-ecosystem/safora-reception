@@ -1,9 +1,10 @@
-import { useCallback, useMemo, useState, type ReactNode } from "react"
-import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react"
+import { useQueries, useQuery, useQueryClient, type UseQueryResult } from "@tanstack/react-query"
 import { toast } from "sonner"
 import {
   addDays,
   defaultLabels,
+  epochDay,
   generateMockData,
   type BookingEditPatch,
   type CalendarActivityEntry,
@@ -356,6 +357,63 @@ function toUpdateBody(patch: BookingEditPatch): UpdateBookingBody {
   }
 }
 
+// ── Bo'lak-bo'lak (batch) yuklash ─────────────────────────────────────────────
+//
+// Kalendar diapazoni ~600 kun. Ilgari bu BITTA `GET /bookings?from&to` bilan olinardi va har 30
+// soniyada BUTUNLIGICHA qayta tortilardi: birinchi chizishgacha butun 20 oylik javob kutilardi
+// (parse + geometriya ham bir zumda), poll esa har safar o'sha yukni qaytarardi.
+//
+// Endi diapazon 90 kunlik bo'laklarga bo'linadi. Bugungi bo'lak BIRINCHI ketadi — kalendar darrov
+// chiziladi; qolganlari BIRMA-BIR, yaqindan uzoqqa (parallel EMAS — 7 ta bir vaqtdagi so'rov
+// API'ni bekorga urardi, foydalanuvchi esa baribir faqat birinchi ekranni ko'radi).
+//
+// Chegaradagi bron ikkala qo'shni bo'lakda ham keladi — server `from/to` ni KESISHMA bo'yicha
+// filtrlaydi (`checkOut >= from && checkIn <= to`), ya'ni bo'lakni butunlay qamrab o'tgan uzun
+// bron HAR bo'lakda chiqadi. Shu sabab birlashtirishda `id` bo'yicha dedupe SHART: aks holda bir
+// bron ikki marta chizilardi va overlap hisobi ham buzilardi.
+const CHUNK_DAYS = 90
+
+interface BookingChunk {
+  from: string
+  to: string
+  /** Bugun shu bo'lakda — resepshnning jonli ishi shu yerda, tez-tez poll faqat shunga. */
+  hot: boolean
+}
+
+/** Diapazonni bo'laklarga bo'ladi va YUKLASH TARTIBIDA qaytaradi: bugungisi, keyin oldinga, keyin orqaga. */
+function bookingChunks(range: CalendarRange, today: string): BookingChunk[] {
+  const count = Math.max(1, Math.ceil(range.days / CHUNK_DAYS))
+  const todayOffset = epochDay(today) - epochDay(range.start)
+  // Bugun diapazondan tashqarida bo'lsa (masalan tarixga qaralayotgan bo'lsa) eng yaqin chekkaga tushadi.
+  const hotIdx = Math.min(count - 1, Math.max(0, Math.floor(todayOffset / CHUNK_DAYS)))
+  const order = [hotIdx]
+  for (let i = hotIdx + 1; i < count; i++) order.push(i)
+  for (let i = hotIdx - 1; i >= 0; i--) order.push(i)
+  return order.map((i) => ({
+    from: addDays(range.start, i * CHUNK_DAYS),
+    to: addDays(range.start, Math.min((i + 1) * CHUNK_DAYS, range.days)),
+    hot: i === hotIdx,
+  }))
+}
+
+/**
+ * Bo'laklarni bitta natijaga yig'adi. MODUL DARAJASIDA (barqaror ref) bo'lishi SHART — `useQueries`
+ * combine'ni faqat funksiya identikligi va natijalar o'zgarganda qayta hisoblaydi va javobga
+ * `replaceEqualDeep` qo'llaydi, ya'ni kontent o'zgarmasa `rows` REFERENSI ham o'zgarmaydi. Beqaror
+ * combine bo'lsa har render'da yangi massiv chiqib, `useBookingIndex` butun geometriyani qayta
+ * hisoblardi (CALENDAR.md perf shartnomasi #1).
+ */
+function combineBookingChunks(results: UseQueryResult<Booking[], Error>[]) {
+  return {
+    rows: results.flatMap((r) => r.data ?? []),
+    /** Javobi kelgan (yoki xato bergan) bo'laklar soni — keyingisini ochish signali. */
+    settled: results.reduce((n, r) => n + (r.isSuccess || r.isError ? 1 : 0), 0),
+    /** Faqat BIRINCHI (bugungi) bo'lak kalendarni "yuklanmoqda" holatida ushlaydi. */
+    isLoading: results[0]?.isLoading ?? false,
+    error: results[0]?.error ?? null,
+  }
+}
+
 function errMessage(e: unknown, fallback: string): string {
   if (e instanceof ApiError) {
     if (e.status === 409) return "Holat o'zgardi — sahifani yangilang"
@@ -377,16 +435,34 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
 
   // Xonalar kamdan-kam o'zgaradi (owner tahrirlaydi) — uzoq staleTime, poll kerak emas.
   const roomsQ = useQuery({ queryKey: ["rooms"], queryFn: listRooms, enabled, staleTime: 5 * 60_000 })
-  // Bronlar — UMUMIY ish stoli: bir necha resepshn xodimi bir vaqtda bron ochadi/kirish belgilaydi.
-  // Shuning uchun global `refetchOnWindowFocus: false` shu yerda ATAYLAB bekor qilinadi + 30s poll.
-  // Fon tab'da poll to'xtaydi (refetchIntervalInBackground default false) → bekorga API yuki yo'q.
-  const bookingsQ = useQuery({
-    queryKey: ["bookings", from, to],
-    queryFn: () => listBookings(from, to),
-    enabled,
-    refetchOnWindowFocus: true,
-    refetchInterval: 30_000,
+
+  // Bronlar — 90 kunlik bo'laklar (yuqoridagi izohga qara). `range` container'da bir marta
+  // memo qilinadi, shuning uchun bo'laklar ro'yxati ham mount davomida barqaror.
+  const chunks = useMemo(() => bookingChunks(range, new Date().toLocaleDateString("en-CA")), [range])
+  const [openCount, setOpenCount] = useState(1)
+  const bookingsQ = useQueries({
+    queries: chunks.map((c, i) => ({
+      queryKey: ["bookings", c.from, c.to],
+      queryFn: () => listBookings(c.from, c.to),
+      enabled: enabled && i < openCount,
+      // Bugungi bo'lak — UMUMIY ish stoli: bir necha resepshn xodimi bir vaqtda bron ochadi/kirish
+      // belgilaydi, shuning uchun global `refetchOnWindowFocus: false` ATAYLAB bekor qilinadi va
+      // 30s poll saqlanadi (ilgari butun 600 kun shu tezlikda qayta tortilardi). Uzoq oylarda bron
+      // kamdan-kam ochiladi → 5 daqiqa yetarli, `staleTime` esa fokusdagi so'rov portlashini
+      // bo'g'adi. Mutatsiya baribir HAMMA bo'lakni invalidate qiladi (`["bookings"]` prefiksi).
+      // Fon tab'da poll to'xtaydi (refetchIntervalInBackground default false).
+      refetchOnWindowFocus: true,
+      refetchInterval: c.hot ? 30_000 : 5 * 60_000,
+      staleTime: c.hot ? 0 : 60_000,
+    })),
+    combine: combineBookingChunks,
   })
+
+  // Progressiv ochilish: joriy bo'laklar javob bergach keyingisi ochiladi — ketma-ket, bittadan.
+  useEffect(() => {
+    if (!enabled || openCount >= chunks.length) return
+    if (bookingsQ.settled >= openCount) setOpenCount((n) => n + 1)
+  }, [enabled, openCount, chunks.length, bookingsQ.settled])
 
   // Bloklar kamdan-kam o'zgaradi, lekin bandlikning bir qismi — bronlar bilan bir oynada.
   const blocksQ = useQuery({
@@ -398,10 +474,17 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
   })
 
   const rooms = useMemo<CalendarRoom[]>(() => (roomsQ.data ?? []).map(mapRoom), [roomsQ.data])
-  const bookings = useMemo<CalendarBooking[]>(
-    () => [...(bookingsQ.data ?? []).map(mapBooking), ...(blocksQ.data ?? []).map(mapBlock)],
-    [bookingsQ.data, blocksQ.data],
-  )
+  const bookings = useMemo<CalendarBooking[]>(() => {
+    const seen = new Set<string>()
+    const out: CalendarBooking[] = []
+    for (const b of bookingsQ.rows) {
+      if (seen.has(b.id)) continue // bo'lak chegarasidagi (yoki bo'lakni qamrab o'tgan) bron takrorlanadi
+      seen.add(b.id)
+      out.push(mapBooking(b))
+    }
+    for (const bl of blocksQ.data ?? []) out.push(mapBlock(bl))
+    return out
+  }, [bookingsQ.rows, blocksQ.data])
 
   const invalidate = useCallback(() => {
     void qc.invalidateQueries({ queryKey: ["bookings"] })
@@ -535,7 +618,7 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
       // Sudrashdan OLDINGI holat — "Qaytarish" shu joyga qaytaradi. Tasodifiy drag front-deskda
       // tez-tez bo'ladi (umumiy sichqonchali stol); tasdiqlash oynasi har ko'chirishni
       // sekinlashtirgan bo'lardi, undo esa faqat xatoni to'g'irlaydi.
-      const prev = (bookingsQ.data ?? []).find((b) => b.id === id)
+      const prev = bookingsQ.rows.find((b) => b.id === id)
       try {
         await apiUpdateBooking(id, {
           roomId: next.roomId,
@@ -567,7 +650,7 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
         onError(e, "Bron ko'chirilmadi")
       }
     },
-    [bookingsQ.data, invalidate, onError],
+    [bookingsQ.rows, invalidate, onError],
   )
 
   const removeBlock = useCallback(
