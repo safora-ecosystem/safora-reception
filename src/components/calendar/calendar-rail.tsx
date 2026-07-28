@@ -1,6 +1,6 @@
 import { memo } from "react"
 import type { VirtualItem } from "@tanstack/react-virtual"
-import { ArrowRight01Icon } from "@hugeicons/core-free-icons"
+import { ArrowRight01Icon, BrushCleaningIcon } from "@hugeicons/core-free-icons"
 import { Icon } from "@/components/ui/icon"
 import { cn } from "@/lib/utils"
 import type { Lane } from "./geometry"
@@ -46,17 +46,29 @@ function CalendarRailImpl({ lanes, virtualItems, offsetTop, onToggleGroup }: Cal
           )
         }
 
+        const hk = lane.room.housekeeping
         return (
           <div
             key={lane.id}
-            className="hairline-b absolute left-0 flex w-full flex-col justify-center px-3"
+            className="hairline-b absolute left-0 flex w-full items-center gap-1.5 px-3"
             style={{ top: vi.start - offsetTop, height: vi.size }}
           >
-            <span className="truncate text-sm leading-tight font-medium text-neutral-800 tabular-nums">
-              {lane.room.label}
-            </span>
-            {lane.room.sublabel && (
-              <span className="truncate text-[0.6875rem] leading-tight text-neutral-400">{lane.room.sublabel}</span>
+            <div className="flex min-w-0 flex-1 flex-col justify-center">
+              <span className="truncate text-sm leading-tight font-medium text-neutral-800 tabular-nums">
+                {lane.room.label}
+              </span>
+              {lane.room.sublabel && (
+                <span className="truncate text-[0.6875rem] leading-tight text-neutral-400">{lane.room.sublabel}</span>
+              )}
+            </div>
+            {(hk === "dirty" || hk === "in_progress") && (
+              <span title={hk === "dirty" ? "Tozalash kutilmoqda" : "Tozalanmoqda"}>
+                <Icon
+                  icon={BrushCleaningIcon}
+                  className={cn("size-4 shrink-0", hk === "dirty" ? "text-warning" : "text-brand-500")}
+                  strokeWidth={2}
+                />
+              </span>
             )}
           </div>
         )

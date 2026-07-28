@@ -18,6 +18,7 @@ export interface CalendarRoom {
   order?: number
   rate?: number
   capacity?: number
+  housekeeping?: "clean" | "dirty" | "in_progress"
 }
 
 export interface CalendarBooking {
@@ -266,6 +267,7 @@ export interface ReservationCalendarProps {
   headerHeight?: number
   groupByFloor?: boolean
   overscan?: number
+  cleaningMinutes?: number
   statusConfig?: Partial<StatusConfig>
   labels?: Partial<CalendarLabels>
   matchIds?: ReadonlySet<string> | null

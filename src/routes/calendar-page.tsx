@@ -124,6 +124,7 @@ export function CalendarPage() {
     if (!ci && !co) return undefined
     return { ...(ci ? { checkInTime: ci } : {}), ...(co ? { checkOutTime: co } : {}) }
   }, [hotel?.policy?.checkInTime, hotel?.policy?.checkOutTime])
+  const cleaningMinutes = hotel?.policy?.cleaningMinutes ?? 30
 
   return (
     <div ref={hostRef} className="relative h-full min-h-0">
@@ -253,6 +254,7 @@ export function CalendarPage() {
             rowHeight={metrics.rowHeight}
             headerHeight={metrics.headerHeight}
             labels={labels}
+            cleaningMinutes={cleaningMinutes}
             matchIds={matchIds}
             isLoading={data.isLoading}
             error={data.error}

@@ -14,6 +14,7 @@ import { motion, useReducedMotion } from "framer-motion"
 import { cn } from "@/lib/utils"
 import { CalendarBar } from "./calendar-bar"
 import { CalendarBarTooltip } from "./calendar-bar-tooltip"
+import { CalendarCleaningTail, type CleaningTailRect } from "./calendar-cleaning-tail"
 import { CalendarCreateDialog } from "./calendar-create-dialog"
 import { CalendarDetailModal } from "./calendar-detail-modal"
 import { CalendarGridLayer } from "./calendar-grid-layer"
@@ -71,6 +72,7 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
       headerHeight = 104,
       groupByFloor = true,
       overscan = 10,
+      cleaningMinutes = 30,
       matchIds,
       onSelectBooking,
       onCreateBooking,
@@ -176,6 +178,29 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
       }
       return m
     }, [rooms, bookings, originDay, range.days])
+
+    const cleaningTails = useMemo(() => {
+      const map = new Map<string, CleaningTailRect>()
+      const width = (cleaningMinutes / 1440) * dayWidth
+      const latest = new Map<string, CalendarBooking>()
+      for (const b of bookings) {
+        if (b.status !== "checked_out" || !b.checkedOutAt) continue
+        const prev = latest.get(b.roomId)
+        if (!prev || (prev.checkedOutAt as string) < b.checkedOutAt) latest.set(b.roomId, b)
+      }
+      for (const room of rooms) {
+        const hk = room.housekeeping
+        if (hk !== "dirty" && hk !== "in_progress") continue
+        const b = latest.get(room.id)
+        if (!b?.checkedOutAt) continue
+        const at = new Date(b.checkedOutAt)
+        const col = epochDay(at.toLocaleDateString("en-CA")) - originDay
+        if (col < 0 || col >= range.days) continue
+        const frac = (at.getHours() * 60 + at.getMinutes()) / 1440
+        map.set(room.id, { left: Math.round((col + frac) * dayWidth), width, status: hk })
+      }
+      return map
+    }, [rooms, bookings, cleaningMinutes, dayWidth, originDay, range.days])
 
     const [selectedId, setSelectedId] = useState<string | null>(null)
     const selectedBooking = useMemo(
@@ -453,6 +478,7 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
                     )
                   }
                   const bars = bookingIndex.get(lane.room.id)
+                  const tail = cleaningTails.get(lane.room.id)
                   return (
                     <Fragment key={lane.id}>
                       {/* Drag-to-create catcher — bars ostida (z-5), bo'sh joyda pointerdown'ni tutadi. */}
@@ -465,6 +491,10 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
                         onPointerCancel={drag.cancel}
                         onPointerLeave={drag.hoverEnd}
                       />
+                      {/* Tozalash belgisi — bar'lar OSTIDA (z-6 < z-10), culling oynasida bo'lsa. */}
+                      {tail && tail.left < xHi && tail.left + Math.max(tail.width, 18) > xLo && (
+                        <CalendarCleaningTail rect={tail} rowTop={rowTop} rowHeight={rowHeight} />
+                      )}
                       {/* Bar'lar gorizontal oynadan tashqarida bo'lsa umuman chizilmaydi. Kesish
                           KESISHMA bo'yicha (chap chekka emas) — oyna ichiga cho'zilgan uzun bron
                           o'z boshi ortda qolsa ham ko'rinadi. */}

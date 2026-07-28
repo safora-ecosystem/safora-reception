@@ -18,6 +18,7 @@ import {
   type ChatMessage,
   type GroupMessage,
   type ReactionView,
+  type Room,
   type TeamMessage,
 } from "./api"
 import { getSession } from "./auth"
@@ -134,9 +135,22 @@ function handleServerPublication(qc: QueryClient, raw: unknown): void {
         pair?: { a: string; b: string }
         messageId?: string
         reactions?: ReactionRow[]
+        roomId?: string
+        status?: string
       }
     | undefined
   if (!data?.type) return
+
+  if (data.type === "housekeeping" && data.roomId && data.status) {
+    qc.setQueryData<Room[] | undefined>(["rooms"], (rooms) =>
+      rooms?.map((r) =>
+        r.id === data.roomId
+          ? { ...r, housekeepingStatus: data.status as Room["housekeepingStatus"] }
+          : r,
+      ),
+    )
+    return
+  }
 
   if (data.type === "reaction" && data.scope === "team" && data.pair && data.messageId) {
     const meId = getSession()?.user.id ?? null

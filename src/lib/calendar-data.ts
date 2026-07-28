@@ -303,6 +303,7 @@ function mapRoom(r: Room): CalendarRoom {
     order: Number.parseInt(r.number, 10) || undefined,
     rate: r.rate != null ? Number(r.rate) : undefined,
     capacity: r.capacity ?? undefined,
+    housekeeping: r.housekeepingStatus,
   }
 }
 

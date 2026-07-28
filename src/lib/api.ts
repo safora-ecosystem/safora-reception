@@ -216,6 +216,10 @@ export function apiErrorText(err: unknown, fallback = "Xatolik yuz berdi"): stri
 
 export type BookingStatus = "booked" | "checked_in" | "checked_out" | "cancelled"
 
+/** Tozalash holati — backend `housekeeping_status` enum'i bilan bir xil. Resepshn va
+    housekeeping mobil ilovasi AYNAN shu maydonni o'qiydi, ikkinchi haqiqat manbai yo'q. */
+export type HousekeepingStatus = "clean" | "dirty" | "in_progress"
+
 export type Room = {
   id: string
   number: string
@@ -226,6 +230,10 @@ export type Room = {
   /** Standart joy soni. `null` = belgilanmagan (UI mehmon soni haqida gapirmaydi).
       QAT'IY CHEGARA EMAS — sig'imdan ortiq mehmon faqat ogohlantirish chiqaradi. */
   capacity?: number | null
+  housekeepingStatus?: HousekeepingStatus
+  housekeepingUpdatedAt?: string | null
+  /** Xonadagi QR stikeri ochadigan manzil. Backend'da `qrToken`dan HOSILA — saqlanmaydi. */
+  scanUrl?: string
 }
 
 /** Hujjat turlari — backend `guest_doc_type` enum'i bilan bir xil. */
@@ -560,6 +568,9 @@ export type HotelPolicy = {
   checkInTime?: string | null
   /** "HH:MM" (24h) — standart chiqish vaqti. Yo'q bo'lsa kalendar 12:00 ko'rsatadi. */
   checkOutTime?: string | null
+  /** Tozalash davomiyligi (daqiqa) — kalendar checkout bron oxiridagi tozalash belgisining
+      kengligini shundan oladi. Yo'q bo'lsa 30. */
+  cleaningMinutes?: number | null
 }
 
 /** Kirgan xodim biriktirilgan mehmonxonaning panel brendi + qoidalari (GET /hotel).
