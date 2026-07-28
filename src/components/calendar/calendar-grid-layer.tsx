@@ -10,11 +10,24 @@ interface CalendarGridLayerProps {
   bodyWidth: number
   todayCol: number
   pastCol: number
+  colLo: number
+  colHi: number
 }
 
-function CalendarGridLayerImpl({ originDay, days, dayWidth, bodyWidth, todayCol, pastCol }: CalendarGridLayerProps) {
+function CalendarGridLayerImpl({
+  originDay,
+  days,
+  dayWidth,
+  bodyWidth,
+  todayCol,
+  pastCol,
+  colLo,
+  colHi,
+}: CalendarGridLayerProps) {
   const weekendCols: number[] = []
-  for (let c = 0; c < days; c++) if (isWeekendColumn(originDay, c)) weekendCols.push(c)
+  for (let c = Math.max(0, colLo); c < Math.min(days, colHi); c++) {
+    if (isWeekendColumn(originDay, c)) weekendCols.push(c)
+  }
 
   const gridlines: CSSProperties = {
     backgroundImage: `repeating-linear-gradient(90deg, var(--color-neutral-200) 0, var(--color-neutral-200) 1px, transparent 1px, transparent ${dayWidth}px)`,

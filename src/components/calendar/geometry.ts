@@ -48,6 +48,35 @@ export function todayColumn(originDay: number, days: number, today: string): num
 }
 
 
+const CULL_MIN_OVERSCAN = 7
+
+export interface ColumnWindow {
+  lo: number
+  hi: number
+}
+
+export function columnWindow(
+  scrollLeft: number,
+  clientWidth: number,
+  dayWidth: number,
+  days: number,
+): ColumnWindow {
+  if (dayWidth <= 0 || clientWidth <= 0) return { lo: 0, hi: days }
+  const viewCols = Math.ceil(clientWidth / dayWidth)
+  const overscan = Math.max(CULL_MIN_OVERSCAN, viewCols)
+  const step = Math.max(CULL_MIN_OVERSCAN, overscan >> 1)
+  const first = Math.floor(scrollLeft / dayWidth)
+  return {
+    lo: Math.max(0, Math.floor((first - overscan) / step) * step),
+    hi: Math.min(days, Math.ceil((first + viewCols + overscan) / step) * step),
+  }
+}
+
+export function sameColumnWindow(a: ColumnWindow, b: ColumnWindow): boolean {
+  return a.lo === b.lo && a.hi === b.hi
+}
+
+
 export function overlaps(aStart: string, aEnd: string, bStart: string, bEnd: string): boolean {
   return epochDay(aStart) < epochDay(bEnd) && epochDay(aEnd) > epochDay(bStart)
 }

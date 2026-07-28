@@ -5,10 +5,12 @@ import { cn } from "@/lib/utils"
 interface CalendarGroupRowProps {
   rowTop: number
   height: number
-  days: number
   dayWidth: number
   avail: Int16Array | null
   rate: number
+  colLo: number
+  colHi: number
+  bodyWidth: number
 }
 
 function compact(n: number): string {
@@ -20,21 +22,27 @@ function compact(n: number): string {
   return String(n)
 }
 
-function CalendarGroupRowImpl({ rowTop, height, days, dayWidth, avail, rate }: CalendarGroupRowProps) {
+function CalendarGroupRowImpl({
+  rowTop,
+  height,
+  dayWidth,
+  avail,
+  rate,
+  colLo,
+  colHi,
+  bodyWidth,
+}: CalendarGroupRowProps) {
   const showRate = rate > 0 && dayWidth >= 44
   return (
-    <div
-      className="absolute left-0 flex"
-      style={{ top: rowTop, height, width: days * dayWidth }}
-      aria-hidden
-    >
-      {Array.from({ length: days }, (_, c) => {
+    <div className="absolute left-0" style={{ top: rowTop, height, width: bodyWidth }} aria-hidden>
+      {Array.from({ length: Math.max(0, colHi - colLo) }, (_, i) => {
+        const c = colLo + i
         const free = avail ? avail[c] : null
         return (
           <div
             key={c}
-            className="flex flex-col items-center justify-center gap-0.5"
-            style={{ width: dayWidth }}
+            className="absolute inset-y-0 flex flex-col items-center justify-center gap-0.5"
+            style={{ left: c * dayWidth, width: dayWidth }}
           >
             {free != null && (
               <span

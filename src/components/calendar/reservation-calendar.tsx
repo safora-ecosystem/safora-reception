@@ -4,6 +4,7 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -18,7 +19,17 @@ import { CalendarGridLayer } from "./calendar-grid-layer"
 import { CalendarGroupRow } from "./calendar-group-row"
 import { CalendarHeader } from "./calendar-header"
 import { CalendarRail } from "./calendar-rail"
-import { addDays, dayFraction, epochDay, isoFromEpochDay, laneOffsets, todayColumn } from "./geometry"
+import {
+  addDays,
+  columnWindow,
+  dayFraction,
+  epochDay,
+  isoFromEpochDay,
+  laneOffsets,
+  sameColumnWindow,
+  todayColumn,
+  type ColumnWindow,
+} from "./geometry"
 import { resolveLabels } from "./labels"
 import { resolveStatusConfig } from "./status-config"
 import { useCalendarDrag } from "./use-calendar-drag"
@@ -181,6 +192,16 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
       rowVirtualizer.measure()
     }, [rowHeight, groupHeight, rowVirtualizer])
 
+    const [colWin, setColWin] = useState<ColumnWindow>(() => ({ lo: 0, hi: 0 }))
+    const syncColumnWindow = useCallback(() => {
+      const el = scrollRef.current
+      if (!el) return
+      const next = columnWindow(el.scrollLeft, el.clientWidth, dayWidth, range.days)
+      setColWin((prev) => (sameColumnWindow(prev, next) ? prev : next))
+    }, [dayWidth, range.days])
+    const xLo = colWin.lo * dayWidth
+    const xHi = colWin.hi * dayWidth
+
     const focusDateRef = useRef(today)
     const scrollToDate = useCallback(
       (iso: string, align: "start" | "center" | "today" = "start", smooth = false) => {
@@ -207,20 +228,30 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
       const el = scrollRef.current
       if (!el) return
       focusDateRef.current = isoFromEpochDay(originDay + Math.floor((el.scrollLeft + el.clientWidth / 2) / dayWidth))
-    }, [originDay, dayWidth, tooltip])
+      syncColumnWindow()
+    }, [originDay, dayWidth, tooltip, syncColumnWindow])
 
     const initedRef = useRef(false)
-    useEffect(() => {
+    useLayoutEffect(() => {
       if (initedRef.current || todayCol < 0) return
       initedRef.current = true
       scrollToDate(today, "today")
     }, [todayCol, today, scrollToDate])
     const prevDwRef = useRef(dayWidth)
-    useEffect(() => {
+    useLayoutEffect(() => {
       if (prevDwRef.current === dayWidth) return
       prevDwRef.current = dayWidth
       scrollToDate(focusDateRef.current, "center")
     }, [dayWidth, scrollToDate])
+
+    useLayoutEffect(() => {
+      const el = scrollRef.current
+      if (!el) return
+      syncColumnWindow()
+      const ro = new ResizeObserver(syncColumnWindow)
+      ro.observe(el)
+      return () => ro.disconnect()
+    }, [syncColumnWindow])
 
     const handleSelect = useCallback(
       (b: CalendarBooking) => {
@@ -328,6 +359,8 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
                   todayCol={todayCol}
                   labels={labels}
                   occupancy={occupancy}
+                  colLo={colWin.lo}
+                  colHi={colWin.hi}
                 />
               </div>
 
@@ -353,6 +386,8 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
                   bodyWidth={bodyWidth}
                   todayCol={todayCol}
                   pastCol={pastCol}
+                  colLo={colWin.lo}
+                  colHi={colWin.hi}
                 />
                 {virtualItems.map((vi) => {
                   const lane = lanes[vi.index]
@@ -366,10 +401,12 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
                         key={lane.id}
                         rowTop={rowTop}
                         height={vi.size}
-                        days={range.days}
                         dayWidth={dayWidth}
                         avail={stats?.avail ?? null}
                         rate={stats?.rate ?? 0}
+                        colLo={colWin.lo}
+                        colHi={colWin.hi}
+                        bodyWidth={bodyWidth}
                       />
                     )
                   }
@@ -386,24 +423,29 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
                         onPointerCancel={drag.cancel}
                         onPointerLeave={drag.hoverEnd}
                       />
-                      {bars?.map((pb) => (
-                        <CalendarBar
-                          key={pb.booking.id}
-                          booking={pb.booking}
-                          rect={pb.rect}
-                          rowTop={rowTop}
-                          rowHeight={rowHeight}
-                          visual={statusConfig[pb.booking.status]}
-                          labels={labels}
-                          today={today}
-                          selected={selectedId === pb.booking.id}
-                          onSelect={handleSelect}
-                          movable={canMove && pb.booking.status === "booked"}
-                          dimmed={matchIds != null && !matchIds.has(pb.booking.id)}
-                          move={moveDrag}
-                          tooltip={tooltip}
-                        />
-                      ))}
+                      {/* Bar'lar gorizontal oynadan tashqarida bo'lsa umuman chizilmaydi. Kesish
+                          KESISHMA bo'yicha (chap chekka emas) — oyna ichiga cho'zilgan uzun bron
+                          o'z boshi ortda qolsa ham ko'rinadi. */}
+                      {bars?.map((pb) =>
+                        pb.rect.left >= xHi || pb.rect.left + pb.rect.width <= xLo ? null : (
+                          <CalendarBar
+                            key={pb.booking.id}
+                            booking={pb.booking}
+                            rect={pb.rect}
+                            rowTop={rowTop}
+                            rowHeight={rowHeight}
+                            visual={statusConfig[pb.booking.status]}
+                            labels={labels}
+                            today={today}
+                            selected={selectedId === pb.booking.id}
+                            onSelect={handleSelect}
+                            movable={canMove && pb.booking.status === "booked"}
+                            dimmed={matchIds != null && !matchIds.has(pb.booking.id)}
+                            move={moveDrag}
+                            tooltip={tooltip}
+                          />
+                        ),
+                      )}
                     </Fragment>
                   )
                 })}

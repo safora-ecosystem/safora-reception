@@ -14,6 +14,8 @@ interface CalendarHeaderProps {
   todayCol: number
   labels: CalendarLabels
   occupancy: number[]
+  colLo: number
+  colHi: number
 }
 
 function CalendarHeaderImpl({
@@ -26,6 +28,8 @@ function CalendarHeaderImpl({
   todayCol,
   labels,
   occupancy,
+  colLo,
+  colHi,
 }: CalendarHeaderProps) {
   const months = monthSegments(originDay, days)
   const compact = headerHeight < 92
@@ -51,9 +55,11 @@ function CalendarHeaderImpl({
         ))}
       </div>
 
-      {/* Kun kataklari — hafta kuni · sana · bandlik % */}
-      <div className="flex" style={{ height: headerHeight - monthStrip }}>
-        {Array.from({ length: days }, (_, c) => {
+      {/* Kun kataklari — hafta kuni · sana · bandlik %. Faqat ko'rinadigan oyna: `flex` o'rniga
+          absolut pozitsiya (kesilgan katak layout'ni surib qo'ymasin). */}
+      <div className="relative" style={{ height: headerHeight - monthStrip }}>
+        {Array.from({ length: Math.max(0, colHi - colLo) }, (_, i) => {
+          const c = colLo + i
           const d = dateForColumn(originDay, c)
           const dow = d.getUTCDay()
           const isToday = c === todayCol
@@ -61,8 +67,11 @@ function CalendarHeaderImpl({
           return (
             <div
               key={c}
-              className={cn("flex flex-col items-center justify-center", compact ? "gap-0.5" : "gap-1")}
-              style={{ width: dayWidth }}
+              className={cn(
+                "absolute inset-y-0 flex flex-col items-center justify-center",
+                compact ? "gap-0.5" : "gap-1",
+              )}
+              style={{ left: c * dayWidth, width: dayWidth }}
             >
               <span
                 className={cn(
