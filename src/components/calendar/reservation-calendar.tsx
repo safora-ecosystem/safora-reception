@@ -10,6 +10,7 @@ import {
   useState,
 } from "react"
 import { useVirtualizer } from "@tanstack/react-virtual"
+import { motion, useReducedMotion } from "framer-motion"
 import { cn } from "@/lib/utils"
 import { CalendarBar } from "./calendar-bar"
 import { CalendarBarTooltip } from "./calendar-bar-tooltip"
@@ -39,6 +40,17 @@ import { useBookingIndex, useLanes } from "./use-lanes"
 import type { CalendarBooking, CalendarDraft, ReservationCalendarProps } from "./types"
 
 const PAST_DAYS_IN_VIEW = 4
+
+const CHROME_ENTER_FROM = { opacity: 0, filter: "blur(8px)" }
+const CHROME_ENTER_TO = { opacity: 1, filter: "blur(0px)" }
+const CHROME_REST = { opacity: 1, filter: "none" }
+const CHROME_EASE: [number, number, number, number] = [0.22, 0.61, 0.36, 1]
+const CHROME_TRANSITION = { duration: 0.3, ease: CHROME_EASE }
+const INSTANT_TRANSITION = { duration: 0 }
+
+const BAR_BASE_DELAY = 0.18
+const ENTER_STAGGER_STEP = 0.014
+const ENTER_STAGGER_MAX = 0.26
 
 
 export interface ReservationCalendarHandle {
@@ -202,6 +214,20 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
     const xLo = colWin.lo * dayWidth
     const xHi = colWin.hi * dayWidth
 
+    const reduceMotion = useReducedMotion()
+
+    const [chromeSettled, setChromeSettled] = useState(false)
+    const chromeEntering = !reduceMotion && !chromeSettled
+    const markChromeSettled = useCallback(() => setChromeSettled(true), [])
+
+    const revealedRef = useRef<Set<string>>(new Set())
+    const renderedIds: string[] = []
+    useEffect(() => {
+      const seen = revealedRef.current
+      for (const id of renderedIds) seen.add(id)
+    })
+    let enterIndex = 0
+
     const focusDateRef = useRef(today)
     const scrollToDate = useCallback(
       (iso: string, align: "start" | "center" | "today" = "start", smooth = false) => {
@@ -347,8 +373,15 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
                 style={{ gridColumn: 1, gridRow: 1 }}
               />
 
-              {/* header (sticky top) */}
-              <div className="sticky top-0 z-30" style={{ gridColumn: 2, gridRow: 1 }}>
+              {/* header (sticky top) — karkasning bir qismi, bar'lardan OLDIN chiqadi */}
+              <motion.div
+                className="sticky top-0 z-30"
+                style={{ gridColumn: 2, gridRow: 1 }}
+                initial={chromeEntering ? CHROME_ENTER_FROM : false}
+                animate={chromeEntering ? CHROME_ENTER_TO : CHROME_REST}
+                transition={chromeEntering ? CHROME_TRANSITION : INSTANT_TRANSITION}
+                onAnimationComplete={markChromeSettled}
+              >
                 <CalendarHeader
                   originDay={originDay}
                   days={range.days}
@@ -362,17 +395,24 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
                   colLo={colWin.lo}
                   colHi={colWin.hi}
                 />
-              </div>
+              </motion.div>
 
-              {/* rail (sticky left) */}
-              <div className="sticky left-0 z-20" style={{ gridColumn: 1, gridRow: 2 }}>
+              {/* rail (sticky left) — header bilan birga, bar'lardan oldin */}
+              <motion.div
+                className="sticky left-0 z-20"
+                style={{ gridColumn: 1, gridRow: 2 }}
+                initial={chromeEntering ? CHROME_ENTER_FROM : false}
+                animate={chromeEntering ? CHROME_ENTER_TO : CHROME_REST}
+                transition={chromeEntering ? CHROME_TRANSITION : INSTANT_TRANSITION}
+                onAnimationComplete={markChromeSettled}
+              >
                 <CalendarRail
                   lanes={lanes}
                   virtualItems={virtualItems}
                   offsetTop={headerHeight}
                   onToggleGroup={toggleGroup}
                 />
-              </div>
+              </motion.div>
 
               {/* body — `isolate`: o'z stacking context'i. Aks holda bar'lardagi z-index (hover z-20,
                   selected z-30) SIBLING sticky rail (z-20) / header (z-30) bilan raqobatlashadi va gorizontal
@@ -426,8 +466,18 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
                       {/* Bar'lar gorizontal oynadan tashqarida bo'lsa umuman chizilmaydi. Kesish
                           KESISHMA bo'yicha (chap chekka emas) — oyna ichiga cho'zilgan uzun bron
                           o'z boshi ortda qolsa ham ko'rinadi. */}
-                      {bars?.map((pb) =>
-                        pb.rect.left >= xHi || pb.rect.left + pb.rect.width <= xLo ? null : (
+                      {bars?.map((pb) => {
+                        if (pb.rect.left >= xHi || pb.rect.left + pb.rect.width <= xLo) return null
+                        renderedIds.push(pb.booking.id)
+                        // Birinchi marta chizilyapti → navbatdagi kechikish bilan blur'dan chiqadi.
+                        const fresh = !reduceMotion && !revealedRef.current.has(pb.booking.id)
+                        // Ochilishda karkas navbatni oladi (`BAR_BASE_DELAY`); u tinchigach
+                        // keyingi bo'laklar darrov chiqadi — kechikish faqat birinchi manzara uchun.
+                        const enterDelay = fresh
+                          ? (chromeEntering ? BAR_BASE_DELAY : 0) +
+                            Math.min(enterIndex++ * ENTER_STAGGER_STEP, ENTER_STAGGER_MAX)
+                          : null
+                        return (
                           <CalendarBar
                             key={pb.booking.id}
                             booking={pb.booking}
@@ -443,9 +493,10 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
                             dimmed={matchIds != null && !matchIds.has(pb.booking.id)}
                             move={moveDrag}
                             tooltip={tooltip}
+                            enterDelay={enterDelay}
                           />
-                        ),
-                      )}
+                        )
+                      })}
                     </Fragment>
                   )
                 })}

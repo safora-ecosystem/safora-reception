@@ -1,4 +1,5 @@
-import { memo } from "react"
+import { memo, useState } from "react"
+import { motion } from "framer-motion"
 import { cn } from "@/lib/utils"
 import {
   BAR_RADIUS,
@@ -29,7 +30,12 @@ interface CalendarBarProps {
   dimmed?: boolean
   move?: CalendarMoveHandlers
   tooltip?: CalendarTooltipHandlers
+  enterDelay?: number | null
 }
+
+const BAR_ENTER_FROM = { opacity: 0, filter: "blur(6px)" }
+const BAR_ENTER_EASE: [number, number, number, number] = [0.22, 0.61, 0.36, 1]
+const BAR_ENTER_DURATION = 0.28
 
 const ICON_MIN_PX = 60
 const PAYMENT_MIN_PX = 108
@@ -75,7 +81,14 @@ function CalendarBarImpl({
   dimmed = false,
   move,
   tooltip,
+  enterDelay = null,
 }: CalendarBarProps) {
+  // Kirish MOUNT'da muzlatiladi. Ota qayta render bo'lganda (culling bandi almashsa, tanlov yoki
+  // filtr o'zgarsa) `enterDelay` null'ga aylanadi — agar shunga qarab `motion.button` ⇄ `button`
+  // almashsa, React elementni unmount/remount qilib titratardi. Muzlatilgach bar o'z hayoti
+  // davomida bitta turda qoladi.
+  const [entry] = useState(() => enterDelay)
+  const entering = entry != null
   const nights = nightsBetween(booking.start, booking.end)
   // Amber diqqat konturi ikki operatsion og'riqqa: (1) ichkarida, chiqish kuni o'tgan;
   // (2) kelishi kerak edi, kelmagan (no-show nomzodi — bekor qilinsin yoki kiritilsin).
@@ -105,8 +118,17 @@ function CalendarBarImpl({
       : "")
 
   return (
-    <button
+    <motion.button
       type="button"
+      // `initial={false}` = animatsiyasiz bar'ga framer umuman style yozmaydi (oddiy button bilan
+      // bir xil). Kirayotgan bar'da esa oxirgi opacity DIMMED holatini ham hisobga oladi: inline
+      // style klassdan ustun turadi, aks holda qidiruvga mos kelmagan yangi bron to'liq yorqin
+      // bo'lib qolardi.
+      initial={entering ? BAR_ENTER_FROM : false}
+      animate={entering ? { opacity: dimmed ? 0.25 : 1, filter: "blur(0px)" } : undefined}
+      transition={
+        entering ? { duration: BAR_ENTER_DURATION, delay: entry, ease: BAR_ENTER_EASE } : undefined
+      }
       // Sudrash tugagach keladigan `click`ni yutamiz — aks holda ko'chirish ustiga detal
       // modali ham ochilardi. Klaviatura (Enter) hech qachon sudramaydi → doim ochiladi.
       onClick={() => {
@@ -171,7 +193,7 @@ function CalendarBarImpl({
         <span className="min-w-0 truncate">{booking.label}</span>
         {showPayment && booking.payment && <PaymentGlyph payment={booking.payment} />}
       </span>
-    </button>
+    </motion.button>
   )
 }
 
