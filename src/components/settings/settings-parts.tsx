@@ -3,6 +3,7 @@ import { Check, Loader2, Monitor, Smartphone } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
+import { Switch } from "@/components/ui/switch"
 import type { ActiveSession } from "@/lib/api"
 import { useTheme, type ThemePref } from "@/lib/theme"
 import { cn } from "@/lib/utils"
@@ -63,27 +64,7 @@ export function Toggle({
   onChange: (next: boolean) => void
   label: string
 }) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      aria-label={label}
-      onClick={() => onChange(!checked)}
-      className={cn(
-        "relative h-6 w-11 shrink-0 rounded-full transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/40",
-        checked ? "bg-primary" : "bg-neutral-300",
-      )}
-    >
-      <span
-        aria-hidden
-        className={cn(
-          "absolute top-0.5 size-5 rounded-full bg-white shadow-xs transition-[left]",
-          checked ? "left-[1.375rem]" : "left-0.5",
-        )}
-      />
-    </button>
-  )
+  return <Switch checked={checked} onCheckedChange={onChange} aria-label={label} />
 }
 
 const THEMES: Array<{ value: ThemePref; label: string }> = [

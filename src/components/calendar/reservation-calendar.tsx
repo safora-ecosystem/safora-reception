@@ -23,6 +23,7 @@ import { CalendarHeader } from "./calendar-header"
 import { CalendarRail } from "./calendar-rail"
 import {
   addDays,
+  busyRoomsIn,
   columnWindow,
   dayFraction,
   epochDay,
@@ -355,15 +356,17 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
       ref,
       () => ({
         openCreate: (roomId, start) => {
-          const rid = roomId ?? rooms[0]?.id
-          if (!rid) return
           const s = start ?? (epochDay(today) >= originDay ? today : range.start)
-          setCreateDraft({ roomId: rid, start: s, end: addDays(s, 1) })
+          const e = addDays(s, 1)
+          const busy = roomId ? null : busyRoomsIn(bookings, s, e)
+          const rid = roomId ?? rooms.find((r) => !busy?.has(r.id))?.id ?? rooms[0]?.id
+          if (!rid) return
+          setCreateDraft({ roomId: rid, start: s, end: e })
         },
         scrollToday: () => scrollToDate(today, "today", true),
         scrollByViewport,
       }),
-      [rooms, today, originDay, range.start, scrollToDate, scrollByViewport],
+      [rooms, bookings, today, originDay, range.start, scrollToDate, scrollByViewport],
     )
 
     const showNoRooms = !isLoading && !error && rooms.length === 0

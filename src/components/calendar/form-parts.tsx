@@ -86,6 +86,37 @@ export function MoneyInput({
   )
 }
 
+export function DocSelect({
+  labels,
+  value,
+  onChange,
+  className,
+}: {
+  labels: CalendarLabels
+  value: string
+  onChange: (v: string) => void
+  className?: string
+}) {
+  return (
+    <select
+      aria-label={labels.document}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className={cn(
+        "h-8 rounded-control bg-neutral-100 px-2.5 text-sm text-neutral-900 outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/40",
+        className,
+      )}
+    >
+      <option value="">{labels.document}</option>
+      {DOC_TYPES.map((t) => (
+        <option key={t} value={t}>
+          {labels.docTypeText[t]}
+        </option>
+      ))}
+    </select>
+  )
+}
+
 export function DocFields({
   labels,
   docType,
@@ -103,19 +134,7 @@ export function DocFields({
 }) {
   return (
     <div className={cn("grid gap-2", compact ? "grid-cols-[9rem_1fr]" : "sm:grid-cols-[11rem_1fr]")}>
-      <select
-        aria-label={labels.document}
-        value={docType}
-        onChange={(e) => onDocType(e.target.value)}
-        className="h-9 rounded-control bg-neutral-100 px-2.5 text-sm text-neutral-900 outline-none ring-1 ring-transparent transition-colors focus:bg-white focus:ring-brand-400"
-      >
-        <option value="">{labels.document}</option>
-        {DOC_TYPES.map((t) => (
-          <option key={t} value={t}>
-            {labels.docTypeText[t]}
-          </option>
-        ))}
-      </select>
+      <DocSelect labels={labels} value={docType} onChange={onDocType} className="h-9" />
       <Input
         value={docNumber}
         onChange={(e) => onDocNumber(e.target.value)}

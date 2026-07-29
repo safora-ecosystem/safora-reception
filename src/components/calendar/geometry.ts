@@ -95,6 +95,20 @@ export function hasConflict(
   )
 }
 
+export function busyRoomsIn(
+  bookings: CalendarBooking[],
+  start: string,
+  end: string,
+): Set<string> {
+  const out = new Set<string>()
+  if (epochDay(end) <= epochDay(start)) return out
+  for (const b of bookings) {
+    if (!OCCUPYING.includes(b.status)) continue
+    if (overlaps(start, end, b.start, b.end)) out.add(b.roomId)
+  }
+  return out
+}
+
 export function freeSpanAround(
   roomId: string,
   startCol: number,
@@ -332,7 +346,12 @@ function roomOrder(r: CalendarRoom): number {
   return Number.isNaN(n) ? 0 : n
 }
 
-function compareRooms(a: CalendarRoom, b: CalendarRoom): number {
+/**
+ * Xona tartibi — REYD va yaratish formasidagi tanlagich UCHUN BITTA qoida. Saralash xona
+ * RAQAMI bo'yicha (qavat raqam ichida kodlangan), guruh nomi bo'yicha EMAS: matn saralashda
+ * "10-qavat" "2-qavat" dan oldin kelib, ikki ro'yxat boshqa-boshqa tartibda ko'rinardi.
+ */
+export function compareRooms(a: CalendarRoom, b: CalendarRoom): number {
   return roomOrder(a) - roomOrder(b) || a.label.localeCompare(b.label)
 }
 

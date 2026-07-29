@@ -107,9 +107,20 @@ export interface CalendarLabels {
   roomsSelected: (n: number) => string
   roomSearch: string
   roomsEmpty: string
+  roomsFree: (n: number) => string
+  roomsOnlyFree: string
+  roomsAll: string
+  roomsNone: string
+  roomsClear: string
+  roomsPickHint: string
+  capacityWord: (n: number) => string
   busy: string
   selectedBusy: string
   pastStart: string
+  needGuestName: string
+  needGuestPhone: string
+  needCompanionName: string
+  needRoom: string
   summary: string
   quickNights: string
   prepayment: string
@@ -141,6 +152,12 @@ export interface CalendarLabels {
   notePlaceholder: string
   capacityOver: (guests: number, capacity: number) => string
   guestsWord: (n: number) => string
+
+  extraGuestCharge: string
+  extraGuestRate: string
+  extraGuests: string
+  extraGuestsBreakdown: (guests: number, nights: number) => string
+  extraGuestRateHint: string
 
   openChat: string
   duplicate: string
