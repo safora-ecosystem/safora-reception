@@ -67,6 +67,29 @@ const ALL_COUNTRIES: CountryEntry[] = (() => {
 const PINNED_COUNT = PINNED.length
 
 /**
+ * Davlatning MILLIY raqamdagi eng katta xonalar soni (UZ: 9, RU: 10). Metadata to'g'ridan
+ * bermaydi — eng kattadan pastga tushib, uzunlik tekshiruvi "sig'adi" degan birinchi qiymat
+ * olinadi. Davlat boshiga bir marta hisoblanadi.
+ */
+const NATIONAL_MAX = new Map<Country, number>()
+
+function maxNationalDigits(country: Country): number {
+  let max = NATIONAL_MAX.get(country)
+  if (max == null) {
+    max = 15
+    for (let n = 15; n >= 4; n--) {
+      const verdict = validatePhoneNumberLength("9".repeat(n), country)
+      if (verdict !== "TOO_LONG" && verdict !== "INVALID_LENGTH") {
+        max = n
+        break
+      }
+    }
+    NATIONAL_MAX.set(country, max)
+  }
+  return max
+}
+
+/**
  * Xom matnni E.164'ga keltiradi. Bazadagi eski yozuvlar har xil ko'rinishda ("998 90 ...",
  * "+998-90-...", milliy "901234567") — ularni tahrirlash oynasiga berishdan oldin shu funksiya
  * bir shaklga soladi. Tanib bo'lmasa xom matn QAYTARILADI: mehmonning raqamini jimgina yo'qotgandan
@@ -142,8 +165,18 @@ export const PhoneInput = memo(function PhoneInput({
     const data = (e.nativeEvent as InputEvent).data
     if (!data || !/\d/.test(data)) return // o'chirish, ko'chirish, navigatsiya — ruxsat
     const el = e.currentTarget
-    if (el.selectionStart !== el.selectionEnd) return // belgilab yozish — almashtirish, o'smaydi
-    if (validatePhoneNumberLength(el.value + data, country) === "TOO_LONG") e.preventDefault()
+    const selStart = el.selectionStart ?? el.value.length
+    const selEnd = el.selectionEnd ?? selStart
+    const next = el.value.slice(0, selStart) + data + el.value.slice(selEnd)
+    if (next.trimStart().startsWith("+")) {
+      // Yopishtirilgan xalqaro shakl — kod matnning o'zida, uzunlikni kutubxona hal qiladi.
+      if (validatePhoneNumberLength(next) === "TOO_LONG") e.preventDefault()
+    } else if (next.replace(/\D/g, "").length > maxNationalDigits(country)) {
+      // Milliy rejimda XOM raqamlar sonini o'zimiz sanaymiz: foydalanuvchi +998 tanlangan
+      // turib yana 998 bilan boshlab tersa, validatePhoneNumberLength boshidagi 998 ni
+      // davlat kodi deb hisoblab, 12 raqamli satrni ham to'g'ri deb o'tkazib yuborardi.
+      e.preventDefault()
+    }
   }
 
   // Qiymatning o'zi davlatni aytib tursa (E.164 kiritilgan/yopishtirilgan) — shunisi ustun.

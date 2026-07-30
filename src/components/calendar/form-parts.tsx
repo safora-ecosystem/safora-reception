@@ -203,12 +203,20 @@ export function DocFields({
 }) {
   return (
     <div className={cn("grid gap-2", compact ? "grid-cols-[9rem_1fr]" : "sm:grid-cols-[11rem_1fr]")}>
-      <DocSelect labels={labels} value={docType} onChange={onDocType} />
+      <DocSelect
+        labels={labels}
+        value={docType}
+        onChange={(v) => {
+          onDocType(v)
+          if (!v) onDocNumber("")
+        }}
+      />
       <Input
         value={docNumber}
         onChange={(e) => onDocNumber(e.target.value)}
         placeholder={labels.docNumber}
         aria-label={labels.docNumber}
+        disabled={!docType}
       />
     </div>
   )

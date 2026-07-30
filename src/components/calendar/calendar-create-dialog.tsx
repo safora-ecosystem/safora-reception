@@ -465,15 +465,19 @@ function CreateForm({
                       <DocSelect
                         labels={labels}
                         value={guestDocType}
-                        onChange={setGuestDocType}
-                        className="h-9 w-full"
+                        onChange={(v) => {
+                          setGuestDocType(v)
+                          // Tur bo'shatilsa seriya ham ketadi — "raqam bor, turi yo'q" bo'lmasin.
+                          if (!v) setGuestDocNumber("")
+                        }}
                       />
                     </Field>
                     <Field label={labels.docNumber}>
                       <Input
-                        className="h-9"
                         value={guestDocNumber}
                         onChange={(e) => setGuestDocNumber(e.target.value)}
+                        placeholder={labels.docNumber}
+                        disabled={!guestDocType}
                       />
                     </Field>
                   </div>
@@ -773,13 +777,14 @@ const CompanionsBlock = memo(function CompanionsBlock({
                   <DocSelect
                     labels={labels}
                     value={c.docType ?? ""}
-                    onChange={(v) => onPatch(c.key, { docType: v })}
+                    onChange={(v) => onPatch(c.key, { docType: v, ...(v ? {} : { docNumber: "" }) })}
                   />
                   <Input
                     value={c.docNumber ?? ""}
                     onChange={(e) => onPatch(c.key, { docNumber: e.target.value })}
                     placeholder={labels.docNumber}
                     aria-label={labels.docNumber}
+                    disabled={!c.docType}
                   />
                   {/* Shu mehmonning bir kechalik narxi — qaror AYNAN shu qatorda: bola chegirmali,
                       xodim bepul (bo'sh/0). Yagona umumiy narx bu istisnolarni sig'dirmasdi. */}
