@@ -31,16 +31,30 @@ export function number(value: number | string): string {
   return nf.format(Math.round(toNumber(value)))
 }
 
-/** 0.752 yoki 75.2 → "75%". `frac` = 0..1 kasr bo'lsa 100 ga ko'paytiradi. */
+/** 0.752 yoki 75.2 → "75%". `frac` = 0..1 kasr bo'lsa 100 ga ko'paytiradi.
+    NaN/Infinity ekranga chiqmaydi — "0%" beriladi (`ratioPct` ga qarang). */
 export function percent(value: number, opts?: { frac?: boolean; digits?: number }): string {
-  const v = opts?.frac ? value * 100 : value
+  const raw = opts?.frac ? value * 100 : value
+  const v = Number.isFinite(raw) ? raw : 0
   return `${v.toFixed(opts?.digits ?? 0)}%`
+}
+
+/** Ulush foizi: `part/total*100`, butun songa yaxlitlangan. Bo'linuvchi 0 bo'lsa — 0.
+
+    Aynan shu yerda "NaN%" tug'ilardi: yangi (yoki hali xonasi kiritilmagan) mehmonxonada
+    `roomsTotal = 0` bo'ladi va `0/0` → NaN bo'lib to'g'ridan-to'g'ri stat kartochkaga chiqib
+    ketardi. Nisbat hisoblanadigan HAR joyda shu funksiya ishlatilsin. */
+export function ratioPct(part: number | string, total: number | string): number {
+  const t = toNumber(total)
+  if (t <= 0) return 0
+  return Math.round((toNumber(part) / t) * 100)
 }
 
 /** Belgi bilan o'zgarish: +12.4% / −3.1% (rang alohida beriladi). */
 export function delta(value: number, opts?: { digits?: number }): string {
-  const sign = value > 0 ? "+" : value < 0 ? "−" : ""
-  return `${sign}${Math.abs(value).toFixed(opts?.digits ?? 1)}%`
+  const v = Number.isFinite(value) ? value : 0
+  const sign = v > 0 ? "+" : v < 0 ? "−" : ""
+  return `${sign}${Math.abs(v).toFixed(opts?.digits ?? 1)}%`
 }
 
 // ── Sana ─────────────────────────────────────────────────────────────────────

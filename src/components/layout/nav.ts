@@ -1,6 +1,7 @@
 import {
   Analytics02Icon,
   Calendar02Icon,
+  Door01Icon,
   HelpCircleIcon,
   Message02Icon,
   Settings02Icon,
@@ -20,6 +21,7 @@ export type NavItem = {
 export const navItems: NavItem[] = [
   { to: "/", label: "Statistika", icon: Analytics02Icon },
   { to: "/calendar", label: "Kalendar", icon: Calendar02Icon, permission: "calendar.view" },
+  { to: "/rooms", label: "Xonalar", icon: Door01Icon, permission: "rooms.view" },
   { to: "/guests", label: "Mehmonlar", icon: UserStar01Icon, permission: "guests.view" },
   { to: "/requests", label: "Xizmatlar", icon: SparklesIcon, permission: "requests.view" },
   { to: "/chat", label: "Suhbat", icon: Message02Icon, permission: "chat.guest" },

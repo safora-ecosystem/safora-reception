@@ -1,5 +1,8 @@
+import { Children } from "react"
 import { ArrowUpRight } from "lucide-react"
+import { motion, useReducedMotion } from "framer-motion"
 import type { ReactNode } from "react"
+import { fadeInUp, staggerContainer } from "@/lib/motion-presets"
 import { cn } from "@/lib/utils"
 
 type StatCardProps = {
@@ -71,6 +74,31 @@ export function StatCard({ label, value, unit, hint, hero = false }: StatCardPro
   )
 }
 
-export function StatGrid({ children }: { children: ReactNode }) {
-  return <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">{children}</div>
+export function StatGrid({
+  children,
+  cols = 4,
+  animate = true,
+}: {
+  children: ReactNode
+  cols?: 3 | 4 | 5
+  animate?: boolean
+}) {
+  const reduceMotion = useReducedMotion()
+  const items = Children.toArray(children)
+  const gridClass = cn(
+    "grid grid-cols-1 gap-4 sm:grid-cols-2",
+    cols === 5 ? "lg:grid-cols-5" : cols === 3 ? "lg:grid-cols-3" : "lg:grid-cols-4"
+  )
+
+  if (!animate || reduceMotion) return <div className={gridClass}>{children}</div>
+
+  return (
+    <motion.div variants={staggerContainer} initial="hidden" animate="visible" className={gridClass}>
+      {items.map((child, i) => (
+        <motion.div key={i} variants={fadeInUp} className="min-w-0 [&>*]:h-full">
+          {child}
+        </motion.div>
+      ))}
+    </motion.div>
+  )
 }

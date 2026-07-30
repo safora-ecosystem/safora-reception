@@ -2,8 +2,14 @@
 <html lang="uz">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/png" href="/favicon.png" />
+    <!-- Har o'lcham ALOHIDA render (`sizes=` bilan aniq ko'rsatilgan): bitta katta rasm
+         berilsa brauzer uni o'zi 16px ga kichraytiradi va logotip loyqalanadi. 16/32 da
+         kadr toroq — o'sha o'lchamda samolyot va tog'lar shovqinga aylanadi. -->
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/favicon.png" />
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <!-- Shriftlar `src/index.css` da, `public/fonts/` dan lokal yuklanadi — Fontshare CDN'iga
          hech qanday runtime bog'liqlik yo'q (u bizni cheklab, HTTP 200 bilan bo'sh javob

@@ -4,6 +4,10 @@ import { toast } from "sonner"
 import { Bike, Coffee, Package, Sparkles, Wrench } from "lucide-react"
 import { PageLayout } from "@/components/layout/page-layout"
 import { CtaButton } from "@/components/shared/cta-button"
+import { EmptyState } from "@/components/shared/empty-state"
+import { QueryState } from "@/components/shared/query-state"
+import { SkeletonList, SkeletonStatGrid } from "@/components/shared/skeletons"
+import { Skeleton } from "@/components/ui/skeleton"
 import { StatCard, StatGrid } from "@/components/shared/stat-card"
 import { RangeToggle } from "@/components/shared/charts"
 import { Badge } from "@/components/ui/badge"
@@ -177,28 +181,47 @@ export function RequestsPage() {
       title="Xizmatlar"
       actions={<CtaButton onClick={() => setCreateOpen(true)}>Xizmat qo'shish</CtaButton>}
     >
+      {/* Skelet navbat layoutini takrorlaydi (o'lchovlar + qatorlar). Xato — sabab + retry;
+          15s poll yiqilsa esa eski ro'yxat turadi (data bor → error yutilmaydi), react-query
+          keyingi siklda o'zi qayta uradi. */}
+      <QueryState
+        queries={requestsQ}
+        variant="page"
+        skeleton={
+          <div className="flex flex-col gap-4">
+            <SkeletonStatGrid />
+            <Card className="gap-0 p-0">
+              <div className="flex flex-wrap items-center justify-between gap-3 p-4">
+                <Skeleton className="h-4 w-80 max-w-full" />
+                <Skeleton className="h-9 w-72 rounded-control" />
+              </div>
+              <SkeletonList rows={5} trailing />
+            </Card>
+          </div>
+        }
+      >
       <div className="flex flex-col gap-4">
         <StatGrid>
           <StatCard
             label="Yangi xizmat"
-            value={requestsQ.isSuccess ? String(counts.new) : "—"}
+            value={String(counts.new)}
             hint="hali qabul qilinmagan"
             hero
           />
           <StatCard
             label="Bajarilmoqda"
-            value={requestsQ.isSuccess ? String(counts.inProgress) : "—"}
+            value={String(counts.inProgress)}
             hint="ishda"
           />
           <StatCard
             label="Bajarildi"
-            value={requestsQ.isSuccess ? String(counts.done) : "—"}
+            value={String(counts.done)}
             hint="oxirgi 30 kun"
           />
           <StatCard
             label="Tushum"
-            value={requestsQ.isSuccess ? money(revenue, { unit: false }) : "—"}
-            unit={requestsQ.isSuccess ? "so'm" : undefined}
+            value={money(revenue, { unit: false })}
+            unit="so'm"
             hint="bajarilgan xizmatlar"
           />
         </StatGrid>
@@ -217,24 +240,16 @@ export function RequestsPage() {
           </div>
 
           <CardContent className="p-0">
-            {!requestsQ.isSuccess ? (
-              <p className="py-16 text-center text-sm text-neutral-500">
-                {requestsQ.isError ? "Ma'lumotni yuklab bo'lmadi." : "Yuklanmoqda…"}
-              </p>
-            ) : rows.length === 0 ? (
-              <div className="flex flex-col items-center gap-2 py-16 text-center">
-                <span className="flex size-11 items-center justify-center rounded-full bg-neutral-100 text-neutral-400">
-                  <Sparkles className="size-5" strokeWidth={1.75} />
-                </span>
-                <p className="text-sm font-medium text-neutral-700">
-                  {filter === "open" ? "Ochiq xizmat yo'q" : "Xizmat topilmadi"}
-                </p>
-                <p className="max-w-xs text-xs text-neutral-500">
-                  {filter === "open"
+            {rows.length === 0 ? (
+              <EmptyState
+                icon={Sparkles}
+                title={filter === "open" ? "Ochiq xizmat yo'q" : "Xizmat topilmadi"}
+                hint={
+                  filter === "open"
                     ? "Hammasi bajarilgan — smena toza."
-                    : "Filtrni o'zgartirib ko'ring."}
-                </p>
-              </div>
+                    : "Filtrni o'zgartirib ko'ring."
+                }
+              />
             ) : (
               <ul className="divide-hairline hairline-t">
                 {rows.map((request) => {
@@ -336,6 +351,7 @@ export function RequestsPage() {
           </CardContent>
         </Card>
       </div>
+      </QueryState>
 
       <CreateRequestDialog open={createOpen} onOpenChange={setCreateOpen} />
       <CompleteDialog request={closing} onClose={() => setClosing(null)} />

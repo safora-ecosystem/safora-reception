@@ -3,6 +3,8 @@ import { useQuery } from "@tanstack/react-query"
 import { MessagesSquare } from "lucide-react"
 import { listConversations } from "@/lib/api"
 import { conversationsKey } from "@/lib/chat-realtime"
+import { ErrorState } from "@/components/shared/error-state"
+import { SkeletonList } from "@/components/shared/skeletons"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -27,7 +29,20 @@ export function ChatPanel() {
         </CardAction>
       </CardHeader>
 
-      {items.length === 0 ? (
+      {}
+      {conversations.isPending ? (
+        <CardContent aria-busy="true" className="flex-1 p-0">
+          <SkeletonList rows={4} className="px-1" />
+        </CardContent>
+      ) : conversations.isError && conversations.data === undefined ? (
+        <CardContent className="flex flex-1 flex-col justify-center p-0">
+          <ErrorState
+            variant="section"
+            error={conversations.error}
+            onRetry={() => conversations.refetch()}
+          />
+        </CardContent>
+      ) : items.length === 0 ? (
         <CardContent className="flex flex-1 flex-col items-center justify-center gap-3 py-10 text-center">
           <span className="flex size-11 items-center justify-center rounded-full bg-neutral-100">
             <MessagesSquare className="size-5 text-neutral-400" strokeWidth={1.75} />

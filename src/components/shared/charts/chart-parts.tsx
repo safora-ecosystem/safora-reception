@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from "react"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from "@/lib/utils"
 import type { LegendItem, RangeOption, TooltipRow } from "./chart-hooks"
 
@@ -110,31 +111,26 @@ export function RangeToggle<T extends string | number>({
   ariaLabel?: string
 }) {
   return (
-    <div
-      role="group"
-      aria-label={ariaLabel}
-      className="flex shrink-0 gap-0.5 rounded-control border border-border bg-white p-0.5"
+    <Tabs
+      value={String(value)}
+      onValueChange={(next) => {
+        const picked = options.find((option) => String(option.value) === next)
+        if (picked) onChange(picked.value)
+      }}
+      className="shrink-0"
     >
-      {options.map((option) => {
-        const selected = option.value === value
-        return (
-          <button
+      <TabsList aria-label={ariaLabel} className="h-9">
+        {options.map((option) => (
+          <TabsTrigger
             key={String(option.value)}
-            type="button"
-            aria-pressed={selected}
-            onClick={() => onChange(option.value)}
-            className={cn(
-              "rounded-[0.5rem] px-2.5 py-1 text-[0.8125rem] font-medium whitespace-nowrap tabular-nums transition-colors focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none",
-              selected
-                ? "bg-accent text-accent-foreground"
-                : "text-neutral-500 hover:bg-neutral-100 hover:text-neutral-800",
-            )}
+            value={String(option.value)}
+            className="px-3 tabular-nums"
           >
             {option.label}
-          </button>
-        )
-      })}
-    </div>
+          </TabsTrigger>
+        ))}
+      </TabsList>
+    </Tabs>
   )
 }
 

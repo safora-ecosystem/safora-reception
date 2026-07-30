@@ -1,9 +1,13 @@
 import { useQuery } from "@tanstack/react-query"
-import { Plus } from "lucide-react"
+import { CalendarClock, Plus } from "lucide-react"
 import { Link } from "@tanstack/react-router"
 import { PageLayout } from "@/components/layout/page-layout"
 import { DoorIn, DoorOut } from "@/components/shared/icons"
 import { ChatPanel } from "@/components/shared/chat-panel"
+import { EmptyState } from "@/components/shared/empty-state"
+import { QueryState } from "@/components/shared/query-state"
+import { SkeletonChart, SkeletonList, SkeletonStatGrid } from "@/components/shared/skeletons"
+import { Skeleton } from "@/components/ui/skeleton"
 import { StatCard, StatGrid } from "@/components/shared/stat-card"
 import { WeeklyOccupancy, type DayOccupancy } from "@/components/shared/weekly-occupancy"
 import { Button } from "@/components/ui/button"
@@ -65,7 +69,6 @@ export function StatistikaPage() {
   const rooms = useQuery({ queryKey: ["rooms"], queryFn: listRooms })
   const bookings = useQuery({ queryKey: ["bookings"], queryFn: () => listBookings() })
 
-  const loaded = rooms.isSuccess && bookings.isSuccess
   const today = localDateIso(new Date())
 
   const totalRooms = rooms.data?.length ?? 0
@@ -124,15 +127,42 @@ export function StatistikaPage() {
         </Button>
       }
     >
+      {/* Skelet real layoutni AYNAN takrorlaydi (o'lchov paneli + uch karta) — kontent kelganda
+          hech narsa sakramaydi. Xato: ikkala so'rovdan yiqilgani sabab + retry bilan chiqadi;
+          ilgari kartalar "—" ko'rsatib, ro'yxat abadiy "Yuklanmoqda…"da qolib ketardi. */}
+      <QueryState
+        queries={[rooms, bookings]}
+        variant="page"
+        className="flex grow flex-col"
+        skeleton={
+          <div className="flex grow flex-col gap-4">
+            <SkeletonStatGrid />
+            <div className="grid grid-cols-1 gap-4 xl:max-h-[30rem] xl:min-h-[21rem] xl:grow xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)] xl:grid-rows-1 xl:[&>*]:min-h-0">
+              <Card className="gap-4 p-5">
+                <Skeleton className="h-4 w-36" />
+                <SkeletonChart bars={7} className="h-48" />
+              </Card>
+              <Card className="gap-4 p-5">
+                <Skeleton className="h-4 w-24" />
+                <SkeletonList rows={4} className="-mx-1" />
+              </Card>
+              <Card className="gap-4 p-5">
+                <Skeleton className="h-4 w-32" />
+                <SkeletonList rows={4} className="-mx-1" />
+              </Card>
+            </div>
+          </div>
+        }
+      >
       <div className="flex grow flex-col gap-4">
         <StatGrid>
           {snapshot.map((s) => (
             <StatCard
               key={s.label}
               label={s.label}
-              value={loaded ? s.value : "—"}
+              value={s.value}
               unit={s.unit}
-              hint={loaded ? s.hint : "yuklanmoqda…"}
+              hint={s.hint}
               hero={s.hero}
             />
           ))}
@@ -157,9 +187,12 @@ export function StatistikaPage() {
             </CardHeader>
             <CardContent className="app-scroll min-h-0 flex-1 overflow-y-auto">
               {movements.length === 0 ? (
-                <p className="py-8 text-center text-sm text-neutral-500">
-                  {loaded ? "Bugun kirish yoki chiqish yo'q." : "Yuklanmoqda…"}
-                </p>
+                <EmptyState
+                  icon={CalendarClock}
+                  title="Bugun harakat yo'q"
+                  hint="Bugunga rejalashtirilgan kirish yoki chiqish yo'q."
+                  className="py-8"
+                />
               ) : (
                 <ul className="divide-hairline">
                   {movements.map((m) => {
@@ -187,6 +220,7 @@ export function StatistikaPage() {
           </Card>
         </div>
       </div>
+      </QueryState>
     </PageLayout>
   )
 }

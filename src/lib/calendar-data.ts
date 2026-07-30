@@ -1,5 +1,11 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react"
-import { useQueries, useQuery, useQueryClient, type UseQueryResult } from "@tanstack/react-query"
+import { useCallback, useEffect, useMemo, useState } from "react"
+import {
+  keepPreviousData,
+  useQueries,
+  useQuery,
+  useQueryClient,
+  type UseQueryResult,
+} from "@tanstack/react-query"
 import { toast } from "sonner"
 import {
   addDays,
@@ -54,7 +60,8 @@ export interface CalendarData {
   rooms: CalendarRoom[]
   bookings: CalendarBooking[]
   isLoading: boolean
-  error: ReactNode | null
+  error: unknown
+  retry: () => Promise<unknown> | void
   createBooking: (input: CalendarCreateInput) => Promise<void>
   checkIn: (id: string) => Promise<void>
   checkOut: (id: string) => Promise<void>
@@ -94,6 +101,8 @@ function toGuestInput(g: LooseGuestInput): GuestInput {
 }
 
 let mockIdSeq = 0
+
+const noop = () => {}
 
 export function useMockCalendarData(roomCount = 24): CalendarData {
   const [seed] = useState(() => generateMockData({ rooms: roomCount }))
@@ -271,6 +280,7 @@ export function useMockCalendarData(roomCount = 24): CalendarData {
     bookings,
     isLoading: false,
     error: null,
+    retry: noop,
     createBooking,
     checkIn,
     checkOut,
@@ -412,6 +422,9 @@ function combineBookingChunks(results: UseQueryResult<Booking[], Error>[]) {
     /** Faqat BIRINCHI (bugungi) bo'lak kalendarni "yuklanmoqda" holatida ushlaydi. */
     isLoading: results[0]?.isLoading ?? false,
     error: results[0]?.error ?? null,
+    /** Birinchi bo'lakning ko'rsatsa bo'ladigan javobi bormi. Xato + eski data = kalendar
+        ochiq qoladi (poll yiqildi xolos); xato + data yo'q = haqiqiy "yuklanmadi" holati. */
+    firstHasData: results[0] ? results[0].data !== undefined : false,
   }
 }
 
@@ -455,6 +468,9 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
       refetchOnWindowFocus: true,
       refetchInterval: c.hot ? 30_000 : 5 * 60_000,
       staleTime: c.hot ? 0 : 60_000,
+      // Yarim tunda `today` o'tib bo'lak kalitlari yangilansa ham kalendar BO'SHAB QOLMAYDI:
+      // eski oynaning javobi yangi so'rov kelguncha ekranda turadi.
+      placeholderData: keepPreviousData,
     })),
     combine: combineBookingChunks,
   })
@@ -472,6 +488,7 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
     enabled,
     refetchOnWindowFocus: true,
     refetchInterval: 60_000,
+    placeholderData: keepPreviousData,
   })
 
   const rooms = useMemo<CalendarRoom[]>(() => (roomsQ.data ?? []).map(mapRoom), [roomsQ.data])
@@ -800,13 +817,34 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
     [guestAction],
   )
 
-  const error = enabled && (roomsQ.error || bookingsQ.error) ? "Ma'lumot yuklanmadi" : null
+  // Xato FAQAT ko'rsatadigan narsa bo'lmaganda "fatal" (satrga YIG'ILMAYDI — xom obyekt
+  // yuqoriga chiqadi, sahifa undan sabab + retry chizadi). Fon poll'i yiqilsa data turibdi →
+  // kalendar ochiq qoladi, react-query keyingi siklda o'zi qayta uradi.
+  const error = enabled
+    ? roomsQ.data === undefined && roomsQ.error
+      ? roomsQ.error
+      : !bookingsQ.firstHasData && bookingsQ.error
+        ? bookingsQ.error
+        : null
+    : null
+
+  /** Yiqilgan kalendar so'rovlarinigina qayta uradi — muvaffaqiyatlilari keshdan turaveradi. */
+  const retry = useCallback(
+    () =>
+      qc.refetchQueries({
+        predicate: (q) =>
+          q.state.status === "error" &&
+          (q.queryKey[0] === "rooms" || q.queryKey[0] === "bookings" || q.queryKey[0] === "room-blocks"),
+      }),
+    [qc],
+  )
 
   return {
     rooms,
     bookings,
     isLoading: enabled && (roomsQ.isLoading || bookingsQ.isLoading),
     error,
+    retry,
     createBooking,
     checkIn,
     checkOut,

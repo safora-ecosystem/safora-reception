@@ -7,7 +7,9 @@ import {
   ChevronLeft,
   CornerUpLeft,
   Loader2,
+  MessagesSquare,
   Send,
+  Users,
   X,
 } from "lucide-react"
 import { toast } from "sonner"
@@ -59,7 +61,10 @@ import {
 import { shortDate } from "@/lib/format"
 import { useSetPageHeader } from "@/lib/page-header"
 import { usePermissions } from "@/lib/permissions"
+import { EmptyState } from "@/components/shared/empty-state"
+import { ErrorState } from "@/components/shared/error-state"
 import { PersonAvatar } from "@/components/shared/person-avatar"
+import { SkeletonList, SkeletonThread } from "@/components/shared/skeletons"
 import { Button } from "@/components/ui/button"
 import { Icon, type IconData } from "@/components/ui/icon"
 import { Textarea } from "@/components/ui/textarea"
@@ -248,16 +253,26 @@ export function ChatPage() {
           )}
 
           <div className="app-scroll mt-3 min-h-0 flex-1 overflow-y-auto border-t border-border">
+            {/* Uch holat har lenta uchun: skelet (birinchi yuklash) → ErrorState (sabab +
+                retry) → bo'sh/ro'yxat. Fon yangilanishi yiqilsa eski ro'yxat turadi (data bor →
+                xato yutilmaydi). Yuborish/reaksiya xatolari toast bo'lib qolaveradi. */}
             {tab === "group" ? (
               <GroupListTeaser onOpen={() => setMobileOpen(true)} />
             ) : tab === "guests" ? (
-              convItems.length === 0 ? (
-                <EmptyList
-                  text={
-                    conversations.isSuccess
-                      ? "Hozircha suhbat yo'q. Mehmon xonadagi QR orqali yozsa shu yerda ko'rinadi."
-                      : "Yuklanmoqda…"
-                  }
+              conversations.isPending ? (
+                <SkeletonList rows={6} className="p-2" />
+              ) : conversations.isError && conversations.data === undefined ? (
+                <ErrorState
+                  variant="section"
+                  error={conversations.error}
+                  onRetry={() => conversations.refetch()}
+                />
+              ) : convItems.length === 0 ? (
+                <EmptyState
+                  icon={MessagesSquare}
+                  title="Hozircha suhbat yo'q"
+                  hint="Mehmon xonadagi QR orqali yozsa shu yerda ko'rinadi."
+                  className="py-10"
                 />
               ) : (
                 <ul className="flex flex-col gap-px p-2">
@@ -272,8 +287,21 @@ export function ChatPage() {
                   ))}
                 </ul>
               )
+            ) : threads.isPending ? (
+              <SkeletonList rows={6} className="p-2" />
+            ) : threads.isError && threads.data === undefined ? (
+              <ErrorState
+                variant="section"
+                error={threads.error}
+                onRetry={() => threads.refetch()}
+              />
             ) : teamItems.length === 0 ? (
-              <EmptyList text={threads.isSuccess ? "Jamoada boshqa xodim yo'q." : "Yuklanmoqda…"} />
+              <EmptyState
+                icon={Users}
+                title="Jamoada boshqa xodim yo'q"
+                hint="Rahbar xodim qo'shgach u shu yerda ko'rinadi."
+                className="py-10"
+              />
             ) : (
               <ul className="flex flex-col gap-px p-2">
                 {activeTeam.map((t) => (
@@ -480,6 +508,8 @@ function GuestThread({ conv, onBack }: { conv: ChatConversation; onBack: () => v
       subtitle={`${conv.roomNumber}-xona${conv.bookingStatus !== "checked_in" ? " · mehmon chiqib ketgan" : ""}`}
       onBack={onBack}
       loading={messages.isLoading}
+      error={messages.data === undefined && messages.isError ? messages.error : null}
+      onRetry={() => messages.refetch()}
       olderSlot={
         messages.data?.nextCursor ? (
           <div className="flex justify-center pb-3">
@@ -592,6 +622,8 @@ function TeamThread({ thread, onBack }: { thread: TeamThread; onBack: () => void
       avatarUrl={thread.user.avatarUrl}
       onBack={onBack}
       loading={messages.isLoading}
+      error={messages.data === undefined && messages.isError ? messages.error : null}
+      onRetry={() => messages.refetch()}
       emptyText="Hali yozishmagansiz — birinchi xabarni yozing."
       items={items.map((m) => ({
         id: m.id,
@@ -687,6 +719,8 @@ function GroupThread({ onBack }: { onBack: () => void }) {
       subtitle="Barcha xodimlar bitta xonada"
       onBack={onBack}
       loading={messages.isLoading}
+      error={messages.data === undefined && messages.isError ? messages.error : null}
+      onRetry={() => messages.refetch()}
       emptyText="Guruh hali jim — birinchi xabarni yozing."
       items={items}
       showAuthors
@@ -729,6 +763,8 @@ function ThreadShell({
   avatarUrl,
   onBack,
   loading,
+  error = null,
+  onRetry,
   items,
   olderSlot,
   emptyText = "Xabarlar yo'q.",
@@ -749,6 +785,10 @@ function ThreadShell({
   avatarUrl?: string | null
   onBack: () => void
   loading: boolean
+  /** Tarixning BOSHLANG'ICH yuklovi yiqildi (ko'rsatishga xabar yo'q) — sabab + retry chiziladi.
+      Bo'lmasa `emptyText` "Xabarlar yo'q" deb YOLG'ON gapirgan bo'lardi. */
+  error?: unknown
+  onRetry?: () => void | Promise<unknown>
   items: ThreadItem[]
   olderSlot?: React.ReactNode
   emptyText?: string
@@ -898,8 +938,13 @@ function ThreadShell({
           className="app-scroll h-full overflow-y-auto px-4 py-3 [overflow-anchor:none]"
         >
           {loading ? (
-            <div className="flex justify-center py-10">
-              <Loader2 className="size-5 animate-spin text-neutral-400" />
+            // Bubble shaklidagi skelet — lenta layouti yuklanishda ham o'z shaklида turadi.
+            <div aria-busy="true" className="flex min-h-full flex-col justify-end">
+              <SkeletonThread />
+            </div>
+          ) : error != null ? (
+            <div className="flex min-h-full items-center justify-center">
+              <ErrorState variant="section" error={error} onRetry={onRetry} />
             </div>
           ) : (
             // justify-end — 2-3 ta xabar chatlardagi kabi PASTDA turadi, tepada muallaq emas.
@@ -1253,10 +1298,6 @@ function TabButton({
       {children}
     </button>
   )
-}
-
-function EmptyList({ text }: { text: string }) {
-  return <p className="px-5 py-10 text-center text-sm text-neutral-500">{text}</p>
 }
 
 function EmptyPane({ text }: { text: string }) {

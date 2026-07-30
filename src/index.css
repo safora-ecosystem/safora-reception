@@ -358,6 +358,35 @@
       transparent 8px
     );
   }
+
+  
+  .skeleton-shimmer {
+    position: relative;
+    overflow: hidden;
+    --skeleton-sheen: oklch(1 0 0 / 0.55);
+  }
+  :root[data-theme="dark"] .skeleton-shimmer {
+    --skeleton-sheen: oklch(1 0 0 / 0.05);
+  }
+  .skeleton-shimmer::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background-image: linear-gradient(90deg, transparent, var(--skeleton-sheen), transparent);
+    animation: skeleton-shimmer 1.6s ease-in-out infinite;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .skeleton-shimmer::after {
+      animation: none;
+    }
+  }
+}
+
+@keyframes skeleton-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
 }
 
 @layer base {

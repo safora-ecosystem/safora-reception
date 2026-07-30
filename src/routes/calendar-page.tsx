@@ -15,6 +15,8 @@ import {
 } from "@/components/calendar"
 import { useApiCalendarData, useMockCalendarData } from "@/lib/calendar-data"
 import { getHotelBranding } from "@/lib/api"
+import { ErrorState } from "@/components/shared/error-state"
+import { SkeletonCalendar } from "@/components/shared/skeletons"
 import { Button } from "@/components/ui/button"
 import { DropdownSelect } from "@/components/ui/dropdown-select"
 import { useFullscreenPanel } from "@/lib/use-fullscreen-panel"
@@ -243,47 +245,57 @@ export function CalendarPage() {
           </div>
         </header>
 
-        <div className="min-h-0 flex-1">
-          <ReservationCalendar
-            ref={calRef}
-            rooms={data.rooms}
-            bookings={data.bookings}
-            range={range}
-            dayWidth={dayWidth}
-            railWidth={metrics.railWidth}
-            rowHeight={metrics.rowHeight}
-            headerHeight={metrics.headerHeight}
-            labels={labels}
-            cleaningMinutes={cleaningMinutes}
-            matchIds={matchIds}
-            isLoading={data.isLoading}
-            error={data.error}
-            onCreateBooking={data.createBooking}
-            onCheckIn={data.checkIn}
-            onCheckOut={data.checkOut}
-            onCancel={data.cancel}
-            onEditBooking={data.editBooking}
-            onMoveBooking={data.moveBooking}
-            onRemoveBlock={data.removeBlock}
-            // Bar tanlanganda mehmonlar ro'yxati yuklanadi; yopilganda (`null`) to'xtaydi.
-            onSelectBooking={(b) => data.selectGuestsFor(b?.id ?? null)}
-            guests={data.guests}
-            guestsLoading={data.guestsLoading}
-            onAddGuest={data.addGuest}
-            onUpdateGuest={data.updateGuest}
-            onRemoveGuest={data.removeGuest}
-            onSetPrimaryGuest={data.makeGuestPrimary}
-            // To'lov ledgeri: rahbar `payments.record`ni o'chirsa tugma umuman chiqmaydi
-            // (server ham 403 qaytaradi — UI yolg'on va'da bermaydi).
-            payments={data.payments}
-            onRecordPayment={can("payments.record") ? data.recordPayment : undefined}
-            onVoidPayment={can("payments.record") ? data.voidPayment : undefined}
-            activity={data.activity}
-            activityLoading={data.activityLoading}
-            // Per-suhbat marshrut hali yo'q (SESSION.md "keyingi qadamlar") — hozircha inbox'ga.
-            onOpenChat={() => navigate({ to: "/chat" })}
-            onDuplicate={(b) => calRef.current?.openCreate(b.roomId)}
-          />
+        {/* Uch holat: xato → sabab + retry (ilgari bu yer yalang'och "Ma'lumot yuklanmadi"
+            satri edi); yuklanmoqda → kalendar shaklidagi skelet (oq maydon EMAS); tayyor →
+            haqiqiy tape-chart. Fon poll'i yiqilsa error null qoladi — kalendar ochiq turadi. */}
+        <div
+          className="min-h-0 flex-1"
+          aria-busy={!mockMode && data.isLoading ? true : undefined}
+        >
+          {data.error != null ? (
+            <ErrorState variant="page" error={data.error} onRetry={data.retry} />
+          ) : data.isLoading ? (
+            <SkeletonCalendar />
+          ) : (
+            <ReservationCalendar
+              ref={calRef}
+              rooms={data.rooms}
+              bookings={data.bookings}
+              range={range}
+              dayWidth={dayWidth}
+              railWidth={metrics.railWidth}
+              rowHeight={metrics.rowHeight}
+              headerHeight={metrics.headerHeight}
+              labels={labels}
+              cleaningMinutes={cleaningMinutes}
+              matchIds={matchIds}
+              onCreateBooking={data.createBooking}
+              onCheckIn={data.checkIn}
+              onCheckOut={data.checkOut}
+              onCancel={data.cancel}
+              onEditBooking={data.editBooking}
+              onMoveBooking={data.moveBooking}
+              onRemoveBlock={data.removeBlock}
+              // Bar tanlanganda mehmonlar ro'yxati yuklanadi; yopilganda (`null`) to'xtaydi.
+              onSelectBooking={(b) => data.selectGuestsFor(b?.id ?? null)}
+              guests={data.guests}
+              guestsLoading={data.guestsLoading}
+              onAddGuest={data.addGuest}
+              onUpdateGuest={data.updateGuest}
+              onRemoveGuest={data.removeGuest}
+              onSetPrimaryGuest={data.makeGuestPrimary}
+              // To'lov ledgeri: rahbar `payments.record`ni o'chirsa tugma umuman chiqmaydi
+              // (server ham 403 qaytaradi — UI yolg'on va'da bermaydi).
+              payments={data.payments}
+              onRecordPayment={can("payments.record") ? data.recordPayment : undefined}
+              onVoidPayment={can("payments.record") ? data.voidPayment : undefined}
+              activity={data.activity}
+              activityLoading={data.activityLoading}
+              // Per-suhbat marshrut hali yo'q (SESSION.md "keyingi qadamlar") — hozircha inbox'ga.
+              onOpenChat={() => navigate({ to: "/chat" })}
+              onDuplicate={(b) => calRef.current?.openCreate(b.roomId)}
+            />
+          )}
         </div>
       </div>
     </div>

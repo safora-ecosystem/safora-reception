@@ -4,8 +4,9 @@ import { LogOut, Volume2 } from "lucide-react"
 import { toast } from "sonner"
 import { PageLayout } from "@/components/layout/page-layout"
 import { AvatarUploader } from "@/components/shared/avatar-uploader"
+import { ErrorState } from "@/components/shared/error-state"
+import { SkeletonList } from "@/components/shared/skeletons"
 import {
-  Loading,
   Row,
   Section,
   SessionRow,
@@ -25,10 +26,11 @@ export function SettingsPage() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(user?.avatarUrl ?? null)
   const { prefs, set } = useNotifyPrefs()
 
-  const { data: sessions, isLoading } = useQuery({
+  const sessionsQ = useQuery({
     queryKey: ["sessions"],
     queryFn: listSessions,
   })
+  const sessions = sessionsQ.data
 
   const revokeOne = useMutation({
     mutationFn: revokeSession,
@@ -153,8 +155,16 @@ export function SettingsPage() {
             }
           >
             <div className="divide-hairline">
-              {isLoading ? (
-                <Loading />
+              {sessionsQ.isPending ? (
+                // Ikki qatorlik skelet — seans ro'yxati shakli (spinner o'rniga).
+                <SkeletonList rows={2} avatar={false} trailing />
+              ) : sessionsQ.isError ? (
+                <ErrorState
+                  variant="inline"
+                  error={sessionsQ.error}
+                  onRetry={() => sessionsQ.refetch()}
+                  className="m-3"
+                />
               ) : (
                 sessions?.map((session) => (
                   <SessionRow

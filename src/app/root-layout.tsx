@@ -2,6 +2,7 @@ import { Outlet, useLocation } from "@tanstack/react-router"
 import { NoticeBanner } from "@/components/layout/notice-banner"
 import { Sidebar } from "@/components/layout/sidebar"
 import { Topbar } from "@/components/layout/topbar"
+import { OfflineBanner } from "@/components/shared/offline-banner"
 import { ChatRealtimeProvider } from "@/lib/chat-realtime"
 import { PageHeaderProvider } from "@/lib/page-header"
 import { TopbarSearchProvider } from "@/lib/topbar-search"
@@ -19,6 +20,8 @@ export function RootLayout() {
           <div className="flex min-w-0 flex-1 flex-col gap-3">
             <Topbar />
             {}
+            {}
+            <OfflineBanner />
             <NoticeBanner />
             {}
             <main

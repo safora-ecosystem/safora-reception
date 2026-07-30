@@ -4,7 +4,11 @@ import { Link } from "@tanstack/react-router"
 import { Archive, Search, UserRound } from "lucide-react"
 import { PageLayout } from "@/components/layout/page-layout"
 import { RangeToggle } from "@/components/shared/charts"
+import { EmptyState } from "@/components/shared/empty-state"
 import { GuestDialog, GuestTable } from "@/components/shared/guest-table"
+import { QueryState } from "@/components/shared/query-state"
+import { SkeletonStatGrid, SkeletonTable } from "@/components/shared/skeletons"
+import { Skeleton } from "@/components/ui/skeleton"
 import { StatCard, StatGrid } from "@/components/shared/stat-card"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -63,27 +67,44 @@ export function GuestsPage() {
         </Button>
       }
     >
+      {}
+      <QueryState
+        queries={guestsQ}
+        variant="page"
+        skeleton={
+          <div className="flex flex-col gap-4">
+            <SkeletonStatGrid />
+            <Card className="gap-0 p-0">
+              <div className="flex flex-wrap items-center justify-between gap-3 p-4">
+                <Skeleton className="h-9 w-64 rounded-control" />
+                <Skeleton className="h-9 w-56 rounded-control" />
+              </div>
+              <SkeletonTable rows={7} cols={6} />
+            </Card>
+          </div>
+        }
+      >
       <div className="flex flex-col gap-4">
         <StatGrid>
           <StatCard
             label="Hozir mehmonxonada"
-            value={guestsQ.isSuccess ? String(counts.inHouse) : "—"}
+            value={String(counts.inHouse)}
             hint="joylashgan mehmonlar"
             hero
           />
           <StatCard
             label="Kutilmoqda"
-            value={guestsQ.isSuccess ? String(counts.arriving) : "—"}
+            value={String(counts.arriving)}
             hint="bron qilingan, hali kelmagan"
           />
           <StatCard
             label="Bugun chiqadi"
-            value={guestsQ.isSuccess ? String(counts.leavingToday) : "—"}
+            value={String(counts.leavingToday)}
             hint="xona bo'shaydi"
           />
           <StatCard
             label="Takroriy mehmon"
-            value={guestsQ.isSuccess ? String(counts.returning) : "—"}
+            value={String(counts.returning)}
             hint="bir martadan ko'p kelgan"
           />
         </StatGrid>
@@ -112,30 +133,23 @@ export function GuestsPage() {
           </div>
 
           <CardContent className="p-0">
-            {!guestsQ.isSuccess ? (
-              <p className="py-16 text-center text-sm text-neutral-500">
-                {guestsQ.isError ? "Ma'lumotni yuklab bo'lmadi." : "Yuklanmoqda…"}
-              </p>
-            ) : rows.length === 0 ? (
-              <div className="flex flex-col items-center gap-2 py-16 text-center">
-                <span className="flex size-11 items-center justify-center rounded-full bg-neutral-100 text-neutral-400">
-                  <UserRound className="size-5" strokeWidth={1.75} />
-                </span>
-                <p className="text-sm font-medium text-neutral-700">
-                  {all.length === 0 ? "Hozircha mehmon yo'q" : "Mos mehmon topilmadi"}
-                </p>
-                <p className="max-w-xs text-xs text-neutral-500">
-                  {all.length === 0
+            {rows.length === 0 ? (
+              <EmptyState
+                icon={UserRound}
+                title={all.length === 0 ? "Hozircha mehmon yo'q" : "Mos mehmon topilmadi"}
+                hint={
+                  all.length === 0
                     ? "Kalendarda bron ochilgach mehmon shu yerda paydo bo'ladi. Chiqib ketganlar arxivda."
-                    : "Qidiruv yoki filtrni o'zgartirib ko'ring — chiqib ketgan mehmon arxivda turadi."}
-                </p>
-              </div>
+                    : "Qidiruv yoki filtrni o'zgartirib ko'ring — chiqib ketgan mehmon arxivda turadi."
+                }
+              />
             ) : (
               <GuestTable rows={rows} onSelect={setSelected} />
             )}
           </CardContent>
         </Card>
       </div>
+      </QueryState>
 
       <GuestDialog guest={selected} onClose={() => setSelected(null)} />
     </PageLayout>
