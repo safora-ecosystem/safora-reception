@@ -350,11 +350,11 @@ function mapBooking(b: Booking): CalendarBooking {
     end: b.checkOutDate.slice(0, 10),
     status: b.status,
     label: b.guestName,
-    // Korporativ bronda ikkinchi qator telefon EMAS, kompaniya: xodim bar'ga qarab "bu kimning
-    // hisobiga" degan savolga darrov javob topsin (telefon detalda baribir turadi).
-    sublabel: b.organization
-      ? (b.organization.shortName ?? b.organization.name)
-      : (b.guestPhone ?? undefined),
+    // `sublabel` — MEHMONNING TELEFONI, korporativda ham. Bir vaqtlar bu yerda kompaniya nomi
+    // qo'yilgan edi va detal oynasidagi "Telefon" maydonida tashkilot nomi chiqib qolgan edi:
+    // yadro uchun `sublabel` bitta ma'noga ega bo'lishi kerak. Korporativ belgisi alohida
+    // maydondan (`organization`) o'qiladi — bar, tooltip va detal uni shundan chizadi.
+    sublabel: b.guestPhone ?? undefined,
     payment: total != null ? { total, paid: Number(b.paidAmount ?? 0) } : undefined,
     guestConfirmed: b.guestConfirmed,
     checkedInAt: b.checkedInAt,

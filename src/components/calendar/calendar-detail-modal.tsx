@@ -437,7 +437,9 @@ function DetailBody({
             )}
           </div>
           <DialogDescription className="mt-1 truncate text-sm text-neutral-500 tabular-nums">
-            {b.sublabel || labels.guest}
+            {/* Korporativ bronda telefon ko'pincha bo'lmaydi (kompaniya ro'yxat yuboradi) —
+                o'sha joyda "Mehmon" degan bo'sh so'z o'rniga kompaniya nomi foydaliroq. */}
+            {b.sublabel || (corporateOrg ? corporateOrg.shortName || corporateOrg.name : labels.guest)}
             {shownRoom ? ` · ${labels.room} ${shownRoom.label}` : ""}
             {nights >= 1 ? ` · ${labels.nights(nights)}` : ""}
             {guestCount > 1 ? ` · ${labels.guestsWord(guestCount)}` : ""}
