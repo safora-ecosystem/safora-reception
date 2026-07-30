@@ -297,6 +297,11 @@ export type Booking = {
   room: { id: string; number: string }
   /** Resepshn eslatmasi (smenalar orasida ma'lumot uzatish). */
   note?: string | null
+  /** Kim TO'LAYDI. `null` = mehmonning o'zi; to'ldirilgan bo'lsa hisob kompaniyaga yoziladi
+      va resepshn undan pul olmaydi (ro'yxat javobida ham keladi — bar shuni ko'rsatadi). */
+  organization?: { id: string; name: string; shortName: string | null; status: OrganizationStatus } | null
+  /** Kafolat xati / buyurtma raqami (korporativ bronda). */
+  orgRef?: string | null
   /** To'liq ro'yxat FAQAT `GET /bookings/:id` javobida — kalendar ro'yxatida sanoq keladi. */
   guests?: BookingGuest[]
   /** To'lov ledgeri — FAQAT detal javobida (`GET /bookings/:id` va mutatsiya javoblari). */
@@ -333,17 +338,24 @@ export type BulkBookingRoom = {
   roomId: string
   totalAmount: number
   paidAmount?: number
+  guestName?: string
+  guestPhone?: string
+  guestDocType?: GuestDocType
+  guestDocNumber?: string
+  guests?: GuestInput[]
 }
 
 export type CreateBookingsBody = {
-  guestName: string
-  guestPhone: string
+  guestName?: string
+  guestPhone?: string
   guestDocType?: GuestDocType
   guestDocNumber?: string
   guests?: GuestInput[]
   note?: string
   checkInDate: string
   checkOutDate: string
+  organizationId?: string
+  orgRef?: string
   rooms: BulkBookingRoom[]
 }
 
@@ -409,6 +421,10 @@ export type UpdateBookingBody = {
   paidAmount?: number
   /** Bo'sh satr = eslatmani tozalash (`undefined` = tegilmadi). */
   note?: string
+  /** To'lovchi tomonni almashtirish. `null` = korporativ hisobdan uzish (mehmon o'zi to'laydi).
+      Server buni MOLIYAVIY amal deb biladi — `payments.record` ruxsati kerak. */
+  organizationId?: string | null
+  orgRef?: string
 }
 
 export const updateBooking = (id: string, body: UpdateBookingBody) =>
@@ -430,6 +446,45 @@ export const voidBookingPayment = (bookingId: string, paymentId: string, reason:
     method: "POST",
     body: { reason },
   })
+
+// ── Tashkilotlar (korporativ mijozlar) ───────────────────────────────────────
+//
+// "Kompaniya hisobiga" yashash: kompaniya xodimi kelib resepshnda PUL BERMAYDI, bron esa
+// kalendarda oddiy bron kabi turadi; hisob oy oxirida tashkilotga yoziladi.
+//
+// Resepshnda bu ro'yxat FAQAT O'QISH uchun: shartnoma, chegirma va qarz shifti rahbar/menejer
+// panelida belgilanadi (`organizations.manage`). Bu yerda ular ko'rsatiladi — xodim kimni
+// tanlayotganini va kompaniyaning qarzi qanchaligini bilishi kerak, lekin o'zgartira olmaydi.
+
+export type OrganizationStatus = "active" | "blocked" | "archived"
+
+export type Organization = {
+  id: string
+  name: string
+  shortName: string | null
+  inn: string | null
+  contactName: string | null
+  contactPhone: string | null
+  contractNumber: string | null
+  /** Rack rate'dan chegirma foizi — korporativ tarif AYNAN shundan chiqadi (Decimal → string). */
+  discountPercent: string | number | null
+  /** Kelishilgan qarz shifti. Oshsa resepshn OGOHLANTIRILADI, bron bloklanmaydi. */
+  creditLimit: string | number | null
+  paymentTermDays: number | null
+  status: OrganizationStatus
+  note: string | null
+  /** Tashkilot hisobiga yozilgan summa. */
+  charged: number
+  /** Kompaniya to'lagani. */
+  settled: number
+  /** charged − settled. Musbat = kompaniya qarzdor. */
+  balance: number
+  bookingCount: number
+}
+
+/** Faqat FAOL shartnomalar: bloklangan/arxivdagiga baribir bron ochilmaydi (server 409 beradi),
+    ro'yxatda ko'rsatish esa xodimni bekorga adashtirardi. */
+export const listOrganizations = () => api<Organization[]>("/organizations?status=active")
 
 /** Bron faoliyat tarixi (kim ochdi, kim kiritdi, pul qanday o'zgardi) — detal timeline'i. */
 export type BookingActivity = {

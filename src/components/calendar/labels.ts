@@ -96,6 +96,7 @@ export const defaultLabels: CalendarLabels = {
   groupHint: (n) => `${n} ta xona bitta amalda ochiladi — bittasi band bo'lsa hech biri yaratilmaydi`,
 
   modeBooking: "Yangi bron",
+  modeCorporate: "Korporativ",
   modeBlock: "Xonani yopish",
   blockTitle: "Xonani yopish",
   blockReason: "Sabab",
@@ -175,6 +176,33 @@ export const defaultLabels: CalendarLabels = {
     paidAmount: "To'langan",
     guestName: "Mehmon",
   },
+
+  organization: "Tashkilot",
+  corporateTitle: "Korporativ bron",
+  organizationPick: "Tashkilotni tanlang",
+  organizationSearch: "Nom, STIR yoki shartnoma",
+  organizationEmpty: "Shartnomali tashkilot topilmadi",
+  orgRef: "Kafolat xati / buyurtma №",
+  orgRefHint: "Kompaniya hisob-kitobida shu raqam bo'yicha topiladi",
+  orgDiscount: (percent) => `Shartnoma chegirmasi −${percent}%`,
+  orgBalance: "Joriy qarz",
+  orgCreditLimit: "Qarz shifti",
+  orgOverLimit: (over) =>
+    `Qarz shifti ${groupThousands(over)} so'mga oshadi — menejer bilan kelishing.`,
+  corporateDiscountLine: "Korporativ chegirma",
+  corporateBilling: "Kompaniya hisobiga",
+  corporateBillingHint:
+    "Mehmondan pul olinmaydi. Hisob tashkilotga yoziladi va shartnoma bo'yicha to'lanadi.",
+  corporateBooking: "Korporativ bron",
+  corporateNoCash: "Pul kompaniyadan olinadi — resepshnda to'lov qabul qilinmaydi.",
+  rooming: "Joylashtirish",
+  roomingHint: "Har xonaga kim joylashishini yozing — mehmon ro'yxati kompaniyadan keladi.",
+  roomingPaste: "Ro'yxatni joylashtirish",
+  roomingPasteHint: "Ismlarni har qatorga bittadan qo'ying — xonalarga sig'imi bo'yicha bo'linadi",
+  roomingApply: "Joylashtirish",
+  roomingRoomEmpty: "Mehmon kiritilmagan",
+  needOrganization: "Tashkilotni tanlang",
+  needRoomingName: "Har xonaga kamida bitta mehmon kiriting",
 
   debtOnCheckOut: (remaining) =>
     `Qoldiq ${groupThousands(remaining)} so'm — mehmon hali to'lamagan.`,

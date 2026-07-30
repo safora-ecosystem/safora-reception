@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { WifiOff } from "lucide-react"
+import { Spinner } from "@/components/shared/error-state"
 
 export function OfflineBanner() {
   const [online, setOnline] = useState(() => typeof navigator === "undefined" || navigator.onLine)
@@ -20,10 +20,10 @@ export function OfflineBanner() {
   return (
     <div
       role="status"
-      className="flex shrink-0 items-center gap-2.5 rounded-panel bg-destructive-surface px-5 py-2.5 text-sm font-medium text-destructive-surface-foreground"
+      className="flex shrink-0 items-center gap-2.5 rounded-panel bg-neutral-100 px-5 py-2.5 text-sm text-neutral-600"
     >
-      <WifiOff className="size-4 shrink-0" strokeWidth={2} />
-      Internet aloqasi yo'q — qayta ulanilmoqda…
+      <Spinner className="text-neutral-400" />
+      Aloqa yo'q — ulanish tiklanishi kutilmoqda
     </div>
   )
 }

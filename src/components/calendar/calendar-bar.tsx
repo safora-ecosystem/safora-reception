@@ -66,6 +66,24 @@ function PaymentGlyph({ payment }: { payment: CalendarPayment }) {
   )
 }
 
+/**
+ * Korporativ bron belgisi — to'lov glifining O'RNIGA chiqadi.
+ *
+ * Sabab operatsion, bezak emas: korporativ bronda `paid = 0` va `$` glifi bo'sh turardi, ya'ni
+ * bar "qarzdor mehmon" bo'lib ko'rinardi. Xodim esa aynan shunday bar'larda pul so'raydi —
+ * mahsulotning va'dasi buziladi. Bino belgisi "buning hisobi kompaniyada" deb turadi.
+ */
+function CorporateGlyph() {
+  return (
+    <span className="inline-flex size-4 shrink-0 items-center justify-center opacity-70" aria-hidden>
+      <svg viewBox="0 0 16 16" className="size-3.5" fill="none" stroke="currentColor" strokeWidth="1.4">
+        <path d="M2.5 14V3.2c0-.4.3-.7.7-.7h5.6c.4 0 .7.3.7.7V14M10.5 14V7h2.8c.4 0 .7.3.7.7V14M1 14h14" strokeLinecap="round" />
+        <path d="M4.8 5.5h1.4M4.8 8h1.4M4.8 10.5h1.4" strokeLinecap="round" />
+      </svg>
+    </span>
+  )
+}
+
 function CalendarBarImpl({
   booking,
   rect,
@@ -96,7 +114,9 @@ function CalendarBarImpl({
     (booking.status === "booked" && epochDay(booking.start) < epochDay(today))
   const barHeight = rowHeight - 2 * BAR_VPAD
   const showIcon = rect.width >= ICON_MIN_PX
-  const showPayment = booking.payment != null && rect.width >= PAYMENT_MIN_PX
+  const corporate = booking.organization != null
+  const showPayment = booking.payment != null && !corporate && rect.width >= PAYMENT_MIN_PX
+  const showCorporate = corporate && rect.width >= PAYMENT_MIN_PX
   const StatusIcon = visual.icon
 
   const slant = barSlant(barHeight, rect.width)
@@ -198,6 +218,7 @@ function CalendarBarImpl({
           <StatusIcon className={cn("size-4 shrink-0", overdue && "text-warning")} />
         )}
         <span className="min-w-0 truncate">{booking.label}</span>
+        {showCorporate && <CorporateGlyph />}
         {showPayment && booking.payment && <PaymentGlyph payment={booking.payment} />}
       </span>
     </motion.button>

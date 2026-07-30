@@ -1,6 +1,7 @@
-import { memo, useCallback, useMemo, useState } from "react"
+import { memo, useCallback, useEffect, useMemo, useState } from "react"
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion"
 import {
+  Building2,
   CalendarDays,
   DoorOpen,
   Plus,
@@ -24,6 +25,15 @@ import { addDays, busyRoomsIn, nightsBetween } from "./geometry"
 import { groupThousands } from "./labels"
 import { Field, Section, StayCard } from "./modal-parts"
 import { DOC_TYPES, DocSelect, MoneyInput, Segmented } from "./form-parts"
+import {
+  OrganizationPicker,
+  OrganizationTerms,
+  RoomingList,
+  distributeNames,
+  newRoomingGuest,
+  type RoomingGuest,
+  type RoomingMap,
+} from "./corporate-parts"
 import { RoomPicker } from "./room-picker"
 import type {
   CalendarBlockKind,
@@ -32,6 +42,7 @@ import type {
   CalendarDraft,
   CalendarGuestInput,
   CalendarLabels,
+  CalendarOrganization,
   CalendarRoom,
 } from "./types"
 
@@ -40,13 +51,14 @@ interface CalendarCreateDialogProps {
   draft: CalendarDraft | null
   rooms: CalendarRoom[]
   bookings: CalendarBooking[]
+  organizations?: CalendarOrganization[]
   labels: CalendarLabels
   today: string
   onClose: () => void
   onSubmit: (input: CalendarCreateInput) => void | Promise<void>
 }
 
-type Mode = "booking" | "block"
+type Mode = "booking" | "corporate" | "block"
 type PayMode = "unpaid" | "partial" | "full"
 
 interface CompanionDraft extends CalendarGuestInput {
@@ -147,6 +159,7 @@ function CreateForm({
   draft,
   rooms,
   bookings,
+  organizations,
   labels,
   today,
   onClose,
@@ -164,6 +177,11 @@ function CreateForm({
   const [blockKind, setBlockKind] = useState<CalendarBlockKind>("maintenance")
   const [blockReason, setBlockReason] = useState("")
 
+  // Korporativ: kim to'laydi + xona bo'yicha joylashtirish ro'yxati.
+  const [orgId, setOrgId] = useState("")
+  const [orgRef, setOrgRef] = useState("")
+  const [rooming, setRooming] = useState<RoomingMap>({})
+
   const [start, setStart] = useState(draft.start)
   const [end, setEnd] = useState(draft.end)
   const [selectedIds, setSelectedIds] = useState<string[]>([draft.roomId])
@@ -172,8 +190,15 @@ function CreateForm({
   const [busy, setBusy] = useState(false)
 
   const isBlock = mode === "block"
+  const isCorporate = mode === "corporate"
   const tone = isBlock ? "slate" : "brand"
   const nights = nightsBetween(start, end)
+
+  const orgs = organizations ?? []
+  const org = orgs.find((o) => o.id === orgId) ?? null
+  // Shartnoma chegirmasi — narxning YAGONA korporativ o'zgaruvchisi. Resepshn summani qo'lda
+  // yozmaydi (biznes chegarasi), shuning uchun korporativ tarif ham faqat shu foizdan chiqadi.
+  const discountPct = isCorporate ? Math.min(100, Math.max(0, org?.discountPercent ?? 0)) : 0
 
   // Sana o'zgarganda qayta hisoblanadi — bitta o'tishda (`O(bronlar)`), xona bo'yicha emas.
   // Tanlangan xona band bo'lib qolsa qizarib ko'rinadi (jimgina tanlovdan tushib ketmaydi).
@@ -189,33 +214,77 @@ function CreateForm({
       selectedIds.flatMap((id) => {
         const room = roomsById.get(id)
         if (!room) return []
-        const total = room.rate != null ? Math.round(room.rate * Math.max(nights, 0)) : 0
-        return [{ room, total, hasRate: room.rate != null }]
+        // Rack (shartnomasiz) summa — chegirma undan hisoblanadi va xulosada ALOHIDA qator
+        // bo'lib ko'rinadi: kompaniya nima uchun kamroq to'layotgani ekranda yozilib tursin.
+        const rack = room.rate != null ? Math.round(room.rate * Math.max(nights, 0)) : 0
+        const total = discountPct > 0 ? Math.round((rack * (100 - discountPct)) / 100) : rack
+        return [{ room, rack, total, hasRate: room.rate != null }]
       }),
-    [selectedIds, roomsById, nights],
+    [selectedIds, roomsById, nights, discountPct],
   )
 
   // Tarifi kiritilmagan xonaga bron OCHILMAYDI: 0 so'mlik bron xuddi o'sha teshikning
   // boshqa eshigi bo'lardi (xodim ataylab shunday xonaga joylashtirib naqd oladi).
   const missingRate = !isBlock && lines.some((l) => !l.hasRate)
   const roomsTotal = lines.reduce((sum, l) => sum + l.total, 0)
+  const rackTotal = lines.reduce((sum, l) => sum + l.rack, 0)
+  const discountTotal = rackTotal - roomsTotal
 
   // ── Qo'shimcha o'rin puli ────────────────────────────────────────────────
   // Bir xonaga ikkinchi mehmon qo'shilsa mehmonxona odatda qo'shimcha oladi, lekin narx HAR
   // MEHMONDA O'ZINIKI (katta to'liq, bola chegirmali, xodim 0 = bepul) — shuning uchun qaror
   // ham, summa ham har mehmon qatorida.
+  //
+  // KORPORATIVDA bu qator YO'Q: u yerda narx shartnomadan keladi (xona tarifi × chegirma) va
+  // qo'shimcha o'rinni resepshn qo'lda narxlab qo'ysa, shartnoma sharti ekranda buzilardi.
   const chargedGuests = companions.reduce((n, c) => n + (Number(c.rate || 0) > 0 ? 1 : 0), 0)
-  const extraTotal = isBlock
-    ? 0
-    : companions.reduce((sum, c) => sum + Number(c.rate || 0), 0) * Math.max(nights, 0)
+  const extraTotal =
+    isBlock || isCorporate
+      ? 0
+      : companions.reduce((sum, c) => sum + Number(c.rate || 0), 0) * Math.max(nights, 0)
 
   const grandTotal = roomsTotal + extraTotal
 
-  const partialPaid = partialInput === "" ? 0 : Number(partialInput)
-  const paid = payMode === "full" ? grandTotal : payMode === "partial" ? partialPaid : 0
-  const paidTooBig = payMode === "partial" && Number.isFinite(partialPaid) && partialPaid > grandTotal
+  // ── Joylashtirish ro'yxati (korporativ) ──────────────────────────────────
+  // Tanlangan xonalar o'zgarganda ro'yxat ergashadi: yangi xona bitta bo'sh qator bilan
+  // ochiladi, tanlovdan chiqqan xona esa ro'yxatdan tushadi. Effekt xonalar RO'YXATIga
+  // bog'langan — ism terish uni qayta ishga tushirmaydi.
+  useEffect(() => {
+    if (!isCorporate) return
+    setRooming((prev) => {
+      let changed = false
+      const next: RoomingMap = {}
+      for (const id of selectedIds) {
+        if (prev[id]) next[id] = prev[id]
+        else {
+          next[id] = [newRoomingGuest()]
+          changed = true
+        }
+      }
+      if (!changed && Object.keys(prev).length === selectedIds.length) return prev
+      return next
+    })
+  }, [isCorporate, selectedIds])
 
-  const guestTotal = 1 + companions.length
+  const roomingRooms = useMemo(() => lines.map((l) => l.room), [lines])
+  const roomingGuestTotal = roomingRooms.reduce((n, r) => n + (rooming[r.id]?.length ?? 0), 0)
+  const roomingNamed = roomingRooms.every((r) =>
+    (rooming[r.id] ?? []).some((g) => g.fullName.trim().length > 0),
+  )
+
+  const partialPaid = partialInput === "" ? 0 : Number(partialInput)
+  // Korporativ bronda resepshn PUL OLMAYDI — server ham avansni rad etadi.
+  const paid = isCorporate
+    ? 0
+    : payMode === "full"
+      ? grandTotal
+      : payMode === "partial"
+        ? partialPaid
+        : 0
+  const paidTooBig =
+    !isCorporate && payMode === "partial" && Number.isFinite(partialPaid) && partialPaid > grandTotal
+
+  const guestTotal = isCorporate ? roomingGuestTotal : 1 + companions.length
   /**
    * Sig'imdan oshgan holat — OGOHLANTIRISH, hech qachon to'siq emas: 2 kishilik xonaga
    * qo'shimcha joy qo'yib 3 kishi joylashtirish odatiy hol. Solishtirish TANLANGAN XONALARNING
@@ -246,11 +315,14 @@ function CreateForm({
     lines.length > 0 &&
     !selectedBusy &&
     (isBlock ||
-      (guestName.trim().length > 0 &&
-        phoneValid &&
-        companionsValid &&
-        !missingRate &&
-        !paidTooBig))
+      (isCorporate
+        ? // Korporativda "asosiy mehmon" yagona emas — har xona o'z odamiga ega bo'lishi kerak.
+          orgId !== "" && roomingNamed && !missingRate
+        : guestName.trim().length > 0 &&
+          phoneValid &&
+          companionsValid &&
+          !missingRate &&
+          !paidTooBig))
 
   // ── Barqaror handler'lar ─────────────────────────────────────────────────
   // Og'ir bo'laklar (`RoomPicker`, hamrohlar, xulosa) `memo` ostida — bu funksiyalar har
@@ -282,6 +354,18 @@ function CreateForm({
     [],
   )
 
+  const setRoomGuests = useCallback(
+    (roomId: string, guests: RoomingGuest[]) => setRooming((prev) => ({ ...prev, [roomId]: guests })),
+    [],
+  )
+
+  /** Kompaniya yuborgan ismlar ro'yxatini xonalarga tarqatadi (sig'im bo'yicha). */
+  const distribute = useCallback(
+    (names: string[]) =>
+      setRooming(distributeNames(names, roomingRooms.map((r) => ({ id: r.id, capacity: r.capacity })))),
+    [roomingRooms],
+  )
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!valid || busy) return
@@ -295,6 +379,40 @@ function CreateForm({
           roomIds: lines.map((l) => l.room.id),
           kind: blockKind,
           ...(blockReason.trim() ? { reason: blockReason.trim() } : {}),
+        })
+      } else if (isCorporate) {
+        // Har xona O'Z mehmonlari bilan ketadi: ro'yxatning birinchi odami asosiy mehmon
+        // (bron ustunlari — QR va chat kaliti), qolganlari hamroh. Avans YO'Q — pul kompaniyadan.
+        await onSubmit({
+          mode: "booking",
+          start,
+          end,
+          organizationId: orgId,
+          ...(orgRef.trim() ? { orgRef: orgRef.trim() } : {}),
+          ...(note.trim() ? { note: note.trim() } : {}),
+          rooms: lines.map((l) => {
+            const people = (rooming[l.room.id] ?? []).filter((g) => g.fullName.trim().length > 0)
+            const [primary, ...rest] = people
+            return {
+              roomId: l.room.id,
+              totalAmount: l.total,
+              paidAmount: 0,
+              guestName: primary.fullName.trim(),
+              ...(primary.phone?.trim() ? { guestPhone: primary.phone.trim() } : {}),
+              ...(primary.docType ? { guestDocType: primary.docType } : {}),
+              ...(primary.docNumber?.trim() ? { guestDocNumber: primary.docNumber.trim() } : {}),
+              ...(rest.length
+                ? {
+                    guests: rest.map(({ fullName, phone, docType, docNumber }) => ({
+                      fullName: fullName.trim(),
+                      ...(phone?.trim() ? { phone: phone.trim() } : {}),
+                      ...(docType ? { docType } : {}),
+                      ...(docNumber?.trim() ? { docNumber: docNumber.trim() } : {}),
+                    })),
+                  }
+                : {}),
+            }
+          }),
         })
       } else {
         // Backendda "qo'shimcha o'rin" alohida maydon EMAS (bulk bron faqat `totalAmount`
@@ -356,17 +474,25 @@ function CreateForm({
   const footerNeed =
     footerError || valid
       ? null
-      : lines.length === 0
-        ? labels.needRoom
-        : isBlock
-          ? null
-          : guestName.trim().length === 0
-            ? labels.needGuestName
-            : !phoneValid
-              ? labels.needGuestPhone
-              : !companionsValid
-                ? labels.needCompanionName
-                : null
+      : isCorporate
+        ? orgId === ""
+          ? labels.needOrganization
+          : lines.length === 0
+            ? labels.needRoom
+            : !roomingNamed
+              ? labels.needRoomingName
+              : null
+        : lines.length === 0
+          ? labels.needRoom
+          : isBlock
+            ? null
+            : guestName.trim().length === 0
+              ? labels.needGuestName
+              : !phoneValid
+                ? labels.needGuestPhone
+                : !companionsValid
+                  ? labels.needCompanionName
+                  : null
 
   return (
     <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col">
@@ -374,7 +500,7 @@ function CreateForm({
       <header className="hairline-b flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3 sm:px-6">
         <div className="min-w-0">
           <DialogTitle className="text-lg leading-tight font-semibold text-neutral-900">
-            {isBlock ? labels.blockTitle : labels.newBooking}
+            {isBlock ? labels.blockTitle : isCorporate ? labels.corporateTitle : labels.newBooking}
           </DialogTitle>
           <DialogDescription className="mt-0.5 text-sm text-neutral-500 tabular-nums">
             {fmtDay(start, labels)} – {fmtDay(end, labels)}
@@ -387,6 +513,9 @@ function CreateForm({
         {/* Aksent rejim bilan almashadi: bron = brend orange, yopish = sovuq slate. Bu shunchaki
             bezak emas — yaratilajak narsaning kalendardagi rangi bilan BIR XIL, shuning uchun
             xodim natijani oldindan ko'radi. */}
+        {/* Korporativ variant FAQAT shartnomali mijoz bo'lsa chiqadi: tashkilot qo'shmagan
+            mehmonxonaga ishlamaydigan tugma ko'rsatilmaydi (ruxsati yo'q xodimda ham ro'yxat
+            bo'sh keladi, ya'ni bitta shart ikkala holatni yopadi). */}
         <Segmented
           className="ml-auto"
           value={mode}
@@ -394,6 +523,15 @@ function CreateForm({
           tone={tone}
           options={[
             { value: "booking", label: labels.modeBooking, icon: <User className="size-3.5" /> },
+            ...(orgs.length > 0
+              ? [
+                  {
+                    value: "corporate",
+                    label: labels.modeCorporate,
+                    icon: <Building2 className="size-3.5" />,
+                  },
+                ]
+              : []),
             { value: "block", label: labels.modeBlock, icon: <Wrench className="size-3.5" /> },
           ]}
         />
@@ -438,6 +576,37 @@ function CreateForm({
                     />
                   </Field>
                 </div>
+              </Section>
+            ) : isCorporate ? (
+              // Korporativda birinchi savol MEHMON emas, TO'LOVCHI: shartnoma chegirmasi narxni,
+              // qarz shifti esa ogohlantirishni belgilaydi, ya'ni qolgan hamma narsa shunga bog'liq.
+              <Section icon={<Building2 className="size-3.5" />} title={labels.organization}>
+                <div className="grid gap-3 sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+                  <Field label={labels.organization}>
+                    <OrganizationPicker
+                      labels={labels}
+                      organizations={orgs}
+                      value={orgId}
+                      onChange={setOrgId}
+                    />
+                  </Field>
+                  <Field label={labels.orgRef}>
+                    <Input
+                      className="h-9"
+                      value={orgRef}
+                      onChange={(e) => setOrgRef(e.target.value)}
+                      placeholder={labels.orgRefHint}
+                      maxLength={64}
+                    />
+                  </Field>
+                </div>
+                {org && (
+                  <OrganizationTerms
+                    labels={labels}
+                    org={org}
+                    projectedBalance={(org.balance ?? 0) + grandTotal}
+                  />
+                )}
               </Section>
             ) : (
               <>
@@ -531,6 +700,28 @@ function CreateForm({
               </p>
             </Section>
 
+            {/* Joylashtirish ro'yxati XONALARDAN KEYIN turadi — u tanlangan xonalar ustiga
+                quriladi va bo'sh xona ro'yxatida ko'rsatadigan narsa yo'q. */}
+            {isCorporate && lines.length > 0 && (
+              <Section
+                icon={<Users className="size-3.5" />}
+                title={labels.rooming}
+                aside={
+                  <span className="text-xs text-neutral-500 tabular-nums">
+                    {labels.guestsWord(roomingGuestTotal)}
+                  </span>
+                }
+              >
+                <RoomingList
+                  labels={labels}
+                  rooms={roomingRooms}
+                  value={rooming}
+                  onChange={setRoomGuests}
+                  onDistribute={distribute}
+                />
+              </Section>
+            )}
+
             {!isBlock && (
               <Section icon={<StickyNote className="size-3.5" />} title={labels.note}>
                 <Textarea
@@ -568,6 +759,7 @@ function CreateForm({
               nights={nights}
               extraTotal={extraTotal}
               chargedGuests={chargedGuests}
+              discountTotal={discountTotal}
               grandTotal={grandTotal}
               paid={paid}
               payMode={payMode}
@@ -575,6 +767,7 @@ function CreateForm({
               paidTooBig={paidTooBig}
               overCapacity={overCapacity ? (capacity as number) : null}
               guestTotal={guestTotal}
+              corporate={isCorporate}
               onPayMode={setPayMode}
               onPartial={setPartialInput}
             />
@@ -832,6 +1025,8 @@ const CompanionsBlock = memo(function CompanionsBlock({
 
 interface MoneyLine {
   room: CalendarRoom
+  /** Chegirmasiz (rack) summa — korporativda chegirma shu ikkisining farqi bo'lib ko'rinadi. */
+  rack: number
   total: number
   hasRate: boolean
 }
@@ -842,6 +1037,8 @@ interface MoneyPanelProps {
   nights: number
   extraTotal: number
   chargedGuests: number
+  /** Shartnoma chegirmasi (so'm). 0 bo'lsa qator umuman chiqmaydi. */
+  discountTotal: number
   grandTotal: number
   paid: number
   payMode: PayMode
@@ -850,6 +1047,8 @@ interface MoneyPanelProps {
   /** Sig'im oshgan bo'lsa — tanlangan xonalarning YIG'MA sig'imi, aks holda `null`. */
   overCapacity: number | null
   guestTotal: number
+  /** Korporativ: to'lov tanlagichi o'rniga "kompaniya hisobiga" izohi chiqadi. */
+  corporate: boolean
   onPayMode: (m: PayMode) => void
   onPartial: (v: string) => void
 }
@@ -860,6 +1059,7 @@ const MoneyPanel = memo(function MoneyPanel({
   nights,
   extraTotal,
   chargedGuests,
+  discountTotal,
   grandTotal,
   paid,
   payMode,
@@ -867,6 +1067,7 @@ const MoneyPanel = memo(function MoneyPanel({
   paidTooBig,
   overCapacity,
   guestTotal,
+  corporate,
   onPayMode,
   onPartial,
 }: MoneyPanelProps) {
@@ -898,7 +1099,7 @@ const MoneyPanel = memo(function MoneyPanel({
                 </div>
                 {l.hasRate ? (
                   <span className="text-sm font-medium text-neutral-900 tabular-nums">
-                    {groupThousands(l.total)}
+                    {groupThousands(l.rack)}
                   </span>
                 ) : (
                   <span className="text-xs font-medium text-warning-surface-foreground">
@@ -907,6 +1108,19 @@ const MoneyPanel = memo(function MoneyPanel({
                 )}
               </div>
             ))}
+
+            {/* Chegirma ALOHIDA qator: kompaniya nima uchun kamroq to'layotgani ekranda
+                yozilib tursin — "narx o'zi shunaqa" degan noaniqlik qolmasin. */}
+            {discountTotal > 0 && (
+              <div className="flex items-center gap-2 px-3 py-2">
+                <p className="min-w-0 flex-1 truncate text-xs font-medium text-brand-700">
+                  {labels.corporateDiscountLine}
+                </p>
+                <span className="text-sm font-medium text-brand-700 tabular-nums">
+                  −{groupThousands(discountTotal)}
+                </span>
+              </div>
+            )}
 
             {extraTotal > 0 && (
               <div className="flex items-center gap-2 px-3 py-2">
@@ -934,19 +1148,30 @@ const MoneyPanel = memo(function MoneyPanel({
 
       <Section title={labels.payment}>
         <div className="flex flex-col gap-2.5">
-          <Segmented
-            value={payMode}
-            onChange={(v) => onPayMode(v as PayMode)}
-            tone="brand"
-            size="sm"
-            options={[
-              { value: "unpaid", label: labels.paymentUnpaid },
-              { value: "partial", label: labels.paymentPartial },
-              { value: "full", label: labels.paymentFull },
-            ]}
-          />
+          {/* Korporativda to'lov tanlagichi UMUMAN yo'q — bu shunchaki "sukut bo'yicha to'lanmagan"
+              emas, biznes qoidasi: pul kompaniyadan olinadi va server ham avansni rad etadi.
+              Tanlagichni o'chirib qo'yish (disabled) o'rniga olib tashlash — "bosib bo'lmaydigan
+              tugma" savol tug'dirardi, matn esa javob beradi. */}
+          {corporate ? (
+            <div className="rounded-card bg-brand-50 p-3 text-xs leading-relaxed text-brand-800">
+              <p className="font-medium">{labels.corporateBilling}</p>
+              <p className="mt-0.5 text-brand-700">{labels.corporateBillingHint}</p>
+            </div>
+          ) : (
+            <Segmented
+              value={payMode}
+              onChange={(v) => onPayMode(v as PayMode)}
+              tone="brand"
+              size="sm"
+              options={[
+                { value: "unpaid", label: labels.paymentUnpaid },
+                { value: "partial", label: labels.paymentPartial },
+                { value: "full", label: labels.paymentFull },
+              ]}
+            />
+          )}
 
-          {payMode === "partial" && (
+          {!corporate && payMode === "partial" && (
             <MoneyInput
               value={partialInput}
               onChange={onPartial}
@@ -956,7 +1181,7 @@ const MoneyPanel = memo(function MoneyPanel({
             />
           )}
 
-          {lines.length > 0 && (
+          {!corporate && lines.length > 0 && (
             <div className="flex items-baseline justify-between text-xs">
               <span className="text-neutral-500">{labels.remaining}</span>
               <span

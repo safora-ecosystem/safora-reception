@@ -340,6 +340,9 @@ function DetailBody({
   const payment = b.payment
   const ratio = payment ? paymentRatio(payment) : 0
   const remaining = payment ? Math.max(0, payment.total - payment.paid) : 0
+  // Korporativ bron — hisob kompaniyada. Bu bitta bayroq to'lov kartasini, chiqish qorovulini
+  // va "to'lov qabul qilish" tugmasini birdaniga boshqaradi.
+  const corporateOrg = b.organization ?? null
 
   const guestCount = guests?.length ?? b.guestCount ?? 1
   const overCapacity = viewRoom?.capacity != null && guestCount > viewRoom.capacity
@@ -410,6 +413,13 @@ function DetailBody({
             <span className={cn("rounded-full px-2.5 py-0.5 text-xs font-medium", STATUS_CHIP[b.status])}>
               {labels.statusText[b.status]}
             </span>
+            {/* Korporativ belgisi sarlavhada: modal ochilishi bilan xodim "bu kimning hisobiga"
+                degan savolga javob olsin — u pul so'rashdan OLDIN ko'rinishi kerak. */}
+            {corporateOrg && (
+              <span className="rounded-full bg-brand-100 px-2.5 py-0.5 text-xs font-medium text-brand-800">
+                {corporateOrg.shortName || corporateOrg.name}
+              </span>
+            )}
             {b.guestConfirmed != null && (
               <span
                 className={cn(
@@ -679,6 +689,33 @@ function DetailBody({
               </div>
             ) : payment ? (
               <div className="flex flex-col gap-2.5">
+                {/* KORPORATIV bron: qoldiq mehmonning qarzi EMAS, kompaniya hisobi. Amber
+                    progress va "qoldi" qatori xodimni mehmondan pul so'rashga undardi —
+                    mahsulotning va'dasi aynan shu joyda buzilardi. */}
+                {corporateOrg ? (
+                  <div className="rounded-card bg-brand-50 p-4">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="text-xs font-medium text-brand-800">{labels.corporateBilling}</span>
+                      <span className="text-sm font-semibold text-neutral-900 tabular-nums">
+                        {labels.money(payment.total)}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-sm font-medium text-neutral-900">
+                      {corporateOrg.name}
+                      {b.orgRef && (
+                        <span className="ml-2 text-xs font-normal text-neutral-500">{b.orgRef}</span>
+                      )}
+                    </p>
+                    <p className="mt-1.5 text-xs leading-relaxed text-brand-700">
+                      {labels.corporateNoCash}
+                    </p>
+                    {viewRoom?.rate != null && (
+                      <p className="mt-2.5 text-xs text-neutral-500 tabular-nums">
+                        {labels.nightlyRate} {labels.money(viewRoom.rate)} × {nights}
+                      </p>
+                    )}
+                  </div>
+                ) : (
                 <div className="rounded-card bg-neutral-50 p-4">
                   <div className="flex items-baseline justify-between">
                     <span className="text-xs font-medium text-neutral-500">{labels.total}</span>
@@ -705,6 +742,7 @@ function DetailBody({
                     </p>
                   )}
                 </div>
+                )}
 
                 {/* ── To'lov LEDGERI: kim, qancha, qachon. Storno chizilib qoladi — o'chirish yo'q. */}
                 {payments && payments.length > 0 && (
@@ -724,7 +762,10 @@ function DetailBody({
                   </ol>
                 )}
 
-                {onRecordPayment && b.status !== "cancelled" && remaining > 0 && (
+                {/* Korporativ bronda resepshn PUL OLMAYDI: tugma umuman chiqmaydi. Aks holda
+                    xodim mehmondan naqd olib, kompaniya ham oy oxirida to'lardi — farq esa
+                    hech qayerda ko'rinmasdi. Istisno holat menejer panelidan hal qilinadi. */}
+                {!corporateOrg && onRecordPayment && b.status !== "cancelled" && remaining > 0 && (
                   payFormOpen ? (
                     <ReceivePaymentForm
                       labels={labels}
@@ -855,7 +896,12 @@ function DetailBody({
                       size="lg"
                       className="rounded-control"
                       disabled={busy}
-                      onClick={() => (remaining > 0 ? setConfirming("checkout") : run(onCheckOut))}
+                      // Korporativ bronda qoldiq QARZ EMAS — kompaniya oy oxirida to'laydi.
+                      // Ogohlantirish u yerda har chiqishda bekorga chiqib, xodimni ma'nosiz
+                      // tasdiqlashga o'rgatardi (va haqiqiy qarz ogohlantirishi qadrsizlanardi).
+                      onClick={() =>
+                        remaining > 0 && !corporateOrg ? setConfirming("checkout") : run(onCheckOut)
+                      }
                     >
                       <LogOut /> {labels.checkOut}
                     </Button>

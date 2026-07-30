@@ -62,7 +62,7 @@ import { shortDate } from "@/lib/format"
 import { useSetPageHeader } from "@/lib/page-header"
 import { usePermissions } from "@/lib/permissions"
 import { EmptyState } from "@/components/shared/empty-state"
-import { ErrorState } from "@/components/shared/error-state"
+import { ErrorState, Spinner } from "@/components/shared/error-state"
 import { PersonAvatar } from "@/components/shared/person-avatar"
 import { SkeletonList, SkeletonThread } from "@/components/shared/skeletons"
 import { Button } from "@/components/ui/button"
@@ -246,8 +246,9 @@ export function ChatPage() {
           )}
 
           {status !== "connected" && (
-            <p className="flex items-center gap-1.5 px-4 pt-2 text-xs text-neutral-400">
-              <span className="size-1.5 rounded-full bg-warning" />
+            <p className="flex items-center gap-2 px-4 pt-2 text-xs text-neutral-400">
+              {/* Ulanish — OGOHLANTIRISH emas, HOLAT: amber nuqta o'rniga jim spinner. */}
+              {status === "connecting" && <Spinner className="size-3 text-neutral-300" />}
               {status === "connecting" ? "Ulanmoqda…" : "Jonli aloqa yo'q — xabarlar kechikishi mumkin"}
             </p>
           )}

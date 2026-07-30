@@ -66,6 +66,7 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
     const {
       rooms,
       bookings,
+      organizations,
       range,
       dayWidth = 48,
       rowHeight = 52,
@@ -587,6 +588,7 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
           draft={createDraft}
           rooms={rooms}
           bookings={bookings}
+          organizations={organizations}
           labels={labels}
           today={today}
           onClose={() => setCreateDraft(null)}

@@ -9,6 +9,7 @@ export type {
   CalendarBlockKind,
   CalendarRoom,
   CalendarBooking,
+  CalendarOrganization,
   CalendarPayment,
   CalendarRange,
   CalendarLabels,

@@ -261,6 +261,7 @@ export function CalendarPage() {
               ref={calRef}
               rooms={data.rooms}
               bookings={data.bookings}
+              organizations={data.organizations}
               range={range}
               dayWidth={dayWidth}
               railWidth={metrics.railWidth}

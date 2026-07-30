@@ -115,8 +115,20 @@ export function CalendarBarTooltip({ state, labels, statusConfig }: CalendarBarT
         <span className="text-neutral-500">{labels.nights(nights)}</span>
       </div>
 
-      {/* To'lov — to'langan / jami + progress (to'liq=yashil, qisman=amber) */}
-      {pay ? (
+      {/* To'lov — to'langan / jami + progress (to'liq=yashil, qisman=amber).
+          KORPORATIVDA butunlay boshqacha: qoldiq mehmonning qarzi emas, kompaniya hisobi.
+          Amber progress u yerda "pul olinmagan" degan noto'g'ri signal berardi. */}
+      {b.organization ? (
+        <div className="px-3 pt-2 pb-3">
+          <div className="flex items-baseline justify-between gap-2 text-xs">
+            <span className="text-neutral-400">{labels.corporateBilling}</span>
+            {pay && <span className="tabular-nums text-neutral-600">{labels.money(pay.total)}</span>}
+          </div>
+          <p className="mt-1 truncate text-xs font-medium text-neutral-700">
+            {b.organization.shortName || b.organization.name}
+          </p>
+        </div>
+      ) : pay ? (
         <div className="px-3 pt-2 pb-3">
           <div className="flex items-baseline justify-between gap-2 text-xs">
             <span className="text-neutral-400">{labels.payment}</span>

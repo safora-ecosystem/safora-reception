@@ -17,6 +17,7 @@ import {
   type CalendarBooking,
   type CalendarCreateInput,
   type CalendarDraft,
+  type CalendarOrganization,
   type CalendarPaymentEntry,
   type CalendarRange,
   type CalendarRoom,
@@ -32,6 +33,7 @@ import {
   getBooking,
   getBookingActivity,
   listBookings,
+  listOrganizations,
   listRoomBlocks,
   listRooms,
   recordBookingPayment,
@@ -45,6 +47,7 @@ import {
   type BookingGuest,
   type BookingPayment,
   type GuestInput,
+  type Organization,
   type Room,
   type RoomBlock,
   type UpdateBookingBody,
@@ -59,6 +62,7 @@ export const blockIdOf = (id: string) => id.slice(BLOCK_PREFIX.length)
 export interface CalendarData {
   rooms: CalendarRoom[]
   bookings: CalendarBooking[]
+  organizations: CalendarOrganization[]
   isLoading: boolean
   error: unknown
   retry: () => Promise<unknown> | void
@@ -135,17 +139,19 @@ export function useMockCalendarData(roomCount = 24): CalendarData {
     }
     setBookings((prev) => [
       ...prev,
+      // Xona o'z mehmoniga ega bo'lsa (joylashtirish ro'yxati) uniki ustun — real adapter ham
+      // shunday qiladi, ya'ni mock va real bir xil qoidada qoladi.
       ...input.rooms.map((r) => ({
         id: `bk-new-${mockIdSeq++}`,
         roomId: r.roomId,
         start: input.start,
         end: input.end,
         status: "booked" as const,
-        label: input.guestName,
-        sublabel: input.guestPhone,
+        label: r.guestName ?? input.guestName ?? "",
+        sublabel: r.guestPhone ?? input.guestPhone,
         payment: { total: r.totalAmount, paid: r.paidAmount },
         guestConfirmed: false,
-        guestCount: 1 + (input.guests?.length ?? 0),
+        guestCount: 1 + ((r.guestName ? r.guests : input.guests)?.length ?? 0),
         note: input.note,
         createdAt,
       })),
@@ -278,6 +284,8 @@ export function useMockCalendarData(roomCount = 24): CalendarData {
   return {
     rooms: seed.rooms,
     bookings,
+    // Mock rejimida shartnomali mijoz yo'q — korporativ rejim ko'rinmaydi.
+    organizations: [],
     isLoading: false,
     error: null,
     retry: noop,
@@ -342,7 +350,11 @@ function mapBooking(b: Booking): CalendarBooking {
     end: b.checkOutDate.slice(0, 10),
     status: b.status,
     label: b.guestName,
-    sublabel: b.guestPhone ?? undefined,
+    // Korporativ bronda ikkinchi qator telefon EMAS, kompaniya: xodim bar'ga qarab "bu kimning
+    // hisobiga" degan savolga darrov javob topsin (telefon detalda baribir turadi).
+    sublabel: b.organization
+      ? (b.organization.shortName ?? b.organization.name)
+      : (b.guestPhone ?? undefined),
     payment: total != null ? { total, paid: Number(b.paidAmount ?? 0) } : undefined,
     guestConfirmed: b.guestConfirmed,
     checkedInAt: b.checkedInAt,
@@ -350,6 +362,27 @@ function mapBooking(b: Booking): CalendarBooking {
     createdAt: b.createdAt,
     guestCount: b._count?.guests,
     note: b.note,
+    organization: b.organization
+      ? { id: b.organization.id, name: b.organization.name, shortName: b.organization.shortName }
+      : null,
+    orgRef: b.orgRef,
+  }
+}
+
+/** Shartnoma qatorini yadro shakliga. Decimal'lar string bo'lib keladi — raqamga aylantiriladi. */
+function mapOrganization(o: Organization): CalendarOrganization {
+  return {
+    id: o.id,
+    name: o.name,
+    shortName: o.shortName,
+    contractNumber: o.contractNumber,
+    inn: o.inn,
+    contactName: o.contactName,
+    contactPhone: o.contactPhone,
+    discountPercent: o.discountPercent != null ? Number(o.discountPercent) : null,
+    creditLimit: o.creditLimit != null ? Number(o.creditLimit) : null,
+    paymentTermDays: o.paymentTermDays,
+    balance: o.balance,
   }
 }
 
@@ -450,6 +483,21 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
   // Xonalar kamdan-kam o'zgaradi (owner tahrirlaydi) — uzoq staleTime, poll kerak emas.
   const roomsQ = useQuery({ queryKey: ["rooms"], queryFn: listRooms, enabled, staleTime: 5 * 60_000 })
 
+  // Shartnomali mijozlar — xonalar kabi kamdan-kam o'zgaradi. Yiqilsa (masalan `organizations.view`
+  // ruxsati yo'q) kalendar BUZILMAYDI: ro'yxat bo'sh qoladi va korporativ rejim ko'rinmaydi.
+  // Shu sabab bu so'rov `error` hisobiga ham kirmaydi — u kalendarning yashash sharti emas.
+  const orgsQ = useQuery({
+    queryKey: ["organizations"],
+    queryFn: listOrganizations,
+    enabled,
+    staleTime: 5 * 60_000,
+    retry: 1,
+  })
+  const organizations = useMemo<CalendarOrganization[]>(
+    () => (orgsQ.data ?? []).map(mapOrganization),
+    [orgsQ.data],
+  )
+
   // Bronlar — 90 kunlik bo'laklar (yuqoridagi izohga qara). `range` container'da bir marta
   // memo qilinadi, shuning uchun bo'laklar ro'yxati ham mount davomida barqaror.
   const chunks = useMemo(() => bookingChunks(range, new Date().toLocaleDateString("en-CA")), [range])
@@ -546,18 +594,27 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
         }
 
         await apiCreateBookings({
-          guestName: input.guestName,
-          guestPhone: input.guestPhone,
+          ...(input.guestName ? { guestName: input.guestName } : {}),
+          ...(input.guestPhone ? { guestPhone: input.guestPhone } : {}),
           checkInDate: input.start,
           checkOutDate: input.end,
           ...(input.guestDocType ? { guestDocType: input.guestDocType as never } : {}),
           ...(input.guestDocNumber ? { guestDocNumber: input.guestDocNumber } : {}),
           ...(input.guests?.length ? { guests: input.guests as GuestInput[] } : {}),
           ...(input.note ? { note: input.note } : {}),
+          ...(input.organizationId ? { organizationId: input.organizationId } : {}),
+          ...(input.orgRef ? { orgRef: input.orgRef } : {}),
+          // Joylashtirish ro'yxati bo'lsa har xona o'z mehmoni bilan ketadi (korporativ oqim);
+          // bo'lmasa faqat summa uzatiladi va umumiy mehmon hamma xonaga nusxalanadi.
           rooms: input.rooms.map((r) => ({
             roomId: r.roomId,
             totalAmount: r.totalAmount,
             paidAmount: r.paidAmount,
+            ...(r.guestName ? { guestName: r.guestName } : {}),
+            ...(r.guestPhone ? { guestPhone: r.guestPhone } : {}),
+            ...(r.guestDocType ? { guestDocType: r.guestDocType as never } : {}),
+            ...(r.guestDocNumber ? { guestDocNumber: r.guestDocNumber } : {}),
+            ...(r.guests?.length ? { guests: r.guests as GuestInput[] } : {}),
           })),
         })
         toast.success(input.rooms.length > 1 ? `${input.rooms.length} ta bron yaratildi` : "Bron yaratildi")
@@ -842,6 +899,7 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
   return {
     rooms,
     bookings,
+    organizations,
     isLoading: enabled && (roomsQ.isLoading || bookingsQ.isLoading),
     error,
     retry,

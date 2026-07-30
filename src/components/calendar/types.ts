@@ -21,6 +21,20 @@ export interface CalendarRoom {
   housekeeping?: "clean" | "dirty" | "in_progress"
 }
 
+export interface CalendarOrganization {
+  id: string
+  name: string
+  shortName?: string | null
+  contractNumber?: string | null
+  inn?: string | null
+  contactName?: string | null
+  contactPhone?: string | null
+  discountPercent?: number | null
+  creditLimit?: number | null
+  paymentTermDays?: number | null
+  balance?: number
+}
+
 export interface CalendarBooking {
   id: string
   roomId: string
@@ -36,6 +50,8 @@ export interface CalendarBooking {
   createdAt?: string
   guestCount?: number
   note?: string | null
+  organization?: { id: string; name: string; shortName?: string | null } | null
+  orgRef?: string | null
   blockKind?: CalendarBlockKind
   meta?: Record<string, unknown>
 }
@@ -132,6 +148,7 @@ export interface CalendarLabels {
   groupHint: (n: number) => string
 
   modeBooking: string
+  modeCorporate: string
   modeBlock: string
   blockTitle: string
   blockReason: string
@@ -183,6 +200,31 @@ export interface CalendarLabels {
   activityFallback: string
   activityFieldText: Record<string, string>
 
+  organization: string
+  corporateTitle: string
+  organizationPick: string
+  organizationSearch: string
+  organizationEmpty: string
+  orgRef: string
+  orgRefHint: string
+  orgDiscount: (percent: number) => string
+  orgBalance: string
+  orgCreditLimit: string
+  orgOverLimit: (over: number) => string
+  corporateDiscountLine: string
+  corporateBilling: string
+  corporateBillingHint: string
+  corporateBooking: string
+  corporateNoCash: string
+  rooming: string
+  roomingHint: string
+  roomingPaste: string
+  roomingPasteHint: string
+  roomingApply: string
+  roomingRoomEmpty: string
+  needOrganization: string
+  needRoomingName: string
+
   debtOnCheckOut: (remaining: number) => string
   checkOutAnyway: string
   cancelPaidWarning: (paid: number) => string
@@ -202,6 +244,12 @@ export interface CalendarCreateRoom {
   roomId: string
   totalAmount: number
   paidAmount: number
+
+  guestName?: string
+  guestPhone?: string
+  guestDocType?: string
+  guestDocNumber?: string
+  guests?: CalendarGuestInput[]
 }
 
 export interface CalendarPaymentEntry {
@@ -247,12 +295,14 @@ export type CalendarCreateInput =
 export interface CalendarBookingInput {
   start: string
   end: string
-  guestName: string
-  guestPhone: string
+  guestName?: string
+  guestPhone?: string
   guestDocType?: string
   guestDocNumber?: string
   guests?: CalendarGuestInput[]
   note?: string
+  organizationId?: string
+  orgRef?: string
   rooms: CalendarCreateRoom[]
 }
 
@@ -278,6 +328,7 @@ export interface BookingEditPatch {
 export interface ReservationCalendarProps {
   rooms: CalendarRoom[]
   bookings: CalendarBooking[]
+  organizations?: CalendarOrganization[]
   range: CalendarRange
   today?: string
 
