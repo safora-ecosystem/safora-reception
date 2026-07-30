@@ -1,7 +1,8 @@
-import { useState } from "react"
+import { memo, useId, useLayoutEffect, useRef } from "react"
+import { motion, useReducedMotion } from "framer-motion"
 import { Input } from "@/components/ui/input"
+import { DropdownSelect } from "@/components/ui/dropdown-select"
 import { cn } from "@/lib/utils"
-import { groupThousands } from "./labels"
 import type { CalendarLabels } from "./types"
 
 
@@ -13,7 +14,18 @@ interface SegmentedOption {
   icon?: React.ReactNode
 }
 
-export function Segmented({
+export const Segmented = memo(SegmentedImpl, (prev, next) => {
+  return (
+    prev.value === next.value &&
+    prev.tone === next.tone &&
+    prev.size === next.size &&
+    prev.className === next.className &&
+    prev.options.length === next.options.length &&
+    prev.options.every((o, i) => o.value === next.options[i].value && o.label === next.options[i].label)
+  )
+})
+
+function SegmentedImpl({
   value,
   onChange,
   options,
@@ -28,8 +40,18 @@ export function Segmented({
   size?: "sm" | "md"
   className?: string
 }) {
+  const reduce = useReducedMotion()
+  const thumbId = useId()
+
   return (
-    <div className={cn("flex rounded-control bg-neutral-200/60 p-0.5", className)}>
+    <div
+      className={cn(
+        "flex shrink-0 rounded-control bg-neutral-100 p-[3px]",
+        size === "sm" ? "h-9" : "h-10",
+        className,
+      )}
+      role="group"
+    >
       {options.map((o) => {
         const active = value === o.value
         return (
@@ -39,17 +61,29 @@ export function Segmented({
             onClick={() => onChange(o.value)}
             aria-pressed={active}
             className={cn(
-              "inline-flex flex-1 items-center justify-center gap-1.5 rounded-[calc(var(--radius-control)-0.125rem)] font-medium whitespace-nowrap transition-colors",
-              size === "sm" ? "px-2 py-1.5 text-xs" : "px-3.5 py-2 text-sm",
+              "relative inline-flex flex-1 items-center justify-center rounded-[calc(var(--radius-control)-3px)] font-medium whitespace-nowrap transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/30",
+              size === "sm" ? "px-2.5 text-[0.8125rem]" : "px-3.5 text-sm",
               active
                 ? tone === "slate"
-                  ? "bg-white text-cal-block-foreground shadow-xs"
-                  : "bg-white text-brand-700 shadow-xs"
+                  ? "text-cal-block-foreground"
+                  : "text-brand-700"
                 : "text-neutral-500 hover:text-neutral-800",
             )}
           >
-            {o.icon}
-            {o.label}
+            {active && (
+              <motion.span
+                layoutId={thumbId}
+                transition={
+                  reduce ? { duration: 0 } : { type: "spring", stiffness: 420, damping: 34, mass: 0.7 }
+                }
+                className="absolute inset-0 rounded-[calc(var(--radius-control)-3px)] bg-white shadow-xs ring-1 ring-neutral-200/70"
+              />
+            )}
+            {}
+            <span className="relative z-10 inline-flex items-center gap-1.5">
+              {o.icon}
+              {o.label}
+            </span>
           </button>
         )
       })}
@@ -57,29 +91,69 @@ export function Segmented({
   )
 }
 
+function groupDigits(digits: string): string {
+  const trimmed = digits.replace(/^0+(?=\d)/, "")
+  return trimmed.replace(/\B(?=(\d{3})+(?!\d))/g, " ")
+}
+
 export function MoneyInput({
   value,
   onChange,
   ariaLabel,
+  placeholder,
   className,
 }: {
   value: string
   onChange: (v: string) => void
   ariaLabel: string
+  placeholder?: string
   className?: string
 }) {
-  const [focused, setFocused] = useState(false)
+  const ref = useRef<HTMLInputElement>(null)
+  const caret = useRef<number | null>(null)
+
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el || caret.current == null) return
+    el.setSelectionRange(caret.current, caret.current)
+    caret.current = null
+  })
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const el = e.target
+    const digitsBeforeCaret = el.value.slice(0, el.selectionStart ?? 0).replace(/\D/g, "").length
+    const digits = el.value.replace(/\D/g, "")
+    const formatted = groupDigits(digits)
+
+    let seen = 0
+    let position = 0
+    if (digitsBeforeCaret > 0) {
+      position = formatted.length
+      for (let i = 0; i < formatted.length; i++) {
+        if (formatted.charCodeAt(i) >= 48 && formatted.charCodeAt(i) <= 57) {
+          seen++
+          if (seen === digitsBeforeCaret) {
+            position = i + 1
+            break
+          }
+        }
+      }
+    }
+    caret.current = position
+    onChange(digits.replace(/^0+(?=\d)/, ""))
+  }
+
   return (
     <input
+      ref={ref}
       type="text"
       inputMode="numeric"
       aria-label={ariaLabel}
-      value={focused || value === "" ? value : groupThousands(Number(value))}
-      onFocus={() => setFocused(true)}
-      onBlur={() => setFocused(false)}
-      onChange={(e) => onChange(e.target.value.replace(/\D/g, ""))}
+      placeholder={placeholder}
+      value={value === "" ? "" : groupDigits(value)}
+      onChange={handleChange}
       className={cn(
-        "h-8 rounded-lg bg-neutral-100 px-2 text-right text-sm font-medium text-neutral-900 tabular-nums outline-none ring-1 ring-transparent transition-colors focus:bg-white focus:ring-brand-400",
+        "h-9 rounded-control border border-neutral-200 bg-white px-2.5 text-right text-sm font-medium text-neutral-900 tabular-nums transition-colors outline-none placeholder:font-normal placeholder:text-neutral-400/70 hover:border-neutral-300 focus-visible:border-brand-400 focus-visible:ring-3 focus-visible:ring-ring/15",
         className,
       )}
     />
@@ -98,22 +172,17 @@ export function DocSelect({
   className?: string
 }) {
   return (
-    <select
-      aria-label={labels.document}
+    <DropdownSelect
       value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className={cn(
-        "h-8 rounded-control bg-neutral-100 px-2.5 text-sm text-neutral-900 outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/40",
-        className,
-      )}
-    >
-      <option value="">{labels.document}</option>
-      {DOC_TYPES.map((t) => (
-        <option key={t} value={t}>
-          {labels.docTypeText[t]}
-        </option>
-      ))}
-    </select>
+      onChange={onChange}
+      placeholder={labels.document}
+      aria-label={labels.document}
+      triggerClassName={cn("w-full", className)}
+      options={[
+        { value: "", label: labels.docTypeNone },
+        ...DOC_TYPES.map((t) => ({ value: t as string, label: labels.docTypeText[t] })),
+      ]}
+    />
   )
 }
 
@@ -134,7 +203,7 @@ export function DocFields({
 }) {
   return (
     <div className={cn("grid gap-2", compact ? "grid-cols-[9rem_1fr]" : "sm:grid-cols-[11rem_1fr]")}>
-      <DocSelect labels={labels} value={docType} onChange={onDocType} className="h-9" />
+      <DocSelect labels={labels} value={docType} onChange={onDocType} />
       <Input
         value={docNumber}
         onChange={(e) => onDocNumber(e.target.value)}

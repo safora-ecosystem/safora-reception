@@ -27,6 +27,7 @@ import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
+import { PhoneInput, isPhoneComplete, toE164 } from "@/components/ui/phone-input"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
@@ -86,8 +87,6 @@ const STATUS_CHIP: Record<CalendarStatus, string> = {
   cancelled: "bg-destructive-surface text-destructive-surface-foreground",
   blocked: "bg-cal-block-surface text-cal-block-foreground",
 }
-
-const MIN_PHONE_DIGITS = 7
 
 const isoToDate = (iso: string) => new Date(`${iso}T00:00:00`)
 const dateToIso = (d: Date) => d.toLocaleDateString("en-CA")
@@ -273,7 +272,10 @@ function DetailBody({
   const [payFormOpen, setPayFormOpen] = useState(false)
 
   const [guestName, setGuestName] = useState(b.label)
-  const [guestPhone, setGuestPhone] = useState(b.sublabel ?? "")
+  // Bazadagi eski yozuvlar har xil ko'rinishda ("998 90...", "+998-90-...") — tahrirga
+  // berishdan oldin E.164'ga keltiriladi; tanib bo'lmasa xom holicha qoladi (toE164 shunday).
+  const initialPhone = toE164(b.sublabel ?? "")
+  const [guestPhone, setGuestPhone] = useState(initialPhone)
   const [roomId, setRoomId] = useState(b.roomId)
   const [start, setStart] = useState(b.start)
   const [end, setEnd] = useState(b.end)
@@ -304,17 +306,18 @@ function DetailBody({
   // Summa to'langan puldan past tushmasin — aks holda server 400 qaytaradi (paid ≤ total).
   // To'langan summaning O'ZI endi bu formada tahrirlanmaydi: u faqat ledger orqali o'zgaradi.
   const amountValid = Number.isFinite(amountNum) && amountNum >= 0 && amountNum >= paidNow
-  const phoneDigits = guestPhone.replace(/\D/g, "")
+  // Tegilmagan (eski, tanib bo'lmagan) raqam saqlashni BLOKLAMAYDI — u baribir yuborilmaydi;
+  // faqat yangi terilgan raqam to'liq bo'lishi shart.
+  const phoneValid = guestPhone === initialPhone || isPhoneComplete(guestPhone)
   const dirty =
     guestName.trim() !== b.label ||
-    guestPhone.trim() !== (b.sublabel ?? "") ||
+    guestPhone !== initialPhone ||
     roomId !== b.roomId ||
     start !== b.start ||
     end !== b.end ||
     amountNum !== (b.payment?.total ?? 0) ||
     note.trim() !== (b.note ?? "")
-  const valid =
-    guestName.trim().length > 0 && phoneDigits.length >= MIN_PHONE_DIGITS && nights >= 1 && amountValid && !conflict
+  const valid = guestName.trim().length > 0 && phoneValid && nights >= 1 && amountValid && !conflict
 
   /** Xona narxi × kechalar — resepshn summani qo'lda hisoblamasin. Uzaytirishda ayniqsa muhim:
       qo'shimcha kecha pulini xodim boshida hisoblab o'tirmaydi. */
@@ -342,7 +345,7 @@ function DetailBody({
     if (!onEdit || !valid || !dirty || busy) return
     const patch: BookingEditPatch = {}
     if (guestName.trim() !== b.label) patch.guestName = guestName.trim()
-    if (guestPhone.trim() !== (b.sublabel ?? "")) patch.guestPhone = guestPhone.trim()
+    if (guestPhone !== initialPhone) patch.guestPhone = guestPhone
     if (canRelocate) {
       if (roomId !== b.roomId) patch.roomId = roomId
       if (start !== b.start) patch.start = start
@@ -439,11 +442,10 @@ function DetailBody({
               </Field>
               <Field label={labels.guestPhone}>
                 {editing ? (
-                  <Input
+                  <PhoneInput
                     value={guestPhone}
-                    onChange={(e) => setGuestPhone(e.target.value)}
-                    inputMode="tel"
-                    placeholder="+998 ..."
+                    onChange={setGuestPhone}
+                    aria-label={labels.guestPhone}
                     required
                   />
                 ) : (
@@ -919,7 +921,7 @@ function GuestRow({
   const [editing, setEditing] = useState(false)
   const [busy, setBusy] = useState(false)
   const [fullName, setFullName] = useState(g.fullName)
-  const [phone, setPhone] = useState(g.phone ?? "")
+  const [phone, setPhone] = useState(() => toE164(g.phone ?? ""))
   const [docType, setDocType] = useState(g.docType ?? "")
   const [docNumber, setDocNumber] = useState(g.docNumber ?? "")
 
@@ -938,12 +940,7 @@ function GuestRow({
       <div className="rounded-card bg-neutral-50 p-3">
         <div className="grid gap-2 sm:grid-cols-2">
           <Input value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder={labels.guestName} />
-          <Input
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            inputMode="tel"
-            placeholder={labels.guestPhone}
-          />
+          <PhoneInput value={phone} onChange={setPhone} aria-label={labels.guestPhone} />
         </div>
         <div className="mt-2">
           <DocFields
@@ -1082,12 +1079,7 @@ function NewGuestRow({
           onChange={(e) => setFullName(e.target.value)}
           placeholder={labels.guestName}
         />
-        <Input
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          inputMode="tel"
-          placeholder={labels.guestPhone}
-        />
+        <PhoneInput value={phone} onChange={setPhone} aria-label={labels.guestPhone} />
       </div>
       <div className="mt-2">
         <DocFields

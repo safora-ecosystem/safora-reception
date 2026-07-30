@@ -14,6 +14,7 @@ interface DropdownSelectProps<T extends string> {
   value: T
   options: DropdownOption<T>[]
   onChange: (value: T) => void
+  placeholder?: string
   triggerClassName?: string
   "aria-label"?: string
 }
@@ -22,11 +23,13 @@ export function DropdownSelect<T extends string>({
   value,
   options,
   onChange,
+  placeholder,
   triggerClassName,
   "aria-label": ariaLabel,
 }: DropdownSelectProps<T>) {
   const [open, setOpen] = useState(false)
   const current = options.find((o) => o.value === value)
+  const empty = current == null || current.value === ""
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -35,9 +38,11 @@ export function DropdownSelect<T extends string>({
           type="button"
           variant="outline"
           aria-label={ariaLabel}
-          className={cn("h-9 justify-between gap-2 font-normal", triggerClassName)}
+          className={cn("h-9 justify-between gap-2 border-neutral-200 bg-white font-normal", triggerClassName)}
         >
-          <span className="truncate">{current?.label ?? ""}</span>
+          <span className={cn("truncate", empty && "text-neutral-400/70")}>
+            {empty ? (placeholder ?? "") : current.label}
+          </span>
           <ChevronDown className="size-4 shrink-0 text-neutral-500" />
         </Button>
       </PopoverTrigger>

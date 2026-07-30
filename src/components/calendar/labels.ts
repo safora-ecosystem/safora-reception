@@ -111,6 +111,7 @@ export const defaultLabels: CalendarLabels = {
   makePrimary: "Asosiy qilish",
   document: "Hujjat",
   docNumber: "Seriya va raqam",
+  docTypeNone: "Tanlanmagan",
   docTypeText: {
     passport: "Pasport",
     id_card: "ID karta",
@@ -119,16 +120,14 @@ export const defaultLabels: CalendarLabels = {
     other: "Boshqa",
   },
   note: "Eslatma",
-  notePlaceholder: "Masalan: kech keladi, beshik kerak",
+  notePlaceholder: "Ixtiyoriy eslatma",
   capacityOver: (guests, capacity) =>
     `${guests} mehmon — xona sig'imi ${capacity}. Qo'shimcha joy kerak bo'lishi mumkin.`,
   guestsWord: (n) => `${n} mehmon`,
 
-  extraGuestCharge: "To'lovli",
-  extraGuestRate: "Qo'shimcha o'rin · 1 kecha",
+  extraGuestRate: "Narx / kecha",
   extraGuests: "Qo'shimcha o'rin",
   extraGuestsBreakdown: (guests, nights) => `${guests} mehmon × ${nights} kecha`,
-  extraGuestRateHint: "Narx kiritilmagan — qo'shimcha to'lov hisoblanmaydi",
   openChat: "Suhbat",
   duplicate: "Nusxalash",
   extendStay: "Uzaytirish",

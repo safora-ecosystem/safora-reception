@@ -1,4 +1,5 @@
 import { memo, useCallback, useMemo, useState } from "react"
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion"
 import {
   CalendarDays,
   DoorOpen,
@@ -15,8 +16,8 @@ import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
+import { PhoneInput, isPhoneComplete } from "@/components/ui/phone-input"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
 import { addDays, busyRoomsIn, nightsBetween } from "./geometry"
@@ -50,10 +51,9 @@ type PayMode = "unpaid" | "partial" | "full"
 
 interface CompanionDraft extends CalendarGuestInput {
   key: string
-  charged: boolean
+  rate: string
 }
 
-const MIN_PHONE_DIGITS = 7
 const QUICK_NIGHTS = [1, 2, 3, 7]
 const BLOCK_KINDS: CalendarBlockKind[] = ["maintenance", "cleaning", "hold", "other"]
 
@@ -159,7 +159,6 @@ function CreateForm({
   const [guestDocType, setGuestDocType] = useState("")
   const [guestDocNumber, setGuestDocNumber] = useState("")
   const [companions, setCompanions] = useState<CompanionDraft[]>([])
-  const [extraRate, setExtraRate] = useState(readExtraRate)
   const [note, setNote] = useState("")
 
   const [blockKind, setBlockKind] = useState<CalendarBlockKind>("maintenance")
@@ -200,14 +199,13 @@ function CreateForm({
   const roomsTotal = amountsValid ? lines.reduce((sum, l) => sum + l.total, 0) : 0
 
   // ── Qo'shimcha o'rin puli ────────────────────────────────────────────────
-  // Bir xonaga ikkinchi mehmon qo'shilsa mehmonxona odatda qo'shimcha oladi, lekin HAR DOIM
-  // emas (bola, xodim, aksiya). Shuning uchun qaror har mehmon qatorida — switch bilan.
-  const chargedGuests = companions.reduce((n, c) => n + (c.charged ? 1 : 0), 0)
-  const extraRateNum = extraRate === "" ? 0 : Number(extraRate)
-  const extraTotal =
-    isBlock || !Number.isFinite(extraRateNum)
-      ? 0
-      : chargedGuests * extraRateNum * Math.max(nights, 0)
+  // Bir xonaga ikkinchi mehmon qo'shilsa mehmonxona odatda qo'shimcha oladi, lekin narx HAR
+  // MEHMONDA O'ZINIKI (katta to'liq, bola chegirmali, xodim 0 = bepul) — shuning uchun qaror
+  // ham, summa ham har mehmon qatorida.
+  const chargedGuests = companions.reduce((n, c) => n + (Number(c.rate || 0) > 0 ? 1 : 0), 0)
+  const extraTotal = isBlock
+    ? 0
+    : companions.reduce((sum, c) => sum + Number(c.rate || 0), 0) * Math.max(nights, 0)
 
   const grandTotal = roomsTotal + extraTotal
 
@@ -236,7 +234,8 @@ function CreateForm({
   const selectedBusy = selectedIds.some((id) => busyRoomIds.has(id))
   // Blokni O'TMISHGA qo'yish ruxsat etilgan (ta'mir ko'pincha keyin ro'yxatga olinadi), bron esa yo'q.
   const inPast = !isBlock && start < today
-  const phoneDigits = guestPhone.replace(/\D/g, "")
+  // E.164 + libphonenumber katalogi: uzunlik ham, operator prefiksi ham davlatiga qarab tekshiriladi.
+  const phoneValid = isPhoneComplete(guestPhone)
   const companionsValid = companions.every((c) => c.fullName.trim().length > 0)
 
   const valid =
@@ -246,7 +245,7 @@ function CreateForm({
     !selectedBusy &&
     (isBlock ||
       (guestName.trim().length > 0 &&
-        phoneDigits.length >= MIN_PHONE_DIGITS &&
+        phoneValid &&
         companionsValid &&
         amountsValid &&
         !paidTooBig))
@@ -259,19 +258,19 @@ function CreateForm({
     setEnd(e)
   }, [])
 
-  const patchCompanion = useCallback(
-    (key: string, patch: Partial<CompanionDraft>) =>
-      setCompanions((prev) => prev.map((c) => (c.key === key ? { ...c, ...patch } : c))),
-    [],
-  )
+  const patchCompanion = useCallback((key: string, patch: Partial<CompanionDraft>) => {
+    // Terilgan narx keyingi bronlar uchun odatiy qiymat bo'lib qoladi (qurilma keshiga).
+    if (patch.rate != null) saveExtraRate(patch.rate)
+    setCompanions((prev) => prev.map((c) => (c.key === key ? { ...c, ...patch } : c)))
+  }, [])
 
   const addCompanion = useCallback(
     () =>
       setCompanions((prev) => [
         ...prev,
-        // Standart — TO'LOVLI: mehmonxonalarning ko'pi qo'shimcha o'rin uchun pul oladi;
-        // istisno (bola, aksiya) bir bosishda o'chiriladi.
-        { key: `c${prev.length}-${seq++}`, fullName: "", charged: true },
+        // Narx oldindan to'ldirilgan holda keladi (oxirgi ishlatilgan qiymat): mehmonxonalarning
+        // ko'pi qo'shimcha o'rin uchun pul oladi; istisno (bola, xodim) — narxni o'chirish kifoya.
+        { key: `c${prev.length}-${seq++}`, fullName: "", rate: readExtraRate() },
       ]),
     [],
   )
@@ -280,11 +279,6 @@ function CreateForm({
     (key: string) => setCompanions((prev) => prev.filter((c) => c.key !== key)),
     [],
   )
-
-  const changeExtraRate = useCallback((v: string) => {
-    setExtraRate(v)
-    saveExtraRate(v)
-  }, [])
 
   const setOverride = useCallback(
     (roomId: string, v: string) => setOverrides((prev) => ({ ...prev, [roomId]: v })),
@@ -369,7 +363,7 @@ function CreateForm({
           ? null
           : guestName.trim().length === 0
             ? labels.needGuestName
-            : phoneDigits.length < MIN_PHONE_DIGITS
+            : !phoneValid
               ? labels.needGuestPhone
               : !companionsValid
                 ? labels.needCompanionName
@@ -449,7 +443,8 @@ function CreateForm({
             ) : (
               <>
                 <Section icon={<User className="size-3.5" />} title={labels.guest}>
-                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                  {/* Telefon ustuni kengroq — davlat tanlagich ham, raqam ham sig'sin. */}
+                  <div className="grid gap-3 sm:grid-cols-2 xl:[grid-template-columns:1.1fr_1.4fr_1fr_1fr]">
                     <Field label={labels.guestName}>
                       <Input
                         className="h-9"
@@ -460,12 +455,10 @@ function CreateForm({
                       />
                     </Field>
                     <Field label={labels.guestPhone}>
-                      <Input
-                        className="h-9"
+                      <PhoneInput
                         value={guestPhone}
-                        onChange={(e) => setGuestPhone(e.target.value)}
-                        inputMode="tel"
-                        placeholder="+998 ..."
+                        onChange={setGuestPhone}
+                        aria-label={labels.guestPhone}
                         required
                       />
                     </Field>
@@ -491,14 +484,12 @@ function CreateForm({
                   labels={labels}
                   companions={companions}
                   nights={nights}
-                  extraRate={extraRate}
                   extraTotal={extraTotal}
                   chargedGuests={chargedGuests}
                   guestTotal={guestTotal}
                   onPatch={patchCompanion}
                   onAdd={addCompanion}
                   onRemove={removeCompanion}
-                  onExtraRate={changeExtraRate}
                 />
               </>
             )}
@@ -719,29 +710,26 @@ interface CompanionsBlockProps {
   labels: CalendarLabels
   companions: CompanionDraft[]
   nights: number
-  extraRate: string
   extraTotal: number
   chargedGuests: number
   guestTotal: number
   onPatch: (key: string, patch: Partial<CompanionDraft>) => void
   onAdd: () => void
   onRemove: (key: string) => void
-  onExtraRate: (v: string) => void
 }
 
 const CompanionsBlock = memo(function CompanionsBlock({
   labels,
   companions,
   nights,
-  extraRate,
   extraTotal,
   chargedGuests,
   guestTotal,
   onPatch,
   onAdd,
   onRemove,
-  onExtraRate,
 }: CompanionsBlockProps) {
+  const reduce = useReducedMotion()
   return (
     <Section
       icon={<Users className="size-3.5" />}
@@ -749,88 +737,87 @@ const CompanionsBlock = memo(function CompanionsBlock({
       aside={<span className="text-xs text-neutral-500 tabular-nums">{labels.guestsWord(guestTotal)}</span>}
     >
       <div className="flex flex-col gap-2">
-        {companions.map((c, i) => (
-          <div key={c.key} className="flex flex-wrap items-center gap-2 rounded-card bg-neutral-50 px-2.5 py-2">
-            <span className="grid size-6 shrink-0 place-items-center rounded-full bg-white text-[0.6875rem] font-medium text-neutral-500 tabular-nums">
-              {i + 2}
-            </span>
-
-            <div className="grid min-w-0 flex-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
-              <Input
-                value={c.fullName}
-                onChange={(e) => onPatch(c.key, { fullName: e.target.value })}
-                placeholder={labels.guestName}
-                aria-label={labels.guestName}
-                required
-              />
-              <Input
-                value={c.phone ?? ""}
-                onChange={(e) => onPatch(c.key, { phone: e.target.value })}
-                inputMode="tel"
-                placeholder={labels.guestPhone}
-                aria-label={labels.guestPhone}
-              />
-              <DocSelect
-                labels={labels}
-                value={c.docType ?? ""}
-                onChange={(v) => onPatch(c.key, { docType: v })}
-                className="w-full"
-              />
-              <Input
-                value={c.docNumber ?? ""}
-                onChange={(e) => onPatch(c.key, { docNumber: e.target.value })}
-                placeholder={labels.docNumber}
-                aria-label={labels.docNumber}
-              />
-            </div>
-
-            {/* Qo'shimcha o'rin puli olinadimi — qaror AYNAN shu mehmon qatorida turadi:
-                bola/xodim uchun istisno qilish bitta bosish. */}
-            <label className="flex shrink-0 cursor-pointer items-center gap-2 pl-1 text-xs font-medium text-neutral-500 select-none">
-              {labels.extraGuestCharge}
-              <Switch
-                size="sm"
-                checked={c.charged}
-                onCheckedChange={(v) => onPatch(c.key, { charged: v })}
-              />
-            </label>
-
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              aria-label={labels.removeGuest}
-              onClick={() => onRemove(c.key)}
+        <AnimatePresence initial={false}>
+          {companions.map((c, i) => (
+            // Qator paydo bo'lishi/yo'qolishi balandlik bilan ochilib-yopiladi — height animatsiyasi
+            // qo'shni qatorlarni tabiiy oqim bilan o'zi suradi, shuning uchun `layout` prop ATAYLAB
+            // yo'q: u har render'da o'lchov (reflow) qo'shib, qator ichida terishni sekinlashtirardi.
+            <motion.div
+              key={c.key}
+              initial={reduce ? false : { opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={reduce ? undefined : { opacity: 0, height: 0 }}
+              transition={{ duration: 0.18, ease: "easeOut" }}
+              className="overflow-hidden"
             >
-              <X />
-            </Button>
-          </div>
-        ))}
+              {/* items-start: kichik ekranda maydonlar ikki qatorga o'ralganda № va X birinchi
+                  qator bilan tekis qoladi (markazda "suzib" yurmaydi). Narx GRID ICHIDA —
+                  o'ralganda ham boshqa maydonlar bilan bitta to'rda turadi, alohida sakramaydi. */}
+              <div className="flex flex-wrap items-start gap-2 rounded-card bg-neutral-50 px-2.5 py-2">
+                <span className="mt-1.5 grid size-6 shrink-0 place-items-center rounded-full bg-white text-[0.6875rem] font-medium text-neutral-500 tabular-nums">
+                  {i + 2}
+                </span>
+
+                {/* Telefon ustuni kengroq (davlat tanlagich + raqam), narx qat'iy 7rem. */}
+                <div className="grid min-w-0 flex-1 gap-2 sm:grid-cols-2 xl:[grid-template-columns:1.1fr_1.4fr_1fr_1fr_7rem]">
+                  <Input
+                    value={c.fullName}
+                    onChange={(e) => onPatch(c.key, { fullName: e.target.value })}
+                    placeholder={labels.guestName}
+                    aria-label={labels.guestName}
+                    required
+                  />
+                  <PhoneInput
+                    value={c.phone ?? ""}
+                    onChange={(v) => onPatch(c.key, { phone: v })}
+                    aria-label={labels.guestPhone}
+                  />
+                  <DocSelect
+                    labels={labels}
+                    value={c.docType ?? ""}
+                    onChange={(v) => onPatch(c.key, { docType: v })}
+                  />
+                  <Input
+                    value={c.docNumber ?? ""}
+                    onChange={(e) => onPatch(c.key, { docNumber: e.target.value })}
+                    placeholder={labels.docNumber}
+                    aria-label={labels.docNumber}
+                  />
+                  {/* Shu mehmonning bir kechalik narxi — qaror AYNAN shu qatorda: bola chegirmali,
+                      xodim bepul (bo'sh/0). Yagona umumiy narx bu istisnolarni sig'dirmasdi. */}
+                  <MoneyInput
+                    value={c.rate ?? ""}
+                    onChange={(v) => onPatch(c.key, { rate: v })}
+                    ariaLabel={labels.extraGuestRate}
+                    placeholder={labels.extraGuestRate}
+                  />
+                </div>
+
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={labels.removeGuest}
+                  onClick={() => onRemove(c.key)}
+                  className="mt-1"
+                >
+                  <X />
+                </Button>
+              </div>
+            </motion.div>
+          ))}
+        </AnimatePresence>
 
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           <Button type="button" variant="outline" className="h-9" onClick={onAdd}>
             <Plus /> {labels.addGuest}
           </Button>
 
-          {companions.length > 0 && (
-            <>
-              <label className="flex items-center gap-2 text-xs font-medium text-neutral-500">
-                {labels.extraGuestRate}
-                <MoneyInput
-                  value={extraRate}
-                  onChange={onExtraRate}
-                  ariaLabel={labels.extraGuestRate}
-                  className="h-9 w-28"
-                />
-              </label>
-              {chargedGuests > 0 && (
-                <span className="text-xs text-neutral-400 tabular-nums">
-                  {extraTotal > 0
-                    ? `${labels.extraGuestsBreakdown(chargedGuests, Math.max(nights, 0))} = ${labels.money(extraTotal)}`
-                    : labels.extraGuestRateHint}
-                </span>
-              )}
-            </>
+          {chargedGuests > 0 && extraTotal > 0 && (
+            <span className="text-xs text-neutral-400 tabular-nums">
+              {labels.extraGuestsBreakdown(chargedGuests, Math.max(nights, 0))} ={" "}
+              {labels.money(extraTotal)}
+            </span>
           )}
         </div>
       </div>
@@ -958,7 +945,8 @@ const MoneyPanel = memo(function MoneyPanel({
               value={partialInput}
               onChange={onPartial}
               ariaLabel={labels.prepayment}
-              className={cn("h-9 w-full", paidTooBig && "ring-1 ring-destructive")}
+              placeholder={labels.prepayment}
+              className={cn("w-full", paidTooBig && "border-destructive ring-3 ring-destructive/15")}
             />
           )}
 

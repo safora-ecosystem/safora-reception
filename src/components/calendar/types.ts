@@ -147,17 +147,16 @@ export interface CalendarLabels {
   makePrimary: string
   document: string
   docNumber: string
+  docTypeNone: string
   docTypeText: Record<string, string>
   note: string
   notePlaceholder: string
   capacityOver: (guests: number, capacity: number) => string
   guestsWord: (n: number) => string
 
-  extraGuestCharge: string
   extraGuestRate: string
   extraGuests: string
   extraGuestsBreakdown: (guests: number, nights: number) => string
-  extraGuestRateHint: string
 
   openChat: string
   duplicate: string
