@@ -167,8 +167,6 @@ function CreateForm({
   const [start, setStart] = useState(draft.start)
   const [end, setEnd] = useState(draft.end)
   const [selectedIds, setSelectedIds] = useState<string[]>([draft.roomId])
-  /** Faqat QO'LDA o'zgartirilgan summalar. Tegilmagan xona `rate × kechalar`ga ergashadi. */
-  const [overrides, setOverrides] = useState<Record<string, string>>({})
   const [payMode, setPayMode] = useState<PayMode>("unpaid")
   const [partialInput, setPartialInput] = useState("")
   const [busy, setBusy] = useState(false)
@@ -183,20 +181,24 @@ function CreateForm({
   const roomsById = useMemo(() => new Map(rooms.map((r) => [r.id, r])), [rooms])
 
   // Tanlov TARTIBI saqlanadi — xulosadagi qatorlar xodim bosgan ketma-ketlikda tursin.
+  // Summa FAQAT xona tarifidan: `rate × kechalar`. Qo'lda yozish ATAYLAB yo'q — bu biznes
+  // chegarasi: xodim narxni kamaytirib yozib, farqni naqd olishi mumkin edi. Narx Xonalar
+  // bo'limida (owner/manager) belgilanadi, resepshn esa faqat natijani ko'radi.
   const lines = useMemo(
     () =>
       selectedIds.flatMap((id) => {
         const room = roomsById.get(id)
         if (!room) return []
-        const suggested = room.rate != null ? Math.round(room.rate * Math.max(nights, 0)) : 0
-        const raw = overrides[id]
-        return [{ room, suggested, raw: raw ?? String(suggested), total: Number(raw ?? suggested) }]
+        const total = room.rate != null ? Math.round(room.rate * Math.max(nights, 0)) : 0
+        return [{ room, total, hasRate: room.rate != null }]
       }),
-    [selectedIds, roomsById, overrides, nights],
+    [selectedIds, roomsById, nights],
   )
 
-  const amountsValid = lines.every((l) => l.raw !== "" && Number.isFinite(l.total) && l.total >= 0)
-  const roomsTotal = amountsValid ? lines.reduce((sum, l) => sum + l.total, 0) : 0
+  // Tarifi kiritilmagan xonaga bron OCHILMAYDI: 0 so'mlik bron xuddi o'sha teshikning
+  // boshqa eshigi bo'lardi (xodim ataylab shunday xonaga joylashtirib naqd oladi).
+  const missingRate = !isBlock && lines.some((l) => !l.hasRate)
+  const roomsTotal = lines.reduce((sum, l) => sum + l.total, 0)
 
   // ── Qo'shimcha o'rin puli ────────────────────────────────────────────────
   // Bir xonaga ikkinchi mehmon qo'shilsa mehmonxona odatda qo'shimcha oladi, lekin narx HAR
@@ -247,7 +249,7 @@ function CreateForm({
       (guestName.trim().length > 0 &&
         phoneValid &&
         companionsValid &&
-        amountsValid &&
+        !missingRate &&
         !paidTooBig))
 
   // ── Barqaror handler'lar ─────────────────────────────────────────────────
@@ -277,11 +279,6 @@ function CreateForm({
 
   const removeCompanion = useCallback(
     (key: string) => setCompanions((prev) => prev.filter((c) => c.key !== key)),
-    [],
-  )
-
-  const setOverride = useCallback(
-    (roomId: string, v: string) => setOverrides((prev) => ({ ...prev, [roomId]: v })),
     [],
   )
 
@@ -350,9 +347,11 @@ function CreateForm({
     ? labels.pastStart
     : selectedBusy
       ? labels.selectedBusy
-      : paidTooBig
-        ? labels.prepaymentTooBig
-        : null
+      : missingRate
+        ? labels.rateNotSetError
+        : paidTooBig
+          ? labels.prepaymentTooBig
+          : null
 
   const footerNeed =
     footerError || valid
@@ -572,7 +571,6 @@ function CreateForm({
               paidTooBig={paidTooBig}
               overCapacity={overCapacity ? (capacity as number) : null}
               guestTotal={guestTotal}
-              onOverride={setOverride}
               onPayMode={setPayMode}
               onPartial={setPartialInput}
             />
@@ -829,8 +827,8 @@ const CompanionsBlock = memo(function CompanionsBlock({
 
 interface MoneyLine {
   room: CalendarRoom
-  raw: string
   total: number
+  hasRate: boolean
 }
 
 interface MoneyPanelProps {
@@ -847,7 +845,6 @@ interface MoneyPanelProps {
   /** Sig'im oshgan bo'lsa — tanlangan xonalarning YIG'MA sig'imi, aks holda `null`. */
   overCapacity: number | null
   guestTotal: number
-  onOverride: (roomId: string, v: string) => void
   onPayMode: (m: PayMode) => void
   onPartial: (v: string) => void
 }
@@ -865,7 +862,6 @@ const MoneyPanel = memo(function MoneyPanel({
   paidTooBig,
   overCapacity,
   guestTotal,
-  onOverride,
   onPayMode,
   onPartial,
 }: MoneyPanelProps) {
@@ -883,22 +879,27 @@ const MoneyPanel = memo(function MoneyPanel({
           <p className="text-xs text-neutral-400">{labels.roomsSelected(0)}</p>
         ) : (
           <div className="divide-hairline flex flex-col rounded-card bg-white ring-1 ring-neutral-200/70">
+            {/* Summalar FAQAT O'QILADI — narx xona tarifidan keladi, resepshn uni yozmaydi
+                (biznes chegarasi, sabab `lines` hisoblanadigan joyda). */}
             {lines.map((l) => (
               <div key={l.room.id} className="flex items-center gap-2 px-3 py-2">
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-xs font-medium text-neutral-800">{l.room.label}</p>
-                  {l.room.rate != null && nights >= 1 && (
+                  {l.hasRate && nights >= 1 && (
                     <p className="text-[0.6875rem] text-neutral-400 tabular-nums">
-                      {groupThousands(l.room.rate)} × {nights}
+                      {groupThousands(l.room.rate as number)} × {nights}
                     </p>
                   )}
                 </div>
-                <MoneyInput
-                  value={l.raw}
-                  onChange={(v) => onOverride(l.room.id, v)}
-                  ariaLabel={`${l.room.label} — ${labels.amount}`}
-                  className="w-24"
-                />
+                {l.hasRate ? (
+                  <span className="text-sm font-medium text-neutral-900 tabular-nums">
+                    {groupThousands(l.total)}
+                  </span>
+                ) : (
+                  <span className="text-xs font-medium text-warning-surface-foreground">
+                    {labels.rateNotSet}
+                  </span>
+                )}
               </div>
             ))}
 

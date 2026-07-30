@@ -125,6 +125,10 @@ export const defaultLabels: CalendarLabels = {
     `${guests} mehmon — xona sig'imi ${capacity}. Qo'shimcha joy kerak bo'lishi mumkin.`,
   guestsWord: (n) => `${n} mehmon`,
 
+  rateNotSet: "Narx belgilanmagan",
+  rateNotSetError: "Xona narxi belgilanmagan — Xonalar bo'limida tarif kiritilsin",
+  totalBelowPaid: "Yangi summa to'langan puldan kam — avval to'lovni storno qiling",
+
   extraGuestRate: "Narx / kecha",
   extraGuests: "Qo'shimcha o'rin",
   extraGuestsBreakdown: (guests, nights) => `${guests} mehmon × ${nights} kecha`,

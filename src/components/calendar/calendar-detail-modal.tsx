@@ -279,7 +279,6 @@ function DetailBody({
   const [roomId, setRoomId] = useState(b.roomId)
   const [start, setStart] = useState(b.start)
   const [end, setEnd] = useState(b.end)
-  const [amount, setAmount] = useState(String(b.payment?.total ?? 0))
   const [note, setNote] = useState(b.note ?? "")
 
   // Server qoidasi bilan bir xil: kelmagan mehmonni ko'chirish mumkin, ichkaridagini esa faqat
@@ -301,11 +300,29 @@ function DetailBody({
   const nights = nightsBetween(editing ? start : b.start, editing ? end : b.end)
   const conflict = editing && (canRelocate || canExtend) && hasConflict({ roomId, start, end }, bookings, b.id)
 
-  const amountNum = Number(amount.replace(/\s/g, ""))
+  // ── Summa HISOBLANADI, yozilmaydi ─────────────────────────────────────────
+  // Resepshn narxni qo'lda kirita olmaydi (biznes chegarasi — yaratish formasi bilan bir xil):
+  //   · xona ALMASHSA — yangi xonaning tarifi × kechalar (boshqa toifada eski narx ma'nosiz);
+  //   · faqat SANALAR o'zgarsa — bronning O'Z kechalik narxi saqlanadi (jami / eski kechalar):
+  //     maxsus narxda ochilgan eski bron uzaytirilganda tarif bilan qayta yozilsa,
+  //     kelishilgan narx jimgina yo'qolardi. Standart bronda bu baribir tarifga teng.
+  const oldTotal = b.payment?.total ?? 0
+  const oldNights = Math.max(nightsBetween(b.start, b.end), 1)
+  const roomChanged = editing && roomId !== b.roomId
+  const datesChanged = editing && (start !== b.start || end !== b.end)
+  const rateMissing = roomChanged && editRoom?.rate == null
+  const newTotal = roomChanged
+    ? editRoom?.rate != null
+      ? Math.round(editRoom.rate * nights)
+      : oldTotal
+    : datesChanged
+      ? Math.round((oldTotal / oldNights) * nights)
+      : oldTotal
+
   const paidNow = b.payment?.paid ?? 0
-  // Summa to'langan puldan past tushmasin — aks holda server 400 qaytaradi (paid ≤ total).
-  // To'langan summaning O'ZI endi bu formada tahrirlanmaydi: u faqat ledger orqali o'zgaradi.
-  const amountValid = Number.isFinite(amountNum) && amountNum >= 0 && amountNum >= paidNow
+  // Qisqartirishda summa to'langan puldan past tushmasin — server ham rad etadi (paid ≤ total).
+  // Yechim raqamni "to'g'irlash" emas: avval storno, keyin sana.
+  const totalBelowPaid = newTotal < paidNow
   // Tegilmagan (eski, tanib bo'lmagan) raqam saqlashni BLOKLAMAYDI — u baribir yuborilmaydi;
   // faqat yangi terilgan raqam to'liq bo'lishi shart.
   const phoneValid = guestPhone === initialPhone || isPhoneComplete(guestPhone)
@@ -315,13 +332,10 @@ function DetailBody({
     roomId !== b.roomId ||
     start !== b.start ||
     end !== b.end ||
-    amountNum !== (b.payment?.total ?? 0) ||
+    newTotal !== oldTotal ||
     note.trim() !== (b.note ?? "")
-  const valid = guestName.trim().length > 0 && phoneValid && nights >= 1 && amountValid && !conflict
-
-  /** Xona narxi × kechalar — resepshn summani qo'lda hisoblamasin. Uzaytirishda ayniqsa muhim:
-      qo'shimcha kecha pulini xodim boshida hisoblab o'tirmaydi. */
-  const suggested = editRoom?.rate != null ? Math.round(editRoom.rate * nights) : null
+  const valid =
+    guestName.trim().length > 0 && phoneValid && nights >= 1 && !totalBelowPaid && !rateMissing && !conflict
 
   const payment = b.payment
   const ratio = payment ? paymentRatio(payment) : 0
@@ -352,7 +366,7 @@ function DetailBody({
     }
     // Chiqish sanasi ikkala holatda ham o'zgaradi — uzaytirish `checked_in` uchun ham ochiq.
     if ((canRelocate || canExtend) && end !== b.end) patch.end = end
-    if (amountNum !== (b.payment?.total ?? 0)) patch.totalAmount = amountNum
+    if (newTotal !== oldTotal) patch.totalAmount = newTotal
     // paidAmount bu yerdan ATAYLAB yuborilmaydi: to'langan pul faqat ledger (to'lov qabul
     // qilish / storno) orqali o'zgaradi — "raqamni to'g'irlab qo'yish" yo'li yopiq.
     if (note.trim() !== (b.note ?? "")) patch.note = note.trim()
@@ -370,11 +384,10 @@ function DetailBody({
 
   const discard = () => {
     setGuestName(b.label)
-    setGuestPhone(b.sublabel ?? "")
+    setGuestPhone(initialPhone)
     setRoomId(b.roomId)
     setStart(b.start)
     setEnd(b.end)
-    setAmount(String(b.payment?.total ?? 0))
     setNote(b.note ?? "")
     setEditing(false)
   }
@@ -622,21 +635,39 @@ function DetailBody({
           <Section icon={<Wallet className="size-3.5" />} title={labels.payment}>
             {editing ? (
               <div className="grid gap-3 sm:grid-cols-2">
+                {/* Summa YOZILMAYDI — sana/xona o'zgarishi bilan o'zi qayta hisoblanadi
+                    (formula tepada, `newTotal`). Eski → yangi ko'rsatiladi: xodim mehmonga
+                    aytadigan farqni ko'rib turadi. */}
                 <Field label={labels.amount}>
-                  <Input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="numeric" />
-                  {suggested != null && suggested !== amountNum && (
-                    <button
-                      type="button"
-                      onClick={() => setAmount(String(suggested))}
-                      // Neytral: input ostidagi qizil matn validatsiya XATOSIdek o'qiladi, bu esa
-                      // shunchaki maslahat. Brend rangi faqat hover'da — interaktivligini bildiradi.
-                      className="self-start text-xs font-medium text-neutral-500 underline-offset-2 transition-colors hover:text-brand-700 hover:underline"
-                    >
-                      {labels.nightlyRate} {labels.money(editRoom?.rate ?? 0)} × {nights} = {labels.money(suggested)}
-                    </button>
+                  <ReadValue>
+                    {newTotal !== oldTotal ? (
+                      <>
+                        <span className="font-normal text-neutral-400 line-through">
+                          {labels.money(oldTotal)}
+                        </span>{" "}
+                        {labels.money(newTotal)}
+                      </>
+                    ) : (
+                      labels.money(oldTotal)
+                    )}
+                  </ReadValue>
+                  {newTotal !== oldTotal && !roomChanged && (
+                    <span className="text-xs text-neutral-400 tabular-nums">
+                      {labels.nightlyRate} {labels.money(Math.round(oldTotal / oldNights))} × {nights}
+                    </span>
                   )}
-                  {!amountValid && amountNum < paidNow && (
-                    <span className="text-xs font-medium text-destructive">{labels.prepaymentTooBig}</span>
+                  {roomChanged && editRoom?.rate != null && (
+                    <span className="text-xs text-neutral-400 tabular-nums">
+                      {labels.nightlyRate} {labels.money(editRoom.rate)} × {nights}
+                    </span>
+                  )}
+                  {rateMissing && (
+                    <span className="text-xs font-medium text-warning-surface-foreground">
+                      {labels.rateNotSetError}
+                    </span>
+                  )}
+                  {totalBelowPaid && (
+                    <span className="text-xs font-medium text-destructive">{labels.totalBelowPaid}</span>
                   )}
                 </Field>
                 {/* To'langan summa tahrirda OCHILMAYDI — u ledger'ning keshi. "Raqamni

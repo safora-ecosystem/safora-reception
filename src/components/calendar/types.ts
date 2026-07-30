@@ -154,6 +154,10 @@ export interface CalendarLabels {
   capacityOver: (guests: number, capacity: number) => string
   guestsWord: (n: number) => string
 
+  rateNotSet: string
+  rateNotSetError: string
+  totalBelowPaid: string
+
   extraGuestRate: string
   extraGuests: string
   extraGuestsBreakdown: (guests: number, nights: number) => string
