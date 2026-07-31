@@ -11,6 +11,19 @@ ENV VITE_API_URL=$VITE_API_URL
 # qiymat, sir emas; bo'sh bo'lsa widget render qilinmaydi.
 ARG VITE_TURNSTILE_SITEKEY=
 ENV VITE_TURNSTILE_SITEKEY=$VITE_TURNSTILE_SITEKEY
+# Firebase web push (FCM) — hammasi OCHIQ qiymatlar (apiKey web bundle'da baribir
+# ko'rinadi; himoya Firebase qoidalari va domen cheklovlarida). Bo'sh qolsa panel
+# push'siz, "Brauzer bildirishnomasi" faqat tab-ochiq rejimda ishlaydi.
+ARG VITE_FIREBASE_API_KEY=
+ENV VITE_FIREBASE_API_KEY=$VITE_FIREBASE_API_KEY
+ARG VITE_FIREBASE_PROJECT_ID=
+ENV VITE_FIREBASE_PROJECT_ID=$VITE_FIREBASE_PROJECT_ID
+ARG VITE_FIREBASE_SENDER_ID=
+ENV VITE_FIREBASE_SENDER_ID=$VITE_FIREBASE_SENDER_ID
+ARG VITE_FIREBASE_APP_ID=
+ENV VITE_FIREBASE_APP_ID=$VITE_FIREBASE_APP_ID
+ARG VITE_FIREBASE_VAPID_KEY=
+ENV VITE_FIREBASE_VAPID_KEY=$VITE_FIREBASE_VAPID_KEY
 RUN npm run build
 
 FROM nginx:1.27-alpine AS runtime
