@@ -23,9 +23,9 @@ export const navItems: NavItem[] = [
   { to: "/", labelKey: "nav.stats", icon: Analytics02Icon },
   { to: "/calendar", labelKey: "nav.calendar", icon: Calendar02Icon, permission: "calendar.view" },
   { to: "/rooms", labelKey: "nav.rooms", icon: Door01Icon, permission: "rooms.view" },
-  { to: "/guests", labelKey: "nav.guests", icon: UserStar01Icon, permission: "guests.view" },
   { to: "/requests", labelKey: "nav.services", icon: SparklesIcon, permission: "requests.view" },
   { to: "/chat", labelKey: "nav.chat", icon: Message02Icon, permission: "chat.guest" },
+  { to: "/guests", labelKey: "nav.guests", icon: UserStar01Icon, permission: "guests.view" },
 ]
 
 export const systemNavItems: NavItem[] = [

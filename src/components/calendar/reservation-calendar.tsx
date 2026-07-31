@@ -192,17 +192,16 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
       }
       for (const room of rooms) {
         const hk = room.housekeeping
-        if (hk !== "dirty" && hk !== "in_progress") continue
+        if (hk !== "dirty" && hk !== "in_progress" && hk !== "clean") continue
         const b = latest.get(room.id)
         if (!b?.checkedOutAt) continue
-        const at = new Date(b.checkedOutAt)
-        const col = epochDay(at.toLocaleDateString("en-CA")) - originDay
+        if (hk === "clean" && new Date(b.checkedOutAt).toLocaleDateString("en-CA") !== today) continue
+        const col = epochDay(b.end) - originDay
         if (col < 0 || col >= range.days) continue
-        const frac = (at.getHours() * 60 + at.getMinutes()) / 1440
-        map.set(room.id, { left: Math.round((col + frac) * dayWidth), width, status: hk })
+        map.set(room.id, { left: Math.round((col + checkOutFrac) * dayWidth) + 2, width, status: hk })
       }
       return map
-    }, [rooms, bookings, cleaningMinutes, dayWidth, originDay, range.days])
+    }, [rooms, bookings, cleaningMinutes, dayWidth, originDay, range.days, checkOutFrac, today])
 
     const [selectedId, setSelectedId] = useState<string | null>(null)
     const selectedBooking = useMemo(

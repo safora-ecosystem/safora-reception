@@ -52,8 +52,6 @@ interface MoveState {
   dragged: boolean
 }
 
-const clamp = (n: number, lo: number, hi: number) => (n < lo ? lo : n > hi ? hi : n)
-
 const EDGE = 56
 const MAX_SPEED = 22
 
@@ -98,11 +96,14 @@ export function useCalendarMove(config: MoveConfig): CalendarMoveHandlers {
     const rect = scroller.getBoundingClientRect()
     const { x, y } = pointerRef.current
     const minDay = Math.max(0, epochDay(config.today) - config.originDay)
-    const col = clamp(
-      columnFromX(x, rect.left, scroller.scrollLeft, config.railWidth, config.dayWidth) - s.grabOffset,
-      minDay,
-      Math.max(minDay, config.days - s.nights),
-    )
+    const rawCol =
+      columnFromX(x, rect.left, scroller.scrollLeft, config.railWidth, config.dayWidth) - s.grabOffset
+    const col =
+      rawCol < minDay
+        ? s.originCol < minDay
+          ? s.originCol
+          : minDay
+        : Math.min(rawCol, Math.max(minDay, config.days - s.nights))
     const yLocal = y - rect.top + scroller.scrollTop - config.headerHeight
     const lane = roomLaneAtY(yLocal, config.lanes, config.laneTops, config.rowHeight, config.groupHeight)
     const nextLane = lane >= 0 ? lane : s.laneIndex

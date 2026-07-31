@@ -34,12 +34,12 @@ function CalendarGroupRowImpl({
 }: CalendarGroupRowProps) {
   const showRate = rate > 0 && dayWidth >= 44
   return (
-    // `hairline-b`: qavat satri body tarafida ham pastdan yopiladi. Ilgari chiziq faqat reyd
-    // tarafida bor edi (u yerda guruh kartasi o'z chegarasini chizardi), kunlar ustida esa qavat
-    // satri quyidagi xona satriga chegarasiz qo'shilib ketib, "qavat chizig'i tushib qolgan"dek
-    // ko'rinardi. Xona satrlarining chizig'i o'z catcher div'idan keladi.
+    // `border-y-2 border-brand-300` — rail'dagi qavat tugmasining ayni romi body bo'ylab davom
+    // etadi: qavat tasmasi butun timeline kengligida ikki uzluksiz brand chiziq bilan ajralib
+    // turadi (tepa — oldingi qavatdan, past — o'z xonalaridan). Ilgari bu yerda hairline bor edi
+    // va qavat satri xona satrlariga qo'shilib ketardi.
     <div
-      className="hairline-b absolute left-0"
+      className="absolute left-0 border-y-2 border-brand-300"
       style={{ top: rowTop, height, width: bodyWidth }}
       aria-hidden
     >

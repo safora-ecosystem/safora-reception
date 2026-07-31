@@ -3,6 +3,7 @@ import { ArrowUpRight } from "lucide-react"
 import { motion, useReducedMotion } from "framer-motion"
 import type { ReactNode } from "react"
 import { fadeInUp, staggerContainer } from "@/lib/motion-presets"
+import { RollingNumber } from "@/components/shared/rolling-number"
 import { cn } from "@/lib/utils"
 
 type StatCardProps = {
@@ -45,9 +46,11 @@ export function StatCard({ label, value, unit, hint, hero = false }: StatCardPro
 
       <div className="flex flex-col gap-1">
         <div className="flex items-baseline gap-1.5">
-          <span className="text-[2.5rem] leading-none font-semibold tracking-tight tabular-nums">
-            {value}
-          </span>
+          {}
+          <RollingNumber
+            value={value}
+            className="text-[2.5rem] font-semibold tracking-tight"
+          />
           {unit && (
             <span
               className={cn(

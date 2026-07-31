@@ -11,7 +11,7 @@ const ICON_MIN_PX = 26
 export interface CleaningTailRect {
   left: number
   width: number
-  status: "dirty" | "in_progress"
+  status: "dirty" | "in_progress" | "clean"
 }
 
 interface CalendarCleaningTailProps {
@@ -28,8 +28,10 @@ function CalendarCleaningTailImpl({ rect, rowTop, rowHeight }: CalendarCleaningT
     <div
       aria-hidden
       className={cn(
-        "pointer-events-none absolute z-[11] flex items-center justify-center",
-        rect.status === "dirty" ? "bg-warning text-warning-foreground" : "bg-brand-400 text-on-fill",
+        "pointer-events-none absolute z-[6] flex items-center justify-center",
+        rect.status === "dirty" && "bg-warning text-warning-foreground",
+        rect.status === "in_progress" && "bg-brand-400 text-on-fill",
+        rect.status === "clean" && "bg-success text-success-foreground",
       )}
       style={{ left: rect.left, width, top: rowTop + BAR_VPAD, height, clipPath }}
     >

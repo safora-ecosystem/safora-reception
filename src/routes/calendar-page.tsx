@@ -275,7 +275,7 @@ export function CalendarPage() {
               onCheckOut={data.checkOut}
               onCancel={data.cancel}
               onEditBooking={data.editBooking}
-              onMoveBooking={data.moveBooking}
+              onMoveBooking={canEdit ? data.moveBooking : undefined}
               onRemoveBlock={data.removeBlock}
               onSelectBooking={(b) => data.selectGuestsFor(b?.id ?? null)}
               guests={data.guests}

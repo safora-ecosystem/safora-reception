@@ -3,7 +3,7 @@ import type { CalendarBooking, CalendarRoom, CalendarStatus } from "./types"
 
 const DAY_MS = 86_400_000
 
-const OCCUPYING: CalendarStatus[] = ["booked", "checked_in"]
+const OCCUPYING: CalendarStatus[] = ["booked", "checked_in", "blocked"]
 
 export function epochDay(iso: string): number {
   const [y, m, d] = iso.slice(0, 10).split("-").map(Number)
