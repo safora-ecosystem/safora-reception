@@ -79,14 +79,13 @@ export function HousekeepingPage() {
       }
     >
       <QueryState
-        queries={reportQ}
+        queries={[reportQ]}
         skeleton={
           <div className="flex flex-col gap-4">
             <SkeletonStatGrid />
             <SkeletonList rows={6} />
           </div>
         }
-        variant="page"
         isEmpty={
           !!report && report.sessions.length === 0 && report.lostItems.length === 0
         }
