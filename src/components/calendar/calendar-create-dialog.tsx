@@ -93,14 +93,13 @@ const isoToDate = (iso: string) => new Date(`${iso}T00:00:00`)
 const dateToIso = (d: Date) => d.toLocaleDateString("en-CA")
 
 function fmtDay(iso: string, labels: CalendarLabels): string {
-  const [, m, d] = iso.slice(0, 10).split("-").map(Number)
-  return `${d}-${labels.months[m - 1]}`
+  return labels.formatDay(iso)
 }
 
 function fmtLongDate(iso: string, labels: CalendarLabels): string {
   const [y, m, d] = iso.slice(0, 10).split("-").map(Number)
   const dow = new Date(Date.UTC(y, m - 1, d)).getUTCDay()
-  return `${d}-${labels.months[m - 1]} · ${labels.weekdaysShort[dow]}`
+  return `${labels.formatDay(iso)} · ${labels.weekdaysShort[dow]}`
 }
 
 /**

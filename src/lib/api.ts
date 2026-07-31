@@ -1,4 +1,5 @@
 import { clearSession, getSession, updateTokens, type Session } from "./auth"
+import { t } from "./i18n"
 
 const BASE_URL = import.meta.env.VITE_API_URL
 
@@ -24,11 +25,15 @@ export class ApiError extends Error {
 }
 
 /** `fetch` umuman javob ololmaganda (tarmoq uzilgan, server o'lik, timeout) otiladi — brauzerning
-    xom "Failed to fetch" TypeError'i o'rniga tushunarli, typed xato. UI shu message'ni ko'rsatadi. */
+    xom "Failed to fetch" TypeError'i o'rniga tushunarli, typed xato.
+
+    `message` — TEXNIK satr (log/diagnostika uchun), ekranga CHIQMAYDI. Sabab: xato obyekti bir
+    marta yaratiladi, til esa keyin almashishi mumkin — foydalanuvchi matni `apiErrorText()` da,
+    ya'ni ko'rsatish paytida tarjima qilinadi. */
 export class NetworkError extends Error {
   readonly cause: unknown
   constructor(cause: unknown) {
-    super("Server bilan aloqa yo'q. Internet aloqangizni tekshiring yoki birozdan so'ng qayta urining.")
+    super("Network unreachable")
     this.name = "NetworkError"
     this.cause = cause
   }
@@ -182,7 +187,7 @@ export async function api<T>(path: string, options: ApiOptions = {}): Promise<T>
       if (err instanceof SessionExpiredError && path !== "/auth/login") {
         clearSession()
         window.location.assign("/login")
-        throw new ApiError(401, { message: "Seans muddati tugadi — qayta kiring" })
+        throw new ApiError(401, { message: t("errors.sessionExpiredShort") })
       }
       throw err
     }
@@ -199,16 +204,19 @@ export async function api<T>(path: string, options: ApiOptions = {}): Promise<T>
 /** Xatoni odam o'qiydigan matnga aylantiradi — boshqa panellardagi bilan BIR XIL funksiya.
     Server o'z xabarini bergan bo'lsa (masalan kvota tugagani) aynan u ko'rsatiladi: u kontekstni
     bizdan yaxshi biladi. Faqat status'dan bilinadigan holatlar undan oldin tekshiriladi. */
-export function apiErrorText(err: unknown, fallback = "Xatolik yuz berdi"): string {
+export function apiErrorText(err: unknown, fallback = t("errors.generic")): string {
   if (err instanceof ApiError) {
-    if (err.status === 401) return "Seans muddati tugadi — qayta kiring"
-    if (err.status === 403) return "Bu amalga ruxsatingiz yo'q"
-    if (err.status >= 500) return "Server xatosi — birozdan so'ng qayta urining"
+    if (err.status === 401) return t("errors.sessionExpiredShort")
+    if (err.status === 403) return t("errors.forbiddenShort")
+    if (err.status >= 500) return t("errors.serverShort")
+    // Server matni TARJIMA QILINMAYDI — u backend tilida keladi va kontekstni bizdan yaxshi
+    // biladi (kvota, validatsiya tafsiloti). Backend `Accept-Language` ni qo'llagach shu joy
+    // o'zidan o'zi to'g'ri tilda gapiradi.
     const serverMsg = (err.body as { message?: unknown } | null)?.message
     if (typeof serverMsg === "string" && serverMsg) return serverMsg
     return fallback
   }
-  if (err instanceof NetworkError) return err.message
+  if (err instanceof NetworkError) return t("errors.noConnection")
   return fallback
 }
 

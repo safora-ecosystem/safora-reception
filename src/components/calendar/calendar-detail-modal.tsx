@@ -94,12 +94,11 @@ const dateToIso = (d: Date) => d.toLocaleDateString("en-CA")
 function fmtLongDate(iso: string, labels: CalendarLabels): string {
   const [y, m, d] = iso.slice(0, 10).split("-").map(Number)
   const dow = new Date(Date.UTC(y, m - 1, d)).getUTCDay()
-  return `${d}-${labels.months[m - 1]} · ${labels.weekdaysShort[dow]}`
+  return `${labels.formatDay(iso)} · ${labels.weekdaysShort[dow]}`
 }
 
 function fmtDay(iso: string, labels: CalendarLabels): string {
-  const [, m, d] = iso.slice(0, 10).split("-").map(Number)
-  return `${d}-${labels.months[m - 1]}`
+  return labels.formatDay(iso)
 }
 
 /** Timestamp → "20-iyul · 14:22". LOKAL vaqt: bu real moment, xodim devor soatiga qaraydi. */
@@ -109,7 +108,7 @@ function fmtMoment(iso: string | null | undefined, labels: CalendarLabels): stri
   if (Number.isNaN(d.getTime())) return null
   const hh = String(d.getHours()).padStart(2, "0")
   const mm = String(d.getMinutes()).padStart(2, "0")
-  return `${d.getDate()}-${labels.months[d.getMonth()]} · ${hh}:${mm}`
+  return `${labels.formatDay(iso)} · ${hh}:${mm}`
 }
 
 function initials(name: string): string {

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react"
+import { t } from "@/lib/i18n"
 
 const SITEKEY = import.meta.env.VITE_TURNSTILE_SITEKEY
 const SCRIPT_SRC = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
@@ -35,7 +36,7 @@ function loadScript(): Promise<void> {
     script.async = true
     script.defer = true
     script.onload = () => resolve()
-    script.onerror = () => reject(new Error("Turnstile skripti yuklanmadi"))
+    script.onerror = () => reject(new Error(t("errors.turnstile")))
     document.head.appendChild(script)
   })
   return loader

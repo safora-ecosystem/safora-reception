@@ -2,7 +2,6 @@ import { useMemo, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { BedDouble, CalendarCheck2, DoorOpen, QrCode, Search, Wrench } from "lucide-react"
 import { toast } from "sonner"
-import { defaultLabels } from "@/components/calendar"
 import { PageLayout } from "@/components/layout/page-layout"
 import { RangeToggle } from "@/components/shared/charts"
 import { EmptyState } from "@/components/shared/empty-state"
@@ -25,23 +24,31 @@ import {
   type RoomBlock,
 } from "@/lib/api"
 import { localIso, money, shortDate } from "@/lib/format"
+import { useT, type TFunc, type TKey } from "@/lib/i18n"
 import { usePermissions } from "@/lib/permissions"
 import { cn } from "@/lib/utils"
 
 
 type RoomState = "occupied" | "arriving" | "blocked" | "free"
 
-const STATE: Record<RoomState, { label: string; tile: string }> = {
-  occupied: { label: "Joylashgan", tile: "bg-cal-in-surface text-cal-in-foreground" },
-  arriving: { label: "Kutilmoqda", tile: "bg-cal-booked-surface text-cal-booked-foreground" },
-  blocked: { label: "Yopilgan", tile: "bar-blocked text-cal-block-foreground" },
-  free: { label: "Bo'sh", tile: "border border-border bg-neutral-50 text-neutral-500" },
+const STATE: Record<RoomState, { labelKey: TKey; tile: string }> = {
+  occupied: { labelKey: "roomStatus.occupied", tile: "bg-cal-in-surface text-cal-in-foreground" },
+  arriving: { labelKey: "roomStatus.waiting", tile: "bg-cal-booked-surface text-cal-booked-foreground" },
+  blocked: { labelKey: "roomStatus.blocked", tile: "bar-blocked text-cal-block-foreground" },
+  free: { labelKey: "roomStatus.free", tile: "border border-border bg-neutral-50 text-neutral-500" },
 }
 
-const HOUSEKEEPING: Record<HousekeepingStatus, string> = {
-  clean: "Tozalangan",
-  dirty: "Tozalanmagan",
-  in_progress: "Tozalanmoqda",
+const HOUSEKEEPING: Record<HousekeepingStatus, TKey> = {
+  clean: "roomStatus.clean",
+  dirty: "roomStatus.dirty",
+  in_progress: "roomStatus.cleaning",
+}
+
+const BLOCK_KIND: Record<RoomBlock["kind"], TKey> = {
+  maintenance: "blockKind.maintenance",
+  cleaning: "blockKind.cleaning",
+  hold: "blockKind.hold",
+  other: "blockKind.otherReason",
 }
 
 const covers = (from: string, to: string, day: string) =>
@@ -56,6 +63,7 @@ type RoomView = {
 }
 
 export function RoomsPage() {
+  const t = useT()
   const today = localIso()
   const roomsQ = useQuery({ queryKey: ["rooms"], queryFn: listRooms })
   const bookingsQ = useQuery({
@@ -100,10 +108,10 @@ export function RoomsPage() {
 
   const floorOptions = useMemo(
     () => [
-      { value: "all" as const, label: "Barchasi" },
-      ...floors.map((f) => ({ value: f, label: `${f}-qavat` })),
+      { value: "all" as const, label: t("common.all") },
+      ...floors.map((f) => ({ value: f, label: t("rooms.floorNo", { floor: f }) })),
     ],
-    [floors],
+    [floors, t],
   )
 
   const shown = useMemo(() => {
@@ -127,9 +135,8 @@ export function RoomsPage() {
   const cleaning = views.filter((v) => v.room.housekeepingStatus === "in_progress").length
 
   return (
-    <PageLayout title="Xonalar">
-      {/* Skelet taxta layoutini takrorlaydi: o'lchov paneli + filtr qatori + plitka to'ri.
-          Xato — sabab + retry (yiqilgan so'rovlargina qayta uriladi). */}
+    <PageLayout title={t("nav.rooms")}>
+      {}
       <QueryState
         queries={[roomsQ, bookingsQ, blocksQ]}
         variant="page"
@@ -153,26 +160,28 @@ export function RoomsPage() {
       <div className="flex flex-col gap-4">
         <StatGrid>
           <StatCard
-            label="Band xonalar"
+            label={t("stats.occupiedRooms")}
             value={String(occupied)}
             unit={`/ ${total}`}
-            hint={`${total > 0 ? Math.round((occupied / total) * 100) : 0}% bandlik`}
+            hint={t("stats.occupancyHint", {
+              pct: total > 0 ? Math.round((occupied / total) * 100) : 0,
+            })}
             hero
           />
           <StatCard
-            label="Bo'sh xonalar"
+            label={t("stats.freeRooms")}
             value={String(free)}
-            hint="hozir joylashtirsa bo'ladi"
+            hint={t("rooms.freeHint")}
           />
           <StatCard
-            label="Bugun bo'shaydi"
+            label={t("rooms.freeingToday")}
             value={String(departing)}
-            hint="chiqish kutilmoqda"
+            hint={t("rooms.freeingHint")}
           />
           <StatCard
-            label="Tozalash kutilmoqda"
+            label={t("roomStatus.cleaningWaiting")}
             value={String(dirty)}
-            hint={cleaning > 0 ? `${cleaning} tasi tozalanmoqda` : "hammasi tayyor"}
+            hint={cleaning > 0 ? t("rooms.cleaningCount", { count: cleaning }) : t("rooms.allClean")}
           />
         </StatGrid>
 
@@ -186,13 +195,13 @@ export function RoomsPage() {
               <Input
                 value={term}
                 onChange={(e) => setTerm(e.target.value)}
-                placeholder="Xona raqami, turi yoki mehmon"
+                placeholder={t("rooms.searchPlaceholder")}
                 className="h-9 pl-8"
-                aria-label="Xonalarni qidirish"
+                aria-label={t("rooms.searchAria")}
               />
             </div>
             {floors.length > 0 && (
-              <RangeToggle options={floorOptions} value={floor} onChange={setFloor} ariaLabel="Qavat" />
+              <RangeToggle options={floorOptions} value={floor} onChange={setFloor} ariaLabel={t("units.floor")} />
             )}
           </div>
 
@@ -200,17 +209,13 @@ export function RoomsPage() {
             {shown.length === 0 ? (
               <EmptyState
                 icon={DoorOpen}
-                title={total === 0 ? "Xona qo'shilmagan" : "Mos xona topilmadi"}
-                hint={
-                  total === 0
-                    ? "Xonalarni Rahbar paneli qo'shadi — qo'shilgach shu yerda paydo bo'ladi."
-                    : "Qidiruv yoki qavat filtrini o'zgartirib ko'ring."
-                }
+                title={total === 0 ? t("rooms.emptyNone") : t("rooms.emptyFiltered")}
+                hint={total === 0 ? t("rooms.emptyNoneHint") : t("rooms.emptyFilteredHint")}
               />
             ) : (
               <div className="grid grid-cols-[repeat(auto-fill,minmax(6.5rem,1fr))] gap-2 px-4 pb-4">
                 {shown.map((v) => (
-                  <RoomTile key={v.room.id} view={v} onOpen={() => setSelected(v)} />
+                  <RoomTile key={v.room.id} view={v} t={t} onOpen={() => setSelected(v)} />
                 ))}
               </div>
             )}
@@ -229,7 +234,7 @@ export function RoomsPage() {
   )
 }
 
-function RoomTile({ view, onOpen }: { view: RoomView; onOpen: () => void }) {
+function RoomTile({ view, t, onOpen }: { view: RoomView; t: TFunc; onOpen: () => void }) {
   const { room, state, booking, block, departsToday } = view
   const hk = room.housekeepingStatus ?? "clean"
 
@@ -238,20 +243,20 @@ function RoomTile({ view, onOpen }: { view: RoomView; onOpen: () => void }) {
   // yo'qmi (tozalanmagan xonani hozir sotib bo'lmaydi); band xonada tozalash holati resepshnga
   // emas, tozalash ilovasiga tegishli — u detal oynasida qoladi.
   const caption = departsToday
-    ? "Bugun chiqadi"
+    ? t("rooms.departsToday")
     : booking && state !== "free"
       ? booking.guestName
       : block
-        ? defaultLabels.blockKindText[block.kind]
+        ? t(BLOCK_KIND[block.kind])
         : hk !== "clean"
-          ? HOUSEKEEPING[hk]
-          : "Bo'sh"
+          ? t(HOUSEKEEPING[hk])
+          : t("roomStatus.free")
 
   return (
     <button
       type="button"
       onClick={onOpen}
-      title={`${room.number}-xona · ${STATE[state].label}`}
+      title={`${t("stay.roomNo", { number: room.number })} · ${t(STATE[state].labelKey)}`}
       className={cn(
         "flex flex-col items-start gap-0.5 rounded-control px-2.5 py-2 text-left transition-[filter] hover:brightness-[0.98] focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
         STATE[state].tile,
@@ -274,9 +279,10 @@ function RoomDialog({
   showRate: boolean
   onClose: () => void
 }) {
+  const t = useT()
   const copyScanUrl = (url: string) => {
     navigator.clipboard?.writeText(url)
-    toast.success("QR havolasi nusxalandi")
+    toast.success(t("rooms.qrCopied"))
   }
 
   const room = view?.room
@@ -298,7 +304,9 @@ function RoomDialog({
                   {room.number}
                 </span>
                 <span className="min-w-0">
-                  <span className="block truncate">{room.number}-xona</span>
+                  <span className="block truncate">
+                    {t("stay.roomNo", { number: room.number })}
+                  </span>
                   <span className="block text-xs font-normal text-neutral-500">{room.type}</span>
                 </span>
               </DialogTitle>
@@ -306,15 +314,29 @@ function RoomDialog({
 
             <div className="flex flex-col gap-4">
               <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="outline">{STATE[view.state].label}</Badge>
-                {view.departsToday && <Badge variant="warning">Bugun chiqadi</Badge>}
-                {hk !== "clean" && <Badge variant="warning">{HOUSEKEEPING[hk]}</Badge>}
+                <Badge variant="outline">{t(STATE[view.state].labelKey)}</Badge>
+                {view.departsToday && <Badge variant="warning">{t("rooms.departsToday")}</Badge>}
+                {hk !== "clean" && <Badge variant="warning">{t(HOUSEKEEPING[hk])}</Badge>}
               </div>
 
               <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
-                <Field label="Qavat" value={room.floor !== null ? `${room.floor}-qavat` : "belgilanmagan"} />
-                <Field label="Sig'imi" value={room.capacity ? `${room.capacity} kishi` : "belgilanmagan"} />
-                {showRate && <Field label="Narx / kecha" value={money(room.rate ?? 0)} />}
+                <Field
+                  label={t("units.floor")}
+                  value={
+                    room.floor !== null
+                      ? t("rooms.floorNo", { floor: room.floor })
+                      : t("rooms.unset")
+                  }
+                />
+                <Field
+                  label={t("units.capacity")}
+                  value={
+                    room.capacity
+                      ? t("rooms.capacityPeople", { count: room.capacity })
+                      : t("rooms.unset")
+                  }
+                />
+                {showRate && <Field label={t("units.perNight")} value={money(room.rate ?? 0)} />}
               </dl>
 
               {view.booking && (
@@ -338,7 +360,7 @@ function RoomDialog({
                 <div className="rounded-card border border-border p-3">
                   <p className="flex items-center gap-2 text-sm font-medium text-neutral-900">
                     <Wrench className="size-4 text-neutral-400" strokeWidth={1.75} />
-                    {defaultLabels.blockKindText[view.block.kind]}
+                    {t(BLOCK_KIND[view.block.kind])}
                   </p>
                   <p className="mt-1 text-xs text-neutral-500">
                     {shortDate(view.block.startDate)} — {shortDate(view.block.endDate)}
@@ -349,14 +371,14 @@ function RoomDialog({
 
               {view.state === "free" && !view.block && (
                 <p className="text-xs text-neutral-500">
-                  Bugun ({shortDate(today)}) bu xonada bron yo'q.
+                  {t("rooms.noBookingToday", { date: shortDate(today) })}
                 </p>
               )}
 
               {room.scanUrl && (
                 <Button variant="outline" className="w-full" onClick={() => copyScanUrl(room.scanUrl!)}>
                   <QrCode strokeWidth={1.75} />
-                  QR havolasini nusxalash
+                  {t("rooms.copyQr")}
                 </Button>
               )}
             </div>

@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from "react"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { useT } from "@/lib/i18n"
 import { cn } from "@/lib/utils"
 import type { LegendItem, RangeOption, TooltipRow } from "./chart-hooks"
 
@@ -37,6 +38,7 @@ export function ChartTooltip({
   align?: "start" | "center" | "end"
   placement?: "above" | "below"
 }) {
+  const t = useT()
   const box = cn(
     "pointer-events-none absolute z-20 min-w-max rounded-lg border border-border bg-popover px-2.5 py-2 shadow-md",
     placement === "above" ? "bottom-full mb-2" : "top-0",
@@ -53,7 +55,9 @@ export function ChartTooltip({
         <p className="mt-0.5 flex items-baseline gap-1.5 text-sm leading-tight font-semibold text-neutral-900 tabular-nums">
           {row.value}
           {row.hatch && (
-            <span className="text-[0.625rem] font-normal text-neutral-400">rejada</span>
+            <span className="text-[0.625rem] font-normal text-neutral-400">
+              {t("charts.plannedNote")}
+            </span>
           )}
         </p>
       </div>
@@ -81,7 +85,8 @@ export function ChartTooltip({
 }
 
 
-export function ChartEmpty({ label = "Ma'lumot yo'q", className }: { label?: string; className?: string }) {
+export function ChartEmpty({ label, className }: { label?: string; className?: string }) {
+  const t = useT()
   return (
     <div
       className={cn(
@@ -89,7 +94,7 @@ export function ChartEmpty({ label = "Ma'lumot yo'q", className }: { label?: str
         className,
       )}
     >
-      {label}
+      {label ?? t("charts.noData")}
     </div>
   )
 }
@@ -103,13 +108,14 @@ export function RangeToggle<T extends string | number>({
   options,
   value,
   onChange,
-  ariaLabel = "Vaqt oynasi",
+  ariaLabel,
 }: {
   options: RangeOption<T>[]
   value: T
   onChange: (value: T) => void
   ariaLabel?: string
 }) {
+  const t = useT()
   return (
     <Tabs
       value={String(value)}
@@ -119,7 +125,7 @@ export function RangeToggle<T extends string | number>({
       }}
       className="shrink-0"
     >
-      <TabsList aria-label={ariaLabel} className="h-9">
+      <TabsList aria-label={ariaLabel ?? t("charts.timeWindow")} className="h-9">
         {options.map((option) => (
           <TabsTrigger
             key={String(option.value)}
@@ -135,7 +141,8 @@ export function RangeToggle<T extends string | number>({
 }
 
 
-export function ChartTableToggle({ children, label = "Raqamlar" }: { children: ReactNode; label?: string }) {
+export function ChartTableToggle({ children }: { children: ReactNode }) {
+  const t = useT()
   const [open, setOpen] = useState(false)
   return (
     <div className="mt-3">
@@ -144,7 +151,8 @@ export function ChartTableToggle({ children, label = "Raqamlar" }: { children: R
         onClick={() => setOpen((v) => !v)}
         className="text-xs font-medium text-neutral-500 underline-offset-4 transition-colors hover:text-neutral-800 hover:underline"
       >
-        {open ? `${label}ni yashirish` : label}
+        {}
+        {open ? t("charts.hideNumbers") : t("charts.numbers")}
       </button>
       {open && <div className="app-scroll mt-2 max-h-56 overflow-auto">{children}</div>}
     </div>

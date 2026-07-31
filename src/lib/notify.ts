@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import type { TKey } from "./i18n"
 
 export type ToneId = "marimba" | "bell" | "pop"
 
@@ -7,10 +8,10 @@ export type NotifyPrefs = { sound: boolean; desktop: boolean; tone: ToneId }
 const KEY = "safora_notify"
 const DEFAULTS: NotifyPrefs = { sound: true, desktop: false, tone: "marimba" }
 
-export const TONES: Array<{ id: ToneId; label: string; hint: string }> = [
-  { id: "marimba", label: "Marimba", hint: "Iliq, yumshoq — Teams uslubi" },
-  { id: "bell", label: "Qo'ng'iroqcha", hint: "Bitta past jarang" },
-  { id: "pop", label: "Tomchi", hint: "Qisqa suv tomchisi" },
+export const TONES: Array<{ id: ToneId; labelKey: TKey; hintKey: TKey }> = [
+  { id: "marimba", labelKey: "tones.marimba", hintKey: "tones.marimbaHint" },
+  { id: "bell", labelKey: "tones.bell", hintKey: "tones.bellHint" },
+  { id: "pop", labelKey: "tones.pop", hintKey: "tones.popHint" },
 ]
 
 export function readNotifyPrefs(): NotifyPrefs {

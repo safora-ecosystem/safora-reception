@@ -15,32 +15,38 @@ type RequiredPlural = {
   en: "one" | "other"
 }
 
-type PluralShape<L extends Locale> = Record<RequiredPlural[L], string> &
+export type PluralShape<L extends Locale> = Record<RequiredPlural[L], string> &
   Partial<Record<Exclude<PluralCategory, RequiredPlural[L]>, string>>
 
-export type Shape<T, L extends Locale = Locale> = {
-  [K in keyof T]: T[K] extends string
-    ? string
-    : T[K] extends PluralForms
-      ? PluralShape<L>
-      : Shape<T[K], L>
+export type Shape<T, P = PluralForms> = {
+  [K in keyof T]: T[K] extends string ? string : T[K] extends PluralForms ? P : Shape<T[K], P>
 }
 
-type Join<K extends string, Rest extends string> = Rest extends "" ? K : `${K}.${Rest}`
+type Join<Prefix extends string, K extends string> = Prefix extends "" ? K : `${Prefix}.${K}`
 
-/** Daraxtni nuqtali kalitlar birlashmasiga yoyadi: `{a:{b:"x"}}` → `"a.b"`. */
-export type Paths<T> = T extends Leaf
-  ? ""
-  : { [K in keyof T & string]: Join<K, Paths<T[K]>> }[keyof T & string]
+type UnionToIntersection<U> = (U extends unknown ? (k: U) => void : never) extends (
+  k: infer I,
+) => void
+  ? I
+  : never
 
-/** Nuqtali kalit bo'yicha bargni topadi (tip darajasida). */
-export type At<T, P extends string> = P extends `${infer Head}.${infer Rest}`
-  ? Head extends keyof T
-    ? At<T[Head], Rest>
-    : never
-  : P extends keyof T
-    ? T[P]
-    : never
+/**
+ * Daraxtni BIR MARTA yassi jadvalga aylantiradi: `{a:{b:"x"}}` → `{ "a.b": "x" }`.
+ *
+ * NIMA UCHUN JADVAL, "yo'l birlashmasi + qidiruv" EMAS. Avvalgi tuzilishda ikki tip bor edi:
+ * `Paths<T>` (kalitlar birlashmasi) va `At<T, "a.b">` (kalit bo'yicha bargni topish). `At<>`
+ * kalitni `${infer Head}.${infer Rest}` bilan bo'lib, daraxtdan HAR `t()` CHAQIRUVIDA qayta
+ * sirg'alib o'tardi — 700 kalit va yuzlab chaqiruv joyida bu `tsc` ni ~1 soniyadan ~20 soniyaga
+ * cho'zdi (o'lchangan: check time 3.7s → 10.8s faqat shu tipdan).
+ *
+ * Yassi jadval bir marta hisoblanadi, keyin kalit bo'yicha barg — oddiy indeks (`Flat[K]`).
+ * Tip xavfsizligi aynan o'sha: mavjud bo'lmagan kalit ham, noto'g'ri parametr ham ushlanadi.
+ */
+export type Flatten<T, Prefix extends string = ""> = T extends Leaf
+  ? { [K in Prefix]: T }
+  : UnionToIntersection<
+      { [K in keyof T & string]: Flatten<T[K], Join<Prefix, K>> }[keyof T & string]
+    >
 
 /** Satrdagi `{name}` o'rin egalarini majburiy parametrlarga aylantiradi. */
 type Vars<S extends string> = S extends `${string}{${infer Name}}${infer Rest}`

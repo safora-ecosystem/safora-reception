@@ -40,8 +40,7 @@ const ICON_MIN_PX = 60
 const PAYMENT_MIN_PX = 108
 
 function fmtDay(iso: string, labels: CalendarLabels): string {
-  const [, m, d] = iso.slice(0, 10).split("-").map(Number)
-  return `${d}-${labels.months[m - 1]}`
+  return labels.formatDay(iso)
 }
 
 function paymentRatio(p: CalendarPayment): number {
@@ -49,8 +48,6 @@ function paymentRatio(p: CalendarPayment): number {
   return p.paid > 0 ? 1 : 0
 }
 
-/** To'lov indikatori — `$` belgisi to'langan foizga proporsional (pastdan) to'ladi, holatiga
-    qarab rangli (to'liq=yashil, qisman=amber, to'lanmagan=quyi/xira). Bar matn rangini meros oladi. */
 function PaymentGlyph({ payment }: { payment: CalendarPayment }) {
   const ratio = paymentRatio(payment)
   const fill = ratio >= 1 ? "text-success" : "text-warning"

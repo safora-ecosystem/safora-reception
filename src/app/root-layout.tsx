@@ -4,6 +4,7 @@ import { Sidebar } from "@/components/layout/sidebar"
 import { Topbar } from "@/components/layout/topbar"
 import { OfflineBanner } from "@/components/shared/offline-banner"
 import { ChatRealtimeProvider } from "@/lib/chat-realtime"
+import { LocaleBoundary } from "@/lib/i18n"
 import { PageHeaderProvider } from "@/lib/page-header"
 import { TopbarSearchProvider } from "@/lib/topbar-search"
 import { cn } from "@/lib/utils"
@@ -15,6 +16,8 @@ export function RootLayout() {
     <PageHeaderProvider>
       <ChatRealtimeProvider>
       <TopbarSearchProvider>
+        {}
+        <LocaleBoundary>
         <div className="flex h-svh gap-3 bg-background p-3 text-foreground">
           <Sidebar />
           <div className="flex min-w-0 flex-1 flex-col gap-3">
@@ -34,6 +37,7 @@ export function RootLayout() {
             </main>
           </div>
         </div>
+        </LocaleBoundary>
       </TopbarSearchProvider>
       </ChatRealtimeProvider>
     </PageHeaderProvider>

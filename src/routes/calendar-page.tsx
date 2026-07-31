@@ -7,7 +7,7 @@ import { Icon } from "@/components/ui/icon"
 import {
   ReservationCalendar,
   addDays,
-  defaultLabels,
+  calendarLabels,
   useCalendarMetrics,
   type CalendarLabels,
   type CalendarRange,
@@ -24,14 +24,15 @@ import { useSetPageHeader } from "@/lib/page-header"
 import { usePermissions } from "@/lib/permissions"
 import { useReadOnlyCalendar } from "@/lib/calendar-guard"
 import { useTopbarSearch } from "@/lib/topbar-search"
+import { useT, type TKey } from "@/lib/i18n"
 import { cn } from "@/lib/utils"
 
 
 const VIEW_MODES = [
-  { key: "kun", label: "Kun", dayWidth: 140 },
-  { key: "hafta", label: "Hafta", dayWidth: 96 },
-  { key: "oy", label: "Oy", dayWidth: 52 },
-] as const
+  { key: "kun", labelKey: "calendar.day", dayWidth: 140 },
+  { key: "hafta", labelKey: "calendar.week", dayWidth: 96 },
+  { key: "oy", labelKey: "calendar.month", dayWidth: 52 },
+] as const satisfies ReadonlyArray<{ key: string; labelKey: TKey; dayWidth: number }>
 type ViewKey = (typeof VIEW_MODES)[number]["key"]
 
 const RANGE_BACK = 60
@@ -55,6 +56,7 @@ function useMockParams(): { mock: boolean; rooms: number } {
 }
 
 export function CalendarPage() {
+  const t = useT()
   const { mock: mockMode, rooms: mockRooms } = useMockParams()
   const { can } = usePermissions()
   const [selfReadOnly] = useReadOnlyCalendar()
@@ -63,11 +65,11 @@ export function CalendarPage() {
   const calRef = useRef<ReservationCalendarHandle>(null)
   const { hostRef, panelRef, expanded, toggle } = useFullscreenPanel()
   useSetPageHeader(
-    "Kalendar",
+    t("nav.calendar"),
     canEdit ? (
       <Button size="xl" onClick={() => calRef.current?.openCreate()}>
         <Plus strokeWidth={2} />
-        Yangi bron
+        {t("calendar.newBooking")}
       </Button>
     ) : undefined,
   )
@@ -143,25 +145,25 @@ export function CalendarPage() {
             <DropdownSelect
               value={statusFilter}
               onChange={setStatusFilter}
-              aria-label="Holat bo'yicha filtr"
+              aria-label={t("calendar.filterStatus")}
               triggerClassName="w-40"
               options={[
-                { value: "all", label: "Barcha holat" },
-                ...STATUS_OPTIONS.map((s) => ({ value: s, label: defaultLabels.statusText[s] })),
+                { value: "all", label: t("calendar.allStatuses") },
+                ...STATUS_OPTIONS.map((s) => ({ value: s, label: calendarLabels().statusText[s] })),
               ]}
             />
 
             {matchIds ? (
               <span className="text-xs font-medium text-neutral-500 tabular-nums">
-                {matchIds.size} ta topildi
+                {t("calendar.foundCount", { count: matchIds.size })}
               </span>
             ) : (
               (todayOps.arrivals > 0 || todayOps.departures > 0 || todayOps.overdue > 0) && (
                 <span className="text-xs text-neutral-500 tabular-nums">
-                  Bugun:{" "}
+                  {t("common.today")}:{" "}
                   {[
-                    todayOps.arrivals > 0 && `${todayOps.arrivals} kirish`,
-                    todayOps.departures > 0 && `${todayOps.departures} chiqish`,
+                    todayOps.arrivals > 0 && t("calendarToast.arrivals", { count: todayOps.arrivals }),
+                    todayOps.departures > 0 && t("calendarToast.departures", { count: todayOps.departures }),
                   ]
                     .filter(Boolean)
                     .join(" · ")}
@@ -177,7 +179,7 @@ export function CalendarPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            {/* View mode (zoom) — segmented */}
+            {}
             <div className="flex h-9 items-center gap-0.5 rounded-xl bg-neutral-100 p-1">
               {VIEW_MODES.map((v) => (
                 <button
@@ -192,12 +194,12 @@ export function CalendarPage() {
                       : "text-neutral-500 hover:text-neutral-800",
                   )}
                 >
-                  {v.label}
+                  {t(v.labelKey)}
                 </button>
               ))}
             </div>
 
-            {/* Navigatsiya — scroll (paging emas) */}
+            {}
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
@@ -226,7 +228,7 @@ export function CalendarPage() {
               </Button>
             </div>
 
-            {/* To'liq ekran — sahifani to'ldiradi (system fullscreen EMAS), qayta bosilsa/Esc yopadi */}
+            {}
             <div className="mx-0.5 h-5 w-px bg-neutral-200" aria-hidden />
             <Button
               variant="outline"
@@ -234,8 +236,8 @@ export function CalendarPage() {
               className="size-11 rounded-xl"
               onClick={toggle}
               aria-pressed={expanded}
-              aria-label={expanded ? "To'liq ekrandan chiqish" : "To'liq ekran"}
-              title={expanded ? "To'liq ekrandan chiqish (Esc)" : "To'liq ekran"}
+              aria-label={expanded ? t("calendar.exitFullscreen") : t("calendar.fullscreen")}
+              title={expanded ? t("calendar.exitFullscreenEsc") : t("calendar.fullscreen")}
             >
               <Icon
                 icon={expanded ? ArrowShrink01Icon : ArrowExpandDiagonal01Icon}
@@ -245,9 +247,7 @@ export function CalendarPage() {
           </div>
         </header>
 
-        {/* Uch holat: xato → sabab + retry (ilgari bu yer yalang'och "Ma'lumot yuklanmadi"
-            satri edi); yuklanmoqda → kalendar shaklidagi skelet (oq maydon EMAS); tayyor →
-            haqiqiy tape-chart. Fon poll'i yiqilsa error null qoladi — kalendar ochiq turadi. */}
+        {}
         <div
           className="min-h-0 flex-1"
           aria-busy={!mockMode && data.isLoading ? true : undefined}
@@ -277,7 +277,6 @@ export function CalendarPage() {
               onEditBooking={data.editBooking}
               onMoveBooking={data.moveBooking}
               onRemoveBlock={data.removeBlock}
-              // Bar tanlanganda mehmonlar ro'yxati yuklanadi; yopilganda (`null`) to'xtaydi.
               onSelectBooking={(b) => data.selectGuestsFor(b?.id ?? null)}
               guests={data.guests}
               guestsLoading={data.guestsLoading}
@@ -285,14 +284,11 @@ export function CalendarPage() {
               onUpdateGuest={data.updateGuest}
               onRemoveGuest={data.removeGuest}
               onSetPrimaryGuest={data.makeGuestPrimary}
-              // To'lov ledgeri: rahbar `payments.record`ni o'chirsa tugma umuman chiqmaydi
-              // (server ham 403 qaytaradi — UI yolg'on va'da bermaydi).
               payments={data.payments}
               onRecordPayment={can("payments.record") ? data.recordPayment : undefined}
               onVoidPayment={can("payments.record") ? data.voidPayment : undefined}
               activity={data.activity}
               activityLoading={data.activityLoading}
-              // Per-suhbat marshrut hali yo'q (SESSION.md "keyingi qadamlar") — hozircha inbox'ga.
               onOpenChat={() => navigate({ to: "/chat" })}
               onDuplicate={(b) => calRef.current?.openCreate(b.roomId)}
             />

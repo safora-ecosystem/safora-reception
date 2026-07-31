@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils"
 import { ChartEmpty } from "@/components/shared/charts/chart-parts"
-import { CHART_PRIMARY, fullNumber } from "@/components/shared/charts/chart-tokens"
+import { CHART_PRIMARY, barFill, fullNumber } from "@/components/shared/charts/chart-tokens"
 
 
 export type BarListItem = {
@@ -59,7 +59,9 @@ export function BarList({ items, maxValue, emptyLabel, className, limit }: BarLi
               className="h-full rounded-full transition-[width] duration-500"
               style={{
                 width: `${row.value > 0 ? Math.max((row.value / top) * 100, 2) : 0}%`,
-                backgroundColor: row.color ?? CHART_PRIMARY,
+                // Gorizontal ustunda gradient ham gorizontal: 8px balandlikda vertikal
+                // o'tish umuman ko'rinmasdi.
+                backgroundImage: barFill(row.color ?? CHART_PRIMARY, "to right"),
               }}
             />
           </div>

@@ -2,6 +2,7 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion"
 import type { ReactNode } from "react"
 import { EmptyState } from "@/components/shared/empty-state"
 import { ErrorState } from "@/components/shared/error-state"
+import { useT } from "@/lib/i18n"
 import { EASE_OUT } from "@/lib/motion-presets"
 
 
@@ -32,6 +33,7 @@ export function QueryState({
   children,
   className,
 }: QueryStateProps) {
+  const t = useT()
   const reduceMotion = useReducedMotion()
   const list = Array.isArray(queries) ? queries : [queries]
 
@@ -60,7 +62,7 @@ export function QueryState({
         ) : state === "error" ? (
           <ErrorState variant={variant} error={failed[0]?.error} onRetry={retry} />
         ) : state === "empty" ? (
-          (empty ?? <EmptyState title="Hozircha ma'lumot yo'q" />)
+          (empty ?? <EmptyState title={t("common.noDataYet")} />)
         ) : (
           children
         )}

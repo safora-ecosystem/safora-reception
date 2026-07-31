@@ -9,6 +9,7 @@ import {
   type AvatarResult,
 } from "@/lib/api"
 import { updateAvatar } from "@/lib/auth"
+import { useT } from "@/lib/i18n"
 
 
 const ACCEPT = "image/jpeg,image/png,image/webp"
@@ -22,6 +23,7 @@ export function AvatarUploader({
   avatarUrl: string | null | undefined
   onChange: (url: string | null) => void
 }) {
+  const t = useT()
   const inputRef = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
   const [remaining, setRemaining] = useState<number | null>(null)
@@ -36,24 +38,23 @@ export function AvatarUploader({
   async function pick(file: File | undefined) {
     if (!file) return
     if (file.size > AVATAR_MAX_BYTES) {
-      toast.error("Rasm hajmi 8MB dan oshmasligi kerak")
+      toast.error(t("avatar.tooLarge"))
       return
     }
     setBusy(true)
     try {
       const res = await uploadMyAvatar(file)
       applyResult(res)
-      toast.success("Profil rasmi yangilandi", {
+      toast.success(t("avatar.updated"), {
         description:
           res.remaining > 0
-            ? `Bu oyda yana ${res.remaining} marta almashtirish mumkin.`
-            : "Bu oydagi almashtirish imkoniyati tugadi.",
+            ? t("avatar.remainingToast", { count: res.remaining })
+            : t("avatar.quotaOver"),
       })
     } catch (err) {
-      toast.error(apiErrorText(err, "Rasm yuklanmadi"))
+      toast.error(apiErrorText(err, t("avatar.uploadFailed")))
     } finally {
       setBusy(false)
-      // Bir xil faylni qayta tanlash ham hodisa bersin (aks holda `change` otilmaydi).
       if (inputRef.current) inputRef.current.value = ""
     }
   }
@@ -62,9 +63,9 @@ export function AvatarUploader({
     setBusy(true)
     try {
       applyResult(await removeMyAvatar())
-      toast.success("Profil rasmi olib tashlandi")
+      toast.success(t("avatar.removed"))
     } catch (err) {
-      toast.error(apiErrorText(err, "O'chirib bo'lmadi"))
+      toast.error(apiErrorText(err, t("avatar.removeFailed")))
     } finally {
       setBusy(false)
     }
@@ -78,7 +79,6 @@ export function AvatarUploader({
             src={avatarUrl}
             alt={name}
             className="size-12 rounded-full object-cover"
-            // Rasm CDN'dan kelmasa (tarmoq/o'chirilgan) bosh harf ko'rinib turaveradi.
             onError={(e) => (e.currentTarget.style.display = "none")}
           />
         ) : (
@@ -92,10 +92,10 @@ export function AvatarUploader({
         <p className="truncate font-medium text-neutral-900">{name}</p>
         <p className="truncate text-sm text-neutral-500">
           {remaining === null
-            ? "JPG, PNG yoki WEBP · 8MB gacha"
+            ? t("avatar.hint")
             : remaining > 0
-              ? `Bu oyda yana ${remaining} marta almashtirish mumkin`
-              : "Bu oydagi imkoniyat tugadi"}
+              ? t("avatar.remaining", { count: remaining })
+              : t("avatar.quotaHint")}
         </p>
       </div>
 
@@ -113,7 +113,7 @@ export function AvatarUploader({
           disabled={busy}
           onClick={() => inputRef.current?.click()}
         >
-          {busy ? "Yuklanmoqda…" : avatarUrl ? "O'zgartirish" : "Rasm qo'yish"}
+          {busy ? t("avatar.uploading") : avatarUrl ? t("avatar.change") : t("avatar.set")}
         </Button>
         {avatarUrl && (
           <Button

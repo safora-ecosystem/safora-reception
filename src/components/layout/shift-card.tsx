@@ -3,14 +3,15 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion"
 import { useQuery } from "@tanstack/react-query"
 import { api } from "@/lib/api"
 import { cn } from "@/lib/utils"
-import { uzDate, uzTime } from "@/lib/datetime"
+import { clockOf, dayLabel } from "@/lib/format"
+import { useT, type TKey } from "@/lib/i18n"
 import { VersionTag } from "./version-tag"
 
-function shiftLabel(now: Date): string {
+function shiftKey(now: Date): TKey {
   const hour = now.getHours()
-  if (hour >= 6 && hour < 14) return "Ertalabki smena"
-  if (hour >= 14 && hour < 22) return "Kunduzgi smena"
-  return "Tungi smena"
+  if (hour >= 6 && hour < 14) return "shift.morning"
+  if (hour >= 14 && hour < 22) return "shift.day"
+  return "shift.night"
 }
 
 function RollingTime({ time, className }: { time: string; className?: string }) {
@@ -53,6 +54,7 @@ function RollingTime({ time, className }: { time: string; className?: string }) 
 }
 
 export function ShiftCard() {
+  const t = useT()
   const [now, setNow] = useState(() => new Date())
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 1000)
@@ -64,10 +66,10 @@ export function ShiftCard() {
     queryFn: () => api<unknown>("/health"),
   })
   const conn = isSuccess
-    ? { dot: "bg-success", label: "Backend ulangan" }
+    ? { dot: "bg-success", label: t("shift.online") }
     : isError
-      ? { dot: "bg-destructive", label: "Backend ulanmadi" }
-      : { dot: "bg-neutral-400", label: "Tekshirilmoqda" }
+      ? { dot: "bg-destructive", label: t("shift.offline") }
+      : { dot: "bg-neutral-400", label: t("shift.checking") }
 
   return (
     <div className="surface-dark relative overflow-hidden rounded-[15px] px-4 py-3.5 text-on-fill">
@@ -77,13 +79,13 @@ export function ShiftCard() {
         aria-label={conn.label}
       />
       <RollingTime
-        time={uzTime(now)}
+        time={clockOf(now)}
         className="text-2xl leading-none font-semibold tracking-tight"
       />
-      <p className="mt-1.5 text-xs text-on-fill-55">{uzDate(now)}</p>
+      <p className="mt-1.5 text-xs text-on-fill-55">{dayLabel(now)}</p>
       {}
       <p className="mt-1.5 flex items-baseline justify-between gap-2 text-xs text-on-fill-55">
-        <span>{shiftLabel(now)}</span>
+        <span>{t(shiftKey(now))}</span>
         <VersionTag className="shrink-0 text-on-fill-40" />
       </p>
     </div>

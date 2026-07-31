@@ -1,11 +1,16 @@
 import type { uz } from "./locales/uz"
-import type { At, Locale, Params, Paths, Shape } from "./types"
+import type { Flatten, Locale, Params, PluralForms, PluralShape, Shape } from "./types"
 
-export type Dictionary<L extends Locale = Locale> = Shape<typeof uz, L>
+export type Dictionary<L extends Locale | "any" = "any"> = Shape<
+  typeof uz,
+  L extends Locale ? PluralShape<L> : PluralForms
+>
 
-export type TKey = Paths<typeof uz>
+type Flat = Flatten<typeof uz>
 
-export type TArgs<K extends TKey> = Params<At<typeof uz, K>>
+export type TKey = keyof Flat & string
+
+export type TArgs<K extends TKey> = Params<Flat[K]>
 
 export type TFunc = <K extends TKey>(
   key: K,

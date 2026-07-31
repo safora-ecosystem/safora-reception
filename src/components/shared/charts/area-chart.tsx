@@ -1,4 +1,5 @@
 import { useState, type PointerEvent } from "react"
+import { useT } from "@/lib/i18n"
 import { cn } from "@/lib/utils"
 import { ChartEmpty, ChartTooltip } from "@/components/shared/charts/chart-parts"
 import {
@@ -49,8 +50,9 @@ export function AreaChart({
   fill = true,
   emptyLabel,
   className,
-  ariaLabel = "Chiziqli diagramma",
+  ariaLabel,
 }: AreaChartProps) {
+  const t = useT()
   const [box, size] = useChartSize<HTMLDivElement>()
   const [active, setActive] = useState<number | null>(null)
 
@@ -84,7 +86,7 @@ export function AreaChart({
         ref={box}
         className="relative min-h-24 flex-1 focus-visible:outline-none"
         role="img"
-        aria-label={ariaLabel}
+        aria-label={ariaLabel ?? t("charts.line")}
         onPointerMove={locate}
         onPointerLeave={() => setActive(null)}
       >

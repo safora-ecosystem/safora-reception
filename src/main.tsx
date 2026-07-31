@@ -5,6 +5,7 @@ import { RouterProvider } from "@tanstack/react-router"
 import { Toaster } from "@/components/ui/sonner"
 import "./index.css"
 import { router } from "./app/router"
+import { initI18n } from "./lib/i18n"
 import { queryClient } from "./lib/query-client"
 import { initScrollbarAutohide } from "./lib/scrollbar"
 import { initTheme } from "./lib/theme"
@@ -12,11 +13,13 @@ import { initTheme } from "./lib/theme"
 initScrollbarAutohide()
 initTheme()
 
-createRoot(document.getElementById("root")!).render(
-  <StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
-      <Toaster />
-    </QueryClientProvider>
-  </StrictMode>
-)
+void initI18n().then(() => {
+  createRoot(document.getElementById("root")!).render(
+    <StrictMode>
+      <QueryClientProvider client={queryClient}>
+        <RouterProvider router={router} />
+        <Toaster />
+      </QueryClientProvider>
+    </StrictMode>,
+  )
+})

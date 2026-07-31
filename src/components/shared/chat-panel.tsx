@@ -6,6 +6,7 @@ import { conversationsKey } from "@/lib/chat-realtime"
 import { ErrorState } from "@/components/shared/error-state"
 import { SkeletonList } from "@/components/shared/skeletons"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { useT } from "@/lib/i18n"
 import { Button } from "@/components/ui/button"
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
@@ -15,6 +16,7 @@ function initials(name: string): string {
 }
 
 export function ChatPanel() {
+  const t = useT()
   const conversations = useQuery({ queryKey: conversationsKey, queryFn: listConversations })
   const items = (conversations.data?.items ?? []).slice(0, 5)
 
@@ -69,8 +71,8 @@ export function ChatPanel() {
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium text-neutral-900">{c.guestName}</p>
                     <p className="truncate text-xs text-neutral-500">
-                      {c.lastMessageSender === "staff" && "Siz: "}
-                      {c.lastMessagePreview ?? `${c.roomNumber}-xona`}
+                      {c.lastMessageSender === "staff" && t("chat.youPrefix")}
+                      {c.lastMessagePreview ?? t("stay.roomNo", { number: c.roomNumber })}
                     </p>
                   </div>
                   {c.unread > 0 && (

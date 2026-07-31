@@ -21,6 +21,7 @@ import {
   type Room,
   type TeamMessage,
 } from "./api"
+import { t } from "./i18n"
 import { getSession } from "./auth"
 import { playMessageChime, showDesktopNotification } from "./notify"
 
@@ -172,7 +173,7 @@ function handleServerPublication(qc: QueryClient, raw: unknown): void {
     void qc.invalidateQueries({ queryKey: groupUnreadKey })
     if (gm.senderId !== meId) {
       playMessageChime()
-      showDesktopNotification(`Guruh — ${gm.senderName}`, gm.text)
+      showDesktopNotification(t("chat.groupFrom", { name: gm.senderName }), gm.text)
     }
     return
   }
@@ -181,7 +182,7 @@ function handleServerPublication(qc: QueryClient, raw: unknown): void {
     void qc.invalidateQueries({ queryKey: conversationsKey })
     if (data.sender === "guest") {
       playMessageChime()
-      showDesktopNotification("Mehmondan xabar", data.preview ?? "Yangi xabar")
+      showDesktopNotification(t("chat.fromGuest"), data.preview ?? t("chat.newMessage"))
     }
     return
   }
@@ -195,16 +196,14 @@ function handleServerPublication(qc: QueryClient, raw: unknown): void {
     void qc.invalidateQueries({ queryKey: teamUnreadKey })
     if (!mine) {
       playMessageChime()
-      showDesktopNotification("Jamoadan xabar", data.message.text)
+      showDesktopNotification(t("chat.fromTeam"), data.message.text)
     }
   }
 }
 
 type ChatCtxValue = {
   client: Centrifuge | null
-  /** Bannerga ko'rsatiladigan holat — qisqa uzilishlar yutiladi (GRACE_MS). */
   status: ChatConnState
-  /** Haqiqiy holat, kechikishsiz. Diagnostika uchun. */
   rawStatus: ChatConnState
 }
 const ChatCtx = createContext<ChatCtxValue>({
@@ -213,14 +212,10 @@ const ChatCtx = createContext<ChatCtxValue>({
   rawStatus: "connecting",
 })
 
-// Uzilishni DARHOL ko'rsatmaymiz. Deploy, Wi-Fi almashishi yoki uyqudan uyg'onish ko'pincha bir
-// necha yuz millisekundda o'zi tiklanadi va banner miltillab, ish ishonchsiz ko'rinardi.
 const GRACE_MS = 2500
-// Token endpointi javob bermaganda qayta urinish oralig'i (jitter bilan).
 const BOOTSTRAP_MIN_MS = 1000
 const BOOTSTRAP_MAX_MS = 15_000
 
-/** Shell darajasida O'RAYDI (root-layout) — ulanish sahifalar orasida yashab qoladi. */
 export function ChatRealtimeProvider({ children }: { children: ReactNode }) {
   const qc = useQueryClient()
   const [client, setClient] = useState<Centrifuge | null>(null)
@@ -229,7 +224,6 @@ export function ChatRealtimeProvider({ children }: { children: ReactNode }) {
   const rawRef = useRef<ChatConnState>("connecting")
   const leftAtRef = useRef<number | null>(null)
 
-  // Ko'rsatiladigan holat: "connected"ga darhol qaytadi, undan chiqishga esa GRACE_MS kechikadi.
   useEffect(() => {
     rawRef.current = raw
     if (raw === "connected") {
@@ -237,8 +231,6 @@ export function ChatRealtimeProvider({ children }: { children: ReactNode }) {
       setDisplay("connected")
       return
     }
-    // Uzilish boshlangan payt BIR MARTA yoziladi: holat "connecting"↔"disconnected" deb sakraganda
-    // taymer qayta boshlanmasin, aks holda uzoq uzilishda ham banner hech qachon chiqmasdi.
     if (leftAtRef.current === null) leftAtRef.current = Date.now()
     const wait = Math.max(0, GRACE_MS - (Date.now() - leftAtRef.current))
     const timer = setTimeout(() => setDisplay(rawRef.current), wait)
@@ -251,9 +243,6 @@ export function ChatRealtimeProvider({ children }: { children: ReactNode }) {
     let wakeBootstrap: (() => void) | null = null
     let everConnected = false
 
-    // Tarmoq qaytdi yoki foydalanuvchi tabga qaytdi — backoff kutib o'tirmaymiz: centrifuge
-    // 10 soniyagacha kutayotgan bo'lishi mumkin, odam esa oynaga qarab turibdi. "Hozir qayta ur"
-    // API'si yo'q, shuning uchun disconnect+connect — bu backoff hisoblagichini nolga qaytaradi.
     const kick = () => {
       if (disposed) return
       wakeBootstrap?.()
@@ -277,21 +266,13 @@ export function ChatRealtimeProvider({ children }: { children: ReactNode }) {
         }
       })
 
-    // Token/URL olinmaguncha TASLIM BO'LMAYDI. Ilgari bu bitta `try` edi: u yiqilsa provider
-    // butunlay to'xtardi — Centrifuge obyekti yaratilmagani uchun qayta ulanish mexanizmi ham
-    // bo'lmasdi va chat sahifa yangilanmaguncha o'lik qolardi. Backend deploy paytidagi bir
-    // necha soniyalik uzilish ham shuning uchun yetarli edi.
     const bootstrap = async (): Promise<{ token: string; url: string } | null> => {
       for (let attempt = 0; !disposed; attempt += 1) {
         try {
           return await chatRtConnect()
         } catch (err) {
-          // 401 — sessiya chindan tugagan (api() refresh'ni allaqachon urinib ko'rgan va
-          // /login'ga yuborgan). Qayta urinishning ma'nosi yo'q.
           if (err instanceof ApiError && err.status === 401) return null
           const ceiling = Math.min(BOOTSTRAP_MAX_MS, BOOTSTRAP_MIN_MS * 2 ** attempt)
-          // Jitter: deployda hamma panel bir vaqtda uziladi, hammasi bir zumda qaytib kelib
-          // endigina ko'tarilgan backendni urmasin.
           await sleep(ceiling / 2 + Math.random() * (ceiling / 2))
         }
       }
@@ -306,7 +287,6 @@ export function ChatRealtimeProvider({ children }: { children: ReactNode }) {
         return
       }
 
-      // Birinchi token qayta ishlatiladi (ikkinchi tarmoq chaqiruvisiz), keyin getToken refresh qiladi.
       let initialToken: string | null = first.token
       const c = new Centrifuge(first.url, {
         minReconnectDelay: 500,
@@ -320,8 +300,6 @@ export function ChatRealtimeProvider({ children }: { children: ReactNode }) {
           try {
             return (await chatRtConnect()).token
           } catch (err) {
-            // UnauthorizedError — centrifuge uchun "to'xta" signali. Boshqa har qanday xato
-            // vaqtinchalik deb qaraladi va u o'zi backoff bilan qayta uraveradi.
             if (err instanceof ApiError && err.status === 401) {
               throw new UnauthorizedError("chat sessiyasi tugadi")
             }
@@ -335,8 +313,6 @@ export function ChatRealtimeProvider({ children }: { children: ReactNode }) {
       c.on("connected", () => {
         if (disposed) return
         setRaw("connected")
-        // Uzilib turgan vaqtdagi xabarlar cache'ga tushmagan — WS qaytishi bilan ularni so'rab
-        // olamiz. Busiz suhbat jimgina eskirib qolardi: banner yo'qoladi, xabarlar esa yo'q.
         if (everConnected) void qc.invalidateQueries({ queryKey: ["chat"] })
         everConnected = true
       })
@@ -369,7 +345,6 @@ export function useChat(): ChatCtxValue {
   return useContext(ChatCtx)
 }
 
-/** Sidebar "Suhbat" belgisi: mehmon + jamoa o'qilmaganlari. Ruhsat bo'lmasa (403) jim nol. */
 export function useChatBadge(): string | undefined {
   const conv = useQuery({
     queryKey: conversationsKey,

@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { useT } from "@/lib/i18n"
 import { cn } from "@/lib/utils"
 import { ChartEmpty, ChartTooltip } from "@/components/shared/charts/chart-parts"
 import {
@@ -8,6 +9,7 @@ import {
 } from "@/components/shared/charts/chart-hooks"
 import {
   CHART_GRID,
+  barFill,
   compactNumber,
   fullNumber,
   niceScale,
@@ -57,8 +59,9 @@ export function ColumnChart({
   maxValue,
   emptyLabel,
   className,
-  ariaLabel = "Ustunli diagramma",
+  ariaLabel,
 }: ColumnChartProps) {
+  const t = useT()
   const [hover, setHover] = useState<number | null>(null)
   const cursor = useKeyboardCursor(data.length, setHover)
   const active = hover ?? cursor.index
@@ -95,7 +98,7 @@ export function ColumnChart({
         <div
           className="relative min-h-24 min-w-0 flex-1 focus-visible:outline-none"
           role="img"
-          aria-label={ariaLabel}
+          aria-label={ariaLabel ?? t("charts.column")}
           tabIndex={0}
           onKeyDown={cursor.onKeyDown}
           onMouseLeave={() => setHover(null)}
@@ -144,7 +147,7 @@ export function ColumnChart({
                         <div
                           key={s.key}
                           className={cn(
-                            "min-w-0 flex-1 rounded-full transition-[filter,background-color]",
+                            "min-w-0 flex-1 rounded-full transition-[filter]",
                             datum.planned && "bar-hatch",
                             isActive && "brightness-95",
                           )}
@@ -155,9 +158,11 @@ export function ColumnChart({
                             // o'qiladigan shakli — doira. Undan pastda ustun chiziqqa aylanib,
                             // "bor" va "yo'q" farqi yo'qolardi.
                             minHeight: value > 0 ? MIN_BAR_HEIGHT : 0,
-                            backgroundColor: datum.planned
+                            // Rejadagi ustun SHTRIX bilan chiziladi (`bar-hatch`) — unga gradient
+                            // berilmaydi, aks holda tekstura yuvilib, "amalda"dan farqi yo'qoladi.
+                            backgroundImage: datum.planned
                               ? undefined
-                              : (s.color ?? seriesColor(si)),
+                              : barFill(s.color ?? seriesColor(si)),
                           }}
                         />
                       )

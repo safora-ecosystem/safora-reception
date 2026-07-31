@@ -13,13 +13,15 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { listGuests, type DirectoryGuest } from "@/lib/api"
-import { moneyShort, nightsLabel } from "@/lib/format"
+import { currencyUnit, moneyShort, nightsLabel } from "@/lib/format"
+import { useT } from "@/lib/i18n"
 import { cn } from "@/lib/utils"
 
 
 const DEBOUNCE_MS = 350
 
 export function GuestsArchivePage() {
+  const t = useT()
   const [term, setTerm] = useState("")
   const [search, setSearch] = useState("")
   const [selected, setSelected] = useState<DirectoryGuest | null>(null)
@@ -48,12 +50,12 @@ export function GuestsArchivePage() {
 
   return (
     <PageLayout
-      title="Mehmonlar arxivi"
+      title={t("archive.title")}
       actions={
         <Button variant="outline" size="xl" asChild>
           <Link to="/guests">
             <ArrowLeft strokeWidth={1.75} />
-            Mehmonlar
+            {t("nav.guests")}
           </Link>
         </Button>
       }
@@ -78,26 +80,26 @@ export function GuestsArchivePage() {
       <div className="flex flex-col gap-4">
         <StatGrid>
           <StatCard
-            label="Arxivdagi mehmon"
+            label={t("archive.count")}
             value={String(rows.length)}
-            hint={search ? "qidiruv natijasi" : "oxirgi 18 oy"}
+            hint={search ? t("archive.countHintSearch") : t("archive.countHintDefault")}
             hero
           />
           <StatCard
-            label="Takroriy mehmon"
+            label={t("guests.returning")}
             value={String(totals.returning)}
-            hint="bir martadan ko'p kelgan"
+            hint={t("archive.returningHint")}
           />
           <StatCard
-            label="Jami kecha"
+            label={t("archive.nightsTotal")}
             value={nightsLabel(totals.nights)}
-            hint="shu ro'yxat bo'yicha"
+            hint={t("archive.nightsHint")}
           />
           <StatCard
-            label="Jami to'langan"
+            label={t("guests.totalPaid")}
             value={moneyShort(totals.paid, { unit: false })}
-            unit="so'm"
-            hint="shu ro'yxat bo'yicha"
+            unit={currencyUnit()}
+            hint={t("archive.nightsHint")}
           />
         </StatGrid>
 
@@ -111,9 +113,9 @@ export function GuestsArchivePage() {
               <Input
                 value={term}
                 onChange={(e) => setTerm(e.target.value)}
-                placeholder="Ism, telefon yoki hujjat"
+                placeholder={t("archive.searchPlaceholder")}
                 className="h-9 pl-8"
-                aria-label="Arxivda qidirish"
+                aria-label={t("archive.searchAria")}
               />
             </div>
             <p className="text-xs text-neutral-500">
@@ -130,12 +132,8 @@ export function GuestsArchivePage() {
             {rows.length === 0 ? (
               <EmptyState
                 icon={UserRound}
-                title={search ? "Mos mehmon topilmadi" : "Arxiv hali bo'sh"}
-                hint={
-                  search
-                    ? "Ism, telefon raqami yoki hujjat raqamini kiritib ko'ring."
-                    : "Mehmon chiqib ketgach uning yozuvi shu yerga o'tadi."
-                }
+                title={search ? t("archive.emptyFiltered") : t("archive.empty")}
+                hint={search ? t("archive.searchHint") : t("archive.emptyHint")}
               />
             ) : (
               <GuestTable rows={rows} onSelect={setSelected} archive />

@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ApiError, staffLogin } from '@/lib/api'
 import { saveSession } from '@/lib/auth'
+import { LOCALES, LOCALE_SHORT, useLocale, useT } from '@/lib/i18n'
+import { cn } from '@/lib/utils'
 import { Turnstile, turnstileEnabled } from '@/components/shared/turnstile'
 
 function Field({
@@ -27,7 +29,35 @@ function Field({
 	)
 }
 
+function LanguagePicker() {
+	const { locale, pending, setLocale } = useLocale()
+	return (
+		<div className='mt-6 flex justify-center'>
+			<div className='flex gap-0.5 rounded-control bg-neutral-100 p-0.5'>
+				{LOCALES.map(code => (
+					<button
+						key={code}
+						type='button'
+						aria-pressed={locale === code}
+						disabled={pending !== null}
+						onClick={() => void setLocale(code)}
+						className={cn(
+							'rounded-[0.5rem] px-3.5 py-1 text-[0.8125rem] font-medium transition-colors disabled:opacity-60',
+							locale === code
+								? 'bg-white text-neutral-900 shadow-xs'
+								: 'text-neutral-500 hover:text-neutral-800'
+						)}
+					>
+						{LOCALE_SHORT[code]}
+					</button>
+				))}
+			</div>
+		</div>
+	)
+}
+
 export function LoginPage() {
+	const t = useT()
 	const navigate = useNavigate()
 	const [showPassword, setShowPassword] = useState(false)
 	const [staffHandle, setStaffHandle] = useState('')
@@ -50,7 +80,7 @@ export function LoginPage() {
 			setError(
 				err instanceof ApiError && err.status !== 401
 					? err.message
-					: "Login yoki parol noto'g'ri"
+					: t('auth.invalid')
 			)
 			setTurnstileReset(n => n + 1)
 			setSubmitting(false)
@@ -66,8 +96,10 @@ export function LoginPage() {
 					className='mx-auto block h-15 w-auto'
 				/>
 
-				<form onSubmit={handleSubmit} className='mt-8 space-y-5'>
-					<Field label='Email'>
+				<LanguagePicker />
+
+				<form onSubmit={handleSubmit} className='mt-7 space-y-5'>
+					<Field label={t('auth.email')}>
 						<div className='relative'>
 							<Mail
 								className='pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-neutral-400'
@@ -79,20 +111,20 @@ export function LoginPage() {
 								autoComplete='email'
 								value={staffHandle}
 								onChange={e => setStaffHandle(e.target.value)}
-								placeholder='user@domain.com'
+								placeholder={t('auth.emailPlaceholder')}
 								className='h-14 rounded-lg border border-border bg-white pl-12 text-base placeholder:text-neutral-300'
 							/>
 						</div>
 					</Field>
 
 					<Field
-						label='Parol'
+						label={t('auth.password')}
 						aside={
 							<button
 								type='button'
 								className='text-xs font-medium text-primary transition-colors hover:text-brand-600'
 							>
-								Parolni unutdingizmi?
+								{t('auth.forgot')}
 							</button>
 						}
 					>
@@ -114,7 +146,7 @@ export function LoginPage() {
 								type='button'
 								onClick={() => setShowPassword(v => !v)}
 								aria-label={
-									showPassword ? 'Parolni yashirish' : "Parolni ko'rsatish"
+									showPassword ? t('auth.hidePassword') : t('auth.showPassword')
 								}
 								className='absolute top-1/2 right-2.5 grid size-9 -translate-y-1/2 place-items-center rounded-lg text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-600'
 							>
@@ -136,13 +168,13 @@ export function LoginPage() {
 							onChange={e => setTemporary(e.target.checked)}
 							className='size-4 cursor-pointer accent-brand-500'
 						/>
-						Vaqtinchalik sessiya
+						{t('auth.temporarySession')}
 					</label>
 
 					<Turnstile onToken={setTurnstileToken} resetSignal={turnstileReset} />
 					{turnstileEnabled && !turnstileToken && !submitting ? (
 						<p className='text-center text-xs text-neutral-500'>
-							Xavfsizlik tekshiruvidan o&apos;tilmoqda — biroz kuting...
+							{t('auth.securityCheck')}
 						</p>
 					) : null}
 
@@ -153,7 +185,7 @@ export function LoginPage() {
 						disabled={submitting || (turnstileEnabled && !turnstileToken)}
 						className='h-14 w-full rounded-lg text-base font-semibold'
 					>
-						{submitting ? 'Kirilmoqda…' : 'Kirish'}
+						{submitting ? t('auth.signingIn') : t('auth.signIn')}
 						<ArrowRight className='size-5' strokeWidth={2} />
 					</Button>
 				</form>

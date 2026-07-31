@@ -1,3 +1,5 @@
+import type { TKey } from "./i18n"
+
 export type StaffRole = "owner" | "manager" | "reception" | "housekeeper"
 
 export type StaffUser = {
@@ -9,11 +11,11 @@ export type StaffUser = {
   avatarUrl?: string | null
 }
 
-export const ROLE_LABEL: Record<StaffRole, string> = {
-  owner: "Rahbar",
-  manager: "Menejer",
-  reception: "Resepshn",
-  housekeeper: "Tozalash xodimi",
+export const ROLE_KEY: Record<StaffRole, TKey> = {
+  owner: "roles.owner",
+  manager: "roles.manager",
+  reception: "roles.reception",
+  housekeeper: "roles.housekeeper",
 }
 
 export type Session = {

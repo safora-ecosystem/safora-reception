@@ -1,6 +1,7 @@
 import { memo } from "react"
 import type { VirtualItem } from "@tanstack/react-virtual"
 import { ArrowRight01Icon, BrushCleaningIcon } from "@hugeicons/core-free-icons"
+import { t } from "@/lib/i18n"
 import { Icon } from "@/components/ui/icon"
 import { cn } from "@/lib/utils"
 import type { Lane } from "./geometry"
@@ -62,7 +63,7 @@ function CalendarRailImpl({ lanes, virtualItems, offsetTop, onToggleGroup }: Cal
               )}
             </div>
             {(hk === "dirty" || hk === "in_progress") && (
-              <span title={hk === "dirty" ? "Tozalash kutilmoqda" : "Tozalanmoqda"}>
+              <span title={hk === "dirty" ? t("calendar.cleaningWaiting") : t("calendar.cleaningNow")}>
                 <Icon
                   icon={BrushCleaningIcon}
                   className={cn("size-4 shrink-0", hk === "dirty" ? "text-warning" : "text-brand-500")}

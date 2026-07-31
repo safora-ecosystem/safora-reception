@@ -13,20 +13,18 @@ import { WeeklyOccupancy, type DayOccupancy } from "@/components/shared/weekly-o
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { listBookings, listRooms, type Booking } from "@/lib/api"
+import { localIso, weekdaysFull, weekdaysShort } from "@/lib/format"
+import { useT } from "@/lib/i18n"
 import { cn } from "@/lib/utils"
 
-const WEEKDAYS: Array<{ label: string; full: string }> = [
-  { label: "Du", full: "Dushanba" },
-  { label: "Se", full: "Seshanba" },
-  { label: "Ch", full: "Chorshanba" },
-  { label: "Pa", full: "Payshanba" },
-  { label: "Ju", full: "Juma" },
-  { label: "Sh", full: "Shanba" },
-  { label: "Ya", full: "Yakshanba" },
-]
+const MONDAY_FIRST = [1, 2, 3, 4, 5, 6, 0] as const
 
-function localDateIso(d: Date): string {
-  return d.toLocaleDateString("en-CA")
+const capitalize = (word: string) => word.charAt(0).toUpperCase() + word.slice(1)
+
+function weekdayNames(): Array<{ label: string; full: string }> {
+  const short = weekdaysShort()
+  const full = weekdaysFull()
+  return MONDAY_FIRST.map((day) => ({ label: short[day], full: capitalize(full[day]) }))
 }
 
 const bookingDate = (isoDateTime: string) => isoDateTime.slice(0, 10)
@@ -36,10 +34,10 @@ function weeklyOccupancy(bookings: Booking[], totalRooms: number): { days: DayOc
   const monday = new Date(now)
   monday.setDate(now.getDate() - ((now.getDay() + 6) % 7))
 
-  const days = WEEKDAYS.map((weekday, i) => {
+  const days = weekdayNames().map((weekday, i) => {
     const day = new Date(monday)
     day.setDate(monday.getDate() + i)
-    const iso = localDateIso(day)
+    const iso = localIso(day)
     const occupiedRooms = new Set(
       bookings
         .filter(
@@ -66,10 +64,11 @@ type Movement = {
 const toneClass = { done: "text-success", pending: "text-neutral-500" }
 
 export function StatistikaPage() {
+  const t = useT()
   const rooms = useQuery({ queryKey: ["rooms"], queryFn: listRooms })
   const bookings = useQuery({ queryKey: ["bookings"], queryFn: () => listBookings() })
 
-  const today = localDateIso(new Date())
+  const today = localIso()
 
   const totalRooms = rooms.data?.length ?? 0
   const allBookings = bookings.data ?? []
@@ -91,38 +90,38 @@ export function StatistikaPage() {
 
   const snapshot = [
     {
-      label: "Band xonalar",
+      label: t("stats.occupiedRooms"),
       value: String(occupiedNow),
       unit: `/ ${totalRooms}`,
-      hint: `${occupancyPct}% bandlik`,
+      hint: t("stats.occupancyHint", { pct: occupancyPct }),
       hero: true,
     },
     {
-      label: "Bugungi kirishlar",
+      label: t("stats.arrivalsToday"),
       value: String(arrivals.length),
-      hint: `${arrivals.filter((m) => !m.done).length} tasi kutilmoqda`,
+      hint: t("stats.pendingCount", { count: arrivals.filter((m) => !m.done).length }),
     },
     {
-      label: "Bugungi chiqishlar",
+      label: t("stats.departuresToday"),
       value: String(departures.length),
-      hint: `${departures.filter((m) => !m.done).length} tasi kutilmoqda`,
+      hint: t("stats.pendingCount", { count: departures.filter((m) => !m.done).length }),
     },
     {
-      label: "Bo'sh xonalar",
+      label: t("stats.freeRooms"),
       value: String(Math.max(totalRooms - occupiedNow, 0)),
-      hint: "hozirgi holat",
+      hint: t("stats.currentState"),
     },
   ]
 
   return (
     <PageLayout
-      title="Statistika"
+      title={t("nav.stats")}
       fill
       actions={
         <Button size="xl" asChild>
           <Link to="/calendar">
             <Plus strokeWidth={2} />
-            Yangi bron
+            {t("stats.newBooking")}
           </Link>
         </Button>
       }
@@ -183,14 +182,14 @@ export function StatistikaPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Bugungi harakat</CardTitle>
+              <CardTitle>{t("stats.movements")}</CardTitle>
             </CardHeader>
             <CardContent className="app-scroll min-h-0 flex-1 overflow-y-auto">
               {movements.length === 0 ? (
                 <EmptyState
                   icon={CalendarClock}
-                  title="Bugun harakat yo'q"
-                  hint="Bugunga rejalashtirilgan kirish yoki chiqish yo'q."
+                  title={t("stats.noMovements")}
+                  hint={t("stats.noMovementsHint")}
                   className="py-8"
                 />
               ) : (
@@ -205,11 +204,12 @@ export function StatistikaPage() {
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-medium text-neutral-900">{m.booking.guestName}</p>
                           <p className="text-xs text-neutral-500">
-                            {m.type === "in" ? "Kirish" : "Chiqish"} · {m.booking.room.number}-xona
+                            {m.type === "in" ? t("stay.checkIn") : t("stay.checkOut")} ·{" "}
+                            {t("stay.roomNo", { number: m.booking.room.number })}
                           </p>
                         </div>
                         <p className={cn("shrink-0 text-xs", m.done ? toneClass.done : toneClass.pending)}>
-                          {m.done ? "Bajarildi" : "Kutilmoqda"}
+                          {m.done ? t("common.done") : t("common.pending")}
                         </p>
                       </li>
                     )

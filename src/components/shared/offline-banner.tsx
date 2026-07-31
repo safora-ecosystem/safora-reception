@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react"
 import { Spinner } from "@/components/shared/error-state"
+import { useT } from "@/lib/i18n"
 
 export function OfflineBanner() {
+  const t = useT()
   const [online, setOnline] = useState(() => typeof navigator === "undefined" || navigator.onLine)
 
   useEffect(() => {
@@ -23,7 +25,7 @@ export function OfflineBanner() {
       className="flex shrink-0 items-center gap-2.5 rounded-panel bg-neutral-100 px-5 py-2.5 text-sm text-neutral-600"
     >
       <Spinner className="text-neutral-400" />
-      Aloqa yo'q — ulanish tiklanishi kutilmoqda
+      {t("notice.offlineWaiting")}
     </div>
   )
 }

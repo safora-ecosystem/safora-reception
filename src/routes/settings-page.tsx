@@ -7,6 +7,7 @@ import { AvatarUploader } from "@/components/shared/avatar-uploader"
 import { ErrorState } from "@/components/shared/error-state"
 import { SkeletonList } from "@/components/shared/skeletons"
 import {
+  LanguageSection,
   Row,
   Section,
   SessionRow,
@@ -16,11 +17,13 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { listSessions, revokeOtherSessions, revokeSession } from "@/lib/api"
-import { ROLE_LABEL, getSession } from "@/lib/auth"
+import { ROLE_KEY, getSession } from "@/lib/auth"
+import { useT } from "@/lib/i18n"
 import { TONES, playMessageChime, previewTone, requestDesktopPermission, useNotifyPrefs } from "@/lib/notify"
 import { cn } from "@/lib/utils"
 
 export function SettingsPage() {
+  const t = useT()
   const qc = useQueryClient()
   const user = getSession()?.user
   const [avatarUrl, setAvatarUrl] = useState<string | null>(user?.avatarUrl ?? null)
@@ -35,18 +38,18 @@ export function SettingsPage() {
   const revokeOne = useMutation({
     mutationFn: revokeSession,
     onSuccess: () => {
-      toast.success("Qurilma chiqarildi")
+      toast.success(t("settings.sessions.revoked"))
       void qc.invalidateQueries({ queryKey: ["sessions"] })
     },
-    onError: () => toast.error("Chiqarib bo'lmadi"),
+    onError: () => toast.error(t("settings.sessions.revokeFailed")),
   })
   const revokeOthers = useMutation({
     mutationFn: revokeOtherSessions,
     onSuccess: (r) => {
-      toast.success(`${r.revoked} qurilma chiqarildi`)
+      toast.success(t("settings.sessions.revokedCount", { count: r.revoked }))
       void qc.invalidateQueries({ queryKey: ["sessions"] })
     },
-    onError: () => toast.error("Chiqarib bo'lmadi"),
+    onError: () => toast.error(t("settings.sessions.revokeFailed")),
   })
 
   const otherCount = sessions?.filter((s) => !s.current).length ?? 0
@@ -57,16 +60,16 @@ export function SettingsPage() {
       return
     }
     if (await requestDesktopPermission()) set({ desktop: true })
-    else toast.error("Brauzer bildirishnomaga ruxsat bermadi")
+    else toast.error(t("settings.notifications.denied"))
   }
 
   return (
-    <PageLayout title="Sozlamalar">
+    <PageLayout title={t("settings.title")}>
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:items-start">
         <div className="flex flex-col gap-4">
-          <Section title="Profil" hint="Hisobingiz ma'lumoti.">
+          <Section title={t("settings.profile.title")} hint={t("settings.profile.hint")}>
             <AvatarUploader
-              name={user?.name ?? "Xodim"}
+              name={user?.name ?? t("settings.profile.staffFallback")}
               avatarUrl={avatarUrl}
               onChange={setAvatarUrl}
             />
@@ -74,62 +77,79 @@ export function SettingsPage() {
               <p className="min-w-0 flex-1 truncate text-sm text-neutral-500 tabular-nums">
                 {user?.staffHandle}
               </p>
-              {user && <Badge variant="secondary">{ROLE_LABEL[user.role]}</Badge>}
+              {user && <Badge variant="secondary">{t(ROLE_KEY[user.role])}</Badge>}
             </div>
-            <Row label="Ruhsatlar" hint="Nima qila olishingizni rahbar belgilaydi." />
+            <Row
+              label={t("settings.profile.permissions")}
+              hint={t("settings.profile.permissionsHint")}
+            />
           </Section>
 
           <Section
-            title="Bildirishnomalar"
-            hint="Yangi xabar kelganda qanday xabardor bo'lasiz."
+            title={t("settings.notifications.title")}
+            hint={t("settings.notifications.hint")}
             action={
               <Button variant="outline" size="sm" onClick={() => playMessageChime()}>
                 <Volume2 strokeWidth={1.75} />
-                Eshitish
+                {t("settings.notifications.preview")}
               </Button>
             }
           >
-            <Row label="Ovozli signal" hint="Mehmon yoki jamoadan xabar kelganda.">
-              <Toggle checked={prefs.sound} onChange={(v) => set({ sound: v })} label="Ovozli signal" />
+            <Row
+              label={t("settings.notifications.sound")}
+              hint={t("settings.notifications.soundHint")}
+            >
+              <Toggle
+                checked={prefs.sound}
+                onChange={(v) => set({ sound: v })}
+                label={t("settings.notifications.sound")}
+              />
             </Row>
-            <Row label="Ovoz turi" hint="Tanlaganingizda eshitiladi.">
+            <Row
+              label={t("settings.notifications.tone")}
+              hint={t("settings.notifications.toneHint")}
+            >
               <div className="flex gap-1 rounded-control bg-neutral-100 p-0.5">
-                {TONES.map((t) => (
+                {}
+                {TONES.map((tone) => (
                   <button
-                    key={t.id}
+                    key={tone.id}
                     type="button"
-                    aria-pressed={prefs.tone === t.id}
-                    title={t.hint}
+                    aria-pressed={prefs.tone === tone.id}
+                    title={t(tone.hintKey)}
                     onClick={() => {
-                      set({ tone: t.id })
-                      previewTone(t.id)
+                      set({ tone: tone.id })
+                      previewTone(tone.id)
                     }}
                     className={cn(
                       "rounded-[0.5rem] px-2.5 py-1 text-[0.8125rem] font-medium transition-colors",
-                      prefs.tone === t.id
+                      prefs.tone === tone.id
                         ? "bg-white text-neutral-900 shadow-xs"
                         : "text-neutral-500 hover:text-neutral-800",
                     )}
                   >
-                    {t.label}
+                    {t(tone.labelKey)}
                   </button>
                 ))}
               </div>
             </Row>
-            <Row label="Brauzer bildirishnomasi" hint="Tab fonda bo'lganda ish stolida ko'rinadi.">
+            <Row
+              label={t("settings.notifications.desktop")}
+              hint={t("settings.notifications.desktopHint")}
+            >
               <Toggle
                 checked={prefs.desktop}
                 onChange={(v) => void toggleDesktop(v)}
-                label="Brauzer bildirishnomasi"
+                label={t("settings.notifications.desktop")}
               />
             </Row>
           </Section>
 
-          <Section title="Ilova" hint="Panel versiyasi va texnik ma'lumot.">
-            <Row label="Panel">
-              <span className="text-sm text-neutral-700">Resepshn</span>
+          <Section title={t("settings.app.title")} hint={t("settings.app.hint")}>
+            <Row label={t("settings.app.panel")}>
+              <span className="text-sm text-neutral-700">{t("panel.name")}</span>
             </Row>
-            <Row label="Versiya">
+            <Row label={t("settings.app.version")}>
               <span className="text-sm text-neutral-700 tabular-nums">v{__APP_VERSION__}</span>
             </Row>
           </Section>
@@ -137,10 +157,11 @@ export function SettingsPage() {
 
         <div className="flex flex-col gap-4">
           <ThemeSection />
+          <LanguageSection />
 
           <Section
-            title="Faol seanslar"
-            hint="Hisobingizga kirilgan qurilmalar."
+            title={t("settings.sessions.title")}
+            hint={t("settings.sessions.hint")}
             action={
               otherCount > 0 ? (
                 <Button
@@ -149,14 +170,13 @@ export function SettingsPage() {
                   onClick={() => revokeOthers.mutate()}
                   disabled={revokeOthers.isPending}
                 >
-                  <LogOut strokeWidth={1.75} /> Boshqalardan chiqish
+                  <LogOut strokeWidth={1.75} /> {t("settings.sessions.revokeOthers")}
                 </Button>
               ) : undefined
             }
           >
             <div className="divide-hairline">
               {sessionsQ.isPending ? (
-                // Ikki qatorlik skelet — seans ro'yxati shakli (spinner o'rniga).
                 <SkeletonList rows={2} avatar={false} trailing />
               ) : sessionsQ.isError ? (
                 <ErrorState

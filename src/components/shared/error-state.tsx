@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
-import { classifyApiError } from "@/lib/api-error"
+import { classifyApiError, describeApiError } from "@/lib/api-error"
 import { Button } from "@/components/ui/button"
+import { useT } from "@/lib/i18n"
 import { cn } from "@/lib/utils"
 
 
@@ -27,7 +28,9 @@ type ErrorStateProps = {
 }
 
 export function ErrorState({ error, onRetry, variant = "section", className }: ErrorStateProps) {
+  const t = useT()
   const info = classifyApiError(error)
+  const text = describeApiError(info, t)
   const [retrying, setRetrying] = useState(false)
   const [autoCycle, setAutoCycle] = useState(0)
   const mountedRef = useRef(true)
@@ -89,14 +92,14 @@ export function ErrorState({ error, onRetry, variant = "section", className }: E
       className="gap-2 font-normal"
     >
       {connecting && <Spinner />}
-      {connecting ? "Qayta ulanmoqda…" : "Qayta urinish"}
+      {connecting ? t("common.retrying") : t("common.retry")}
     </Button>
   )
 
   if (variant === "inline") {
     return (
       <div role="alert" className={cn("flex flex-wrap items-center gap-x-3 gap-y-1.5 py-1.5", className)}>
-        <span className="min-w-0 flex-1 truncate text-sm text-neutral-600">{info.title}</span>
+        <span className="min-w-0 flex-1 truncate text-sm text-neutral-600">{text.title}</span>
         {retryButton}
       </div>
     )
@@ -117,9 +120,9 @@ export function ErrorState({ error, onRetry, variant = "section", className }: E
           variant === "page" ? "text-base" : "text-sm",
         )}
       >
-        {info.title}
+        {text.title}
       </p>
-      <p className="mt-1.5 max-w-xs text-xs leading-relaxed text-neutral-500">{info.description}</p>
+      <p className="mt-1.5 max-w-xs text-xs leading-relaxed text-neutral-500">{text.description}</p>
       {retryButton && <div className="mt-4">{retryButton}</div>}
     </div>
   )

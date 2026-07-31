@@ -2,11 +2,12 @@ import { useQuery } from "@tanstack/react-query"
 import { Alert02Icon, Megaphone01Icon, Wrench01Icon } from "@hugeicons/core-free-icons"
 import { Icon, type IconData } from "@/components/ui/icon"
 import { getPanelNotice, type NoticeLevel } from "@/lib/api"
+import { useT, type TKey } from "@/lib/i18n"
 
-const LEVEL_LABEL: Record<NoticeLevel, string> = {
-  info: "E'lon",
-  warning: "Ogohlantirish",
-  maintenance: "Texnik ishlar",
+const LEVEL_KEY: Record<NoticeLevel, TKey> = {
+  info: "notice.info",
+  warning: "notice.warning",
+  maintenance: "notice.maintenance",
 }
 
 const LEVEL_CLASS: Record<NoticeLevel, string> = {
@@ -22,6 +23,7 @@ const LEVEL_ICON: Record<NoticeLevel, IconData> = {
 }
 
 export function NoticeBanner() {
+  const t = useT()
   const { data: notice } = useQuery({
     queryKey: ["platform-notice"],
     queryFn: getPanelNotice,
@@ -41,7 +43,7 @@ export function NoticeBanner() {
       <p className="min-w-0 flex-1">
         {/* Daraja nomi matn boshida — rangni ko'rmaydigan odam uchun og'irlikni aytadigan
             yagona narsa shu. */}
-        <span className="font-semibold">{LEVEL_LABEL[notice.level]}</span>
+        <span className="font-semibold">{t(LEVEL_KEY[notice.level])}</span>
         <span aria-hidden> · </span>
         <span className="font-normal">{notice.message}</span>
       </p>

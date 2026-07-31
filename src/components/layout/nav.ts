@@ -9,25 +9,26 @@ import {
   UserStar01Icon,
 } from "@hugeicons/core-free-icons"
 import type { IconData } from "@/components/ui/icon"
+import type { TKey } from "@/lib/i18n"
 
 export type NavItem = {
   to: string
-  label: string
+  labelKey: TKey
   icon: IconData
   badge?: string
   permission?: string
 }
 
 export const navItems: NavItem[] = [
-  { to: "/", label: "Statistika", icon: Analytics02Icon },
-  { to: "/calendar", label: "Kalendar", icon: Calendar02Icon, permission: "calendar.view" },
-  { to: "/rooms", label: "Xonalar", icon: Door01Icon, permission: "rooms.view" },
-  { to: "/guests", label: "Mehmonlar", icon: UserStar01Icon, permission: "guests.view" },
-  { to: "/requests", label: "Xizmatlar", icon: SparklesIcon, permission: "requests.view" },
-  { to: "/chat", label: "Suhbat", icon: Message02Icon, permission: "chat.guest" },
+  { to: "/", labelKey: "nav.stats", icon: Analytics02Icon },
+  { to: "/calendar", labelKey: "nav.calendar", icon: Calendar02Icon, permission: "calendar.view" },
+  { to: "/rooms", labelKey: "nav.rooms", icon: Door01Icon, permission: "rooms.view" },
+  { to: "/guests", labelKey: "nav.guests", icon: UserStar01Icon, permission: "guests.view" },
+  { to: "/requests", labelKey: "nav.services", icon: SparklesIcon, permission: "requests.view" },
+  { to: "/chat", labelKey: "nav.chat", icon: Message02Icon, permission: "chat.guest" },
 ]
 
 export const systemNavItems: NavItem[] = [
-  { to: "/settings", label: "Sozlamalar", icon: Settings02Icon },
-  { to: "/help", label: "Yordam", icon: HelpCircleIcon },
+  { to: "/settings", labelKey: "nav.settings", icon: Settings02Icon },
+  { to: "/help", labelKey: "nav.help", icon: HelpCircleIcon },
 ]

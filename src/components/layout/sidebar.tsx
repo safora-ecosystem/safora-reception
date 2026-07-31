@@ -4,12 +4,14 @@ import { useQuery } from "@tanstack/react-query"
 import { Icon } from "@/components/ui/icon"
 import { getHotelBranding } from "@/lib/api"
 import { useChatBadge } from "@/lib/chat-realtime"
+import { useT } from "@/lib/i18n"
 import { usePermissions } from "@/lib/permissions"
 import { cn } from "@/lib/utils"
 import { navItems, systemNavItems, type NavItem } from "./nav"
 import { ShiftCard } from "./shift-card"
 
 function BrandLogo() {
+  const t = useT()
   const { data } = useQuery({
     queryKey: ["hotel-branding"],
     queryFn: getHotelBranding,
@@ -24,7 +26,7 @@ function BrandLogo() {
       {longLogo ? (
         <img
           src={longLogo}
-          alt={data?.name ?? "Mehmonxona"}
+          alt={data?.name ?? t("common.hotel")}
           onError={() => setFailed(true)}
           className="logo-adapt max-h-full max-w-full object-contain"
         />
@@ -40,6 +42,7 @@ function BrandLogo() {
 }
 
 function NavRow({ item, active }: { item: NavItem; active: boolean }) {
+  const t = useT()
   const body = (
     <>
       <Icon
@@ -47,7 +50,7 @@ function NavRow({ item, active }: { item: NavItem; active: boolean }) {
         className={cn("size-[1.125rem] shrink-0", active ? "text-primary" : "text-neutral-500")}
         strokeWidth={1.75}
       />
-      <span className="truncate">{item.label}</span>
+      <span className="truncate">{t(item.labelKey)}</span>
       {item.badge && (
         <span
           className={cn(

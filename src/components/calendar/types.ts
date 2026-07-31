@@ -75,6 +75,7 @@ export type StatusConfig = Record<CalendarStatus, StatusVisual>
 export interface CalendarLabels {
   weekdaysShort: string[]
   months: string[]
+  formatDay: (iso: string) => string
   nights: (n: number) => string
   money: (amount: number) => string
   statusText: Record<CalendarStatus, string>

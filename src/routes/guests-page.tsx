@@ -15,17 +15,18 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { listGuests, type DirectoryGuest, type GuestState } from "@/lib/api"
 import { localIso } from "@/lib/format"
+import { useT } from "@/lib/i18n"
 
 
 type Filter = "all" | Extract<GuestState, "in_house" | "arriving">
 
-const FILTERS: Array<{ value: Filter; label: string }> = [
-  { value: "all", label: "Hammasi" },
-  { value: "in_house", label: "Joylashgan" },
-  { value: "arriving", label: "Kutilmoqda" },
-]
-
 export function GuestsPage() {
+  const t = useT()
+  const FILTERS: Array<{ value: Filter; label: string }> = [
+    { value: "all", label: t("common.all") },
+    { value: "in_house", label: t("guestStatus.checkedIn") },
+    { value: "arriving", label: t("guestStatus.waiting") },
+  ]
   const guestsQ = useQuery({ queryKey: ["guests", "active"], queryFn: () => listGuests("active") })
   const [filter, setFilter] = useState<Filter>("all")
   const [term, setTerm] = useState("")
@@ -57,12 +58,12 @@ export function GuestsPage() {
 
   return (
     <PageLayout
-      title="Mehmonlar"
+      title={t("nav.guests")}
       actions={
         <Button variant="outline" size="xl" asChild>
           <Link to="/guests/archive">
             <Archive strokeWidth={1.75} />
-            Arxiv
+            {t("guests.archive")}
           </Link>
         </Button>
       }
@@ -87,25 +88,25 @@ export function GuestsPage() {
       <div className="flex flex-col gap-4">
         <StatGrid>
           <StatCard
-            label="Hozir mehmonxonada"
+            label={t("guests.inHouseNow")}
             value={String(counts.inHouse)}
-            hint="joylashgan mehmonlar"
+            hint={t("guests.inHouseHint")}
             hero
           />
           <StatCard
-            label="Kutilmoqda"
+            label={t("guestStatus.waiting")}
             value={String(counts.arriving)}
-            hint="bron qilingan, hali kelmagan"
+            hint={t("guests.arrivingHint")}
           />
           <StatCard
-            label="Bugun chiqadi"
+            label={t("guests.leavingToday")}
             value={String(counts.leavingToday)}
-            hint="xona bo'shaydi"
+            hint={t("guests.leavingHint")}
           />
           <StatCard
-            label="Takroriy mehmon"
+            label={t("guests.returning")}
             value={String(counts.returning)}
-            hint="bir martadan ko'p kelgan"
+            hint={t("guests.returningHint")}
           />
         </StatGrid>
 
@@ -119,16 +120,16 @@ export function GuestsPage() {
               <Input
                 value={term}
                 onChange={(e) => setTerm(e.target.value)}
-                placeholder="Ism, telefon, hujjat yoki xona"
+                placeholder={t("guests.searchPlaceholder")}
                 className="h-9 pl-8"
-                aria-label="Mehmonlarni qidirish"
+                aria-label={t("guests.searchAria")}
               />
             </div>
             <RangeToggle
               options={FILTERS}
               value={filter}
               onChange={setFilter}
-              ariaLabel="Mehmon holati"
+              ariaLabel={t("guests.stateAria")}
             />
           </div>
 
@@ -136,12 +137,8 @@ export function GuestsPage() {
             {rows.length === 0 ? (
               <EmptyState
                 icon={UserRound}
-                title={all.length === 0 ? "Hozircha mehmon yo'q" : "Mos mehmon topilmadi"}
-                hint={
-                  all.length === 0
-                    ? "Kalendarda bron ochilgach mehmon shu yerda paydo bo'ladi. Chiqib ketganlar arxivda."
-                    : "Qidiruv yoki filtrni o'zgartirib ko'ring — chiqib ketgan mehmon arxivda turadi."
-                }
+                title={all.length === 0 ? t("guests.emptyNone") : t("guests.emptyFiltered")}
+                hint={all.length === 0 ? t("guests.emptyNoneHint") : t("guests.emptyFilteredHint")}
               />
             ) : (
               <GuestTable rows={rows} onSelect={setSelected} />

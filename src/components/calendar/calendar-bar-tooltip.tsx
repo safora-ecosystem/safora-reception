@@ -11,8 +11,7 @@ const GAP = 10
 const MARGIN = 8
 
 function fmtDay(iso: string, labels: CalendarLabels): string {
-  const [, m, d] = iso.slice(0, 10).split("-").map(Number)
-  return `${d}-${labels.months[m - 1]}`
+  return labels.formatDay(iso)
 }
 
 function paymentRatio(p: CalendarPayment): number {
@@ -28,7 +27,6 @@ interface CalendarBarTooltipProps {
 
 export function CalendarBarTooltip({ state, labels, statusConfig }: CalendarBarTooltipProps) {
   const ref = useRef<HTMLDivElement>(null)
-  // Aniq joylashuv o'lchagandan KEYIN (paint'dan oldin, useLayoutEffect) hisoblanadi — miltillamaydi.
   const [pos, setPos] = useState<{ left: number; top: number } | null>(null)
 
   useLayoutEffect(() => {
@@ -43,12 +41,10 @@ export function CalendarBarTooltip({ state, labels, statusConfig }: CalendarBarT
     const vw = window.innerWidth
     const vh = window.innerHeight
 
-    // Gorizontal: kursordan chaproqdan boshlaymiz, lekin ekranga sig'diramiz.
     let left = x - 12
     if (left + w > vw - MARGIN) left = vw - MARGIN - w
     if (left < MARGIN) left = MARGIN
 
-    // Vertikal: odatda bar OSTIDA; pastda joy bo'lmasa — TEPADA.
     let t = bottom + GAP
     if (t + h > vh - MARGIN) t = top - GAP - h
     if (t < MARGIN) t = MARGIN
@@ -79,7 +75,7 @@ export function CalendarBarTooltip({ state, labels, statusConfig }: CalendarBarT
         opacity: pos ? 1 : 0,
       }}
     >
-      {/* Sarlavha: accent chiziq + ism (+ ikkilamchi matn) + status pill */}
+      {}
       <div className="flex items-start gap-2.5 px-3 pt-2.5">
         <span
           className={cn("mt-1 h-3.5 w-1 shrink-0 rounded-full", visual.strip ?? "bg-neutral-300")}
@@ -105,7 +101,7 @@ export function CalendarBarTooltip({ state, labels, statusConfig }: CalendarBarT
 
       <div className="mt-2.5 border-t border-neutral-100" />
 
-      {/* Sanalar — kirish – chiqish · kechalar */}
+      {}
       <div className="flex items-center gap-1.5 px-3 pt-2.5 text-xs text-neutral-600">
         <CalendarDays className="size-3.5 shrink-0 text-neutral-400" />
         <span className="tabular-nums">
@@ -115,9 +111,7 @@ export function CalendarBarTooltip({ state, labels, statusConfig }: CalendarBarT
         <span className="text-neutral-500">{labels.nights(nights)}</span>
       </div>
 
-      {/* To'lov — to'langan / jami + progress (to'liq=yashil, qisman=amber).
-          KORPORATIVDA butunlay boshqacha: qoldiq mehmonning qarzi emas, kompaniya hisobi.
-          Amber progress u yerda "pul olinmagan" degan noto'g'ri signal berardi. */}
+      {}
       {b.organization ? (
         <div className="px-3 pt-2 pb-3">
           <div className="flex items-baseline justify-between gap-2 text-xs">

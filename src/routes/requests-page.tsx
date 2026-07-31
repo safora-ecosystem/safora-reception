@@ -33,7 +33,8 @@ import {
   type ServiceRequestStatus,
   type ServiceType,
 } from "@/lib/api"
-import { money, relativeTime } from "@/lib/format"
+import { currencyUnit, money, relativeTime } from "@/lib/format"
+import { t as tr, useT, type TFunc, type TKey } from "@/lib/i18n"
 import { playMessageChime, showDesktopNotification } from "@/lib/notify"
 import { cn } from "@/lib/utils"
 
@@ -41,32 +42,32 @@ import { cn } from "@/lib/utils"
 const WAIT_WARN_MIN = 10
 const WAIT_LATE_MIN = 20
 
-const TYPE_META: Record<ServiceType, { label: string; icon: typeof Bike }> = {
-  taxi: { label: "Taksi", icon: Bike },
-  cleaning: { label: "Tozalash", icon: Wrench },
-  food: { label: "Ovqat", icon: Coffee },
-  amenity: { label: "Qulaylik", icon: Package },
-  other: { label: "Boshqa", icon: Sparkles },
+const TYPE_META: Record<ServiceType, { labelKey: TKey; icon: typeof Bike }> = {
+  taxi: { labelKey: "services.type.taxi", icon: Bike },
+  cleaning: { labelKey: "services.type.cleaning", icon: Wrench },
+  food: { labelKey: "services.type.food", icon: Coffee },
+  amenity: { labelKey: "services.type.amenity", icon: Package },
+  other: { labelKey: "services.type.otherType", icon: Sparkles },
 }
 
 const STATUS_META: Record<
   ServiceRequestStatus,
-  { label: string; variant: "warning" | "outline" | "success" | "secondary" }
+  { labelKey: TKey; variant: "warning" | "outline" | "success" | "secondary" }
 > = {
-  new: { label: "Yangi", variant: "warning" },
-  in_progress: { label: "Bajarilmoqda", variant: "outline" },
-  done: { label: "Bajarildi", variant: "success" },
-  cancelled: { label: "Bekor qilindi", variant: "secondary" },
+  new: { labelKey: "services.status.new", variant: "warning" },
+  in_progress: { labelKey: "services.status.inProgress", variant: "outline" },
+  done: { labelKey: "services.status.done", variant: "success" },
+  cancelled: { labelKey: "services.status.cancelled", variant: "secondary" },
 }
 
 type Filter = "open" | ServiceRequestStatus | "all"
 
-const FILTERS: Array<{ value: Filter; label: string }> = [
-  { value: "open", label: "Ochiq" },
-  { value: "new", label: "Yangi" },
-  { value: "in_progress", label: "Ishda" },
-  { value: "done", label: "Bajarildi" },
-  { value: "all", label: "Hammasi" },
+const filterOptions = (t: TFunc): Array<{ value: Filter; label: string }> => [
+  { value: "open", label: t("services.filterOpen") },
+  { value: "new", label: t("services.status.new") },
+  { value: "in_progress", label: t("services.filterInWork") },
+  { value: "done", label: t("services.status.done") },
+  { value: "all", label: t("common.all") },
 ]
 
 function apiErr(err: unknown, fallback: string): string {
@@ -78,17 +79,14 @@ function waitedMinutes(iso: string): number {
 }
 
 function waitLabel(minutes: number): string {
-  if (minutes < 1) return "hozirgina"
-  if (minutes < 60) return `${minutes} daq`
+  if (minutes < 1) return tr("ago.justNow")
+  if (minutes < 60) return tr("services.waitMinutes", { count: minutes })
   const hours = Math.floor(minutes / 60)
-  return hours < 24 ? `${hours} soat` : `${Math.floor(hours / 24)} kun`
+  return hours < 24
+    ? tr("services.waitHours", { count: hours })
+    : tr("services.waitDays", { count: Math.floor(hours / 24) })
 }
 
-/**
- * Navbat tartibi: avval hali QABUL QILINMAGANLAR (eng uzoq kutgani yuqorida), keyin ishdagilar.
- * Resepshn ro'yxatni tepadan pastga ishlaydi — "qaysi biri navbatda?" degan savol qolmasin.
- * Yopilganlar (bajarildi/bekor) esa yangisidan eskisiga: ular tarix, navbat emas.
- */
 function queueOrder(a: ServiceRequest, b: ServiceRequest): number {
   const rank = (r: ServiceRequest) => (r.status === "new" ? 0 : r.status === "in_progress" ? 1 : 2)
   const byRank = rank(a) - rank(b)
@@ -96,17 +94,15 @@ function queueOrder(a: ServiceRequest, b: ServiceRequest): number {
 
   const at = new Date(a.createdAt).getTime()
   const bt = new Date(b.createdAt).getTime()
-  // Ochiqlar: eski birinchi. Yopilganlar: yangi birinchi.
   return rank(a) === 2 ? bt - at : at - bt
 }
 
 export function RequestsPage() {
+  const t = useT()
   const qc = useQueryClient()
   const requestsQ = useQuery({
     queryKey: ["service-requests"],
     queryFn: () => listServiceRequests(),
-    // Realtime hali yo'q (buyurtma hodisalari e'lon qilinmaydi), shuning uchun polling.
-    // 15s — mehmon "yuborildi" degandan keyin resepshn ko'radigan eng yomon kechikish.
     refetchInterval: 15_000,
   })
   const [filter, setFilter] = useState<Filter>("open")
@@ -115,22 +111,17 @@ export function RequestsPage() {
 
   const all = useMemo(() => requestsQ.data ?? [], [requestsQ.data])
 
-  // Kutish daqiqalari o'zi o'smaydi — javob o'zgarmasa React qayta chizmaydi. Shu taymer
-  // "12 daq" yozuvini va rangni tirik ushlab turadi (so'rov yubormasdan).
   const [, setTick] = useState(0)
   useEffect(() => {
     const timer = setInterval(() => setTick((n) => n + 1), 30_000)
     return () => clearInterval(timer)
   }, [])
 
-  // Yangi so'rov kelganini BILDIRAMIZ: resepshn bu sahifaga tikilib o'tirmaydi. Ovoz va
-  // (tab fonda bo'lsa) brauzer bildirishnomasi — chat bilan bir xil sozlama ostida.
   const seen = useRef<Set<string> | null>(null)
   useEffect(() => {
     if (!requestsQ.isSuccess) return
     const incoming = all.filter((r) => r.status === "new" && r.source === "guest")
 
-    // Birinchi yuklashda jim: sahifa ochilishi "yangi so'rov keldi" degani emas.
     if (seen.current === null) {
       seen.current = new Set(incoming.map((r) => r.id))
       return
@@ -143,10 +134,14 @@ export function RequestsPage() {
     playMessageChime()
     const first = fresh[0]
     const title =
-      fresh.length === 1 ? `${first.room.number}-xona: ${first.title}` : `${fresh.length} ta yangi xizmat`
-    showDesktopNotification("Yangi xizmat so'rovi", title)
-    toast(title, { description: "Mehmon QR orqali buyurtma qildi." })
-  }, [all, requestsQ.isSuccess])
+      fresh.length === 1
+        ? `${t("stay.roomNo", { number: first.room.number })}: ${first.title}`
+        : t("services.newCount", { count: fresh.length })
+    showDesktopNotification(t("services.incomingTitle"), title)
+    toast(title, { description: t("services.incomingHint") })
+    // `t` — obuna: uning identifikatori faqat til almashganda o'zgaradi, ya'ni bu effekt
+    // ortiqcha qayta ishga tushmaydi (bildirishnoma esa har doim joriy tilda chiqadi).
+  }, [all, requestsQ.isSuccess, t])
 
   const counts = {
     new: all.filter((r) => r.status === "new").length,
@@ -173,13 +168,13 @@ export function RequestsPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["service-requests"] })
     },
-    onError: (err) => toast.error(apiErr(err, "Holatni o'zgartirib bo'lmadi")),
+    onError: (err) => toast.error(apiErr(err, t("services.statusFailed"))),
   })
 
   return (
     <PageLayout
-      title="Xizmatlar"
-      actions={<CtaButton onClick={() => setCreateOpen(true)}>Xizmat qo'shish</CtaButton>}
+      title={t("nav.services")}
+      actions={<CtaButton onClick={() => setCreateOpen(true)}>{t("services.add")}</CtaButton>}
     >
       {/* Skelet navbat layoutini takrorlaydi (o'lchovlar + qatorlar). Xato — sabab + retry;
           15s poll yiqilsa esa eski ro'yxat turadi (data bor → error yutilmaydi), react-query
@@ -203,39 +198,39 @@ export function RequestsPage() {
       <div className="flex flex-col gap-4">
         <StatGrid>
           <StatCard
-            label="Yangi xizmat"
+            label={t("services.newService")}
             value={String(counts.new)}
-            hint="hali qabul qilinmagan"
+            hint={t("services.newHint")}
             hero
           />
           <StatCard
-            label="Bajarilmoqda"
+            label={t("services.status.inProgress")}
             value={String(counts.inProgress)}
-            hint="ishda"
+            hint={t("services.inProgressHint")}
           />
           <StatCard
-            label="Bajarildi"
+            label={t("services.status.done")}
             value={String(counts.done)}
-            hint="oxirgi 30 kun"
+            hint={t("services.doneHint")}
           />
           <StatCard
-            label="Tushum"
+            label={t("services.revenue")}
             value={money(revenue, { unit: false })}
-            unit="so'm"
-            hint="bajarilgan xizmatlar"
+            unit={currencyUnit()}
+            hint={t("services.revenueHint")}
           />
         </StatGrid>
 
         <Card className="gap-0 p-0">
           <div className="flex flex-wrap items-center justify-between gap-3 p-4">
             <p className="text-sm text-neutral-500">
-              Mehmon xonadagi QR orqali xizmat buyurtma qiladi — u shu yerda paydo bo'ladi.
+              {t("services.intro")}
             </p>
             <RangeToggle
-              options={FILTERS}
+              options={filterOptions(t)}
               value={filter}
               onChange={setFilter}
-              ariaLabel="Xizmat holati"
+              ariaLabel={t("services.statusAria")}
             />
           </div>
 
@@ -243,11 +238,9 @@ export function RequestsPage() {
             {rows.length === 0 ? (
               <EmptyState
                 icon={Sparkles}
-                title={filter === "open" ? "Ochiq xizmat yo'q" : "Xizmat topilmadi"}
+                title={filter === "open" ? t("services.emptyOpen") : t("services.emptyFiltered")}
                 hint={
-                  filter === "open"
-                    ? "Hammasi bajarilgan — smena toza."
-                    : "Filtrni o'zgartirib ko'ring."
+                  filter === "open" ? t("services.emptyOpenHint") : t("services.emptyFilteredHint")
                 }
               />
             ) : (
@@ -283,7 +276,7 @@ export function RequestsPage() {
                         <div className="flex flex-wrap items-center gap-2">
                           <p className="font-medium text-neutral-900">{request.title}</p>
                           <Badge variant={STATUS_META[request.status].variant}>
-                            {STATUS_META[request.status].label}
+                            {t(STATUS_META[request.status].labelKey)}
                           </Badge>
                           {/* Kutish vaqti — ochiq so'rovda ENG muhim raqam, shuning uchun
                               sarlavha qatorida turadi, izohlar orasida emas. */}
@@ -302,11 +295,11 @@ export function RequestsPage() {
                             </span>
                           )}
                           {request.source === "guest" && (
-                            <span className="text-xs text-neutral-400">QR orqali</span>
+                            <span className="text-xs text-neutral-400">{t("services.viaQr")}</span>
                           )}
                         </div>
                         <p className="mt-0.5 truncate text-xs text-neutral-500">
-                          {request.room.number}-xona
+                          {t("stay.roomNo", { number: request.room.number })}
                           {request.booking ? ` · ${request.booking.guestName}` : ""} ·{" "}
                           {relativeTime(request.createdAt)}
                           {request.note ? ` · ${request.note}` : ""}
@@ -331,7 +324,7 @@ export function RequestsPage() {
                                 advance.mutate({ id: request.id, status: "in_progress" })
                               }
                             >
-                              Qabul qilish
+                              {t("services.accept")}
                             </Button>
                           )}
                           <Button
@@ -368,6 +361,7 @@ function CompleteDialog({
   request: ServiceRequest | null
   onClose: () => void
 }) {
+  const t = useT()
   const qc = useQueryClient()
   const [amount, setAmount] = useState("")
 
@@ -376,11 +370,11 @@ function CompleteDialog({
       updateServiceRequest(request!.id, { status: "done", amount: value }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["service-requests"] })
-      toast.success("Xizmat yopildi")
+      toast.success(t("services.closed"))
       onClose()
       setAmount("")
     },
-    onError: (err) => toast.error(apiErr(err, "Yopib bo'lmadi")),
+    onError: (err) => toast.error(apiErr(err, t("services.closeFailed"))),
   })
 
   return (
@@ -395,7 +389,7 @@ function CompleteDialog({
     >
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle>Xizmatni yopish</DialogTitle>
+          <DialogTitle>{t("services.closeService")}</DialogTitle>
         </DialogHeader>
         {request && (
           <form
@@ -407,10 +401,12 @@ function CompleteDialog({
           >
             <p className="text-sm text-neutral-600">
               <span className="font-medium text-neutral-900">{request.title}</span> ·{" "}
-              {request.room.number}-xona
+              {t("stay.roomNo", { number: request.room.number })}
             </p>
             <label className="flex flex-col gap-1.5">
-              <span className="text-sm text-neutral-600">Summa (so'm)</span>
+              <span className="text-sm text-neutral-600">
+                {t("services.amountField", { currency: currencyUnit() })}
+              </span>
               <Input
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
@@ -420,15 +416,15 @@ function CompleteDialog({
                 autoFocus
               />
               <span className="text-xs text-neutral-400">
-                Pulsiz xizmat bo'lsa bo'sh qoldiring.
+                {t("services.amountHint")}
               </span>
             </label>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={onClose}>
-                Bekor qilish
+                {t("common.cancel")}
               </Button>
               <Button type="submit" disabled={complete.isPending}>
-                {complete.isPending ? "Yopilmoqda…" : "Yopish"}
+                {complete.isPending ? t("common.closing") : t("common.close")}
               </Button>
             </DialogFooter>
           </form>
@@ -445,6 +441,7 @@ function CreateRequestDialog({
   open: boolean
   onOpenChange: (open: boolean) => void
 }) {
+  const t = useT()
   const qc = useQueryClient()
   const roomsQ = useQuery({ queryKey: ["rooms"], queryFn: listRooms, enabled: open })
   const bookingsQ = useQuery({ queryKey: ["bookings"], queryFn: () => listBookings(), enabled: open })
@@ -469,14 +466,14 @@ function CreateRequestDialog({
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["service-requests"] })
-      toast.success("Xizmat qo'shildi")
+      toast.success(t("services.created"))
       onOpenChange(false)
       setRoomId("")
       setTitle("")
       setType("other")
       setNote("")
     },
-    onError: (err) => toast.error(apiErr(err, "Xizmatni qo'shib bo'lmadi")),
+    onError: (err) => toast.error(apiErr(err, t("services.createFailed"))),
   })
 
   const rooms = roomsQ.data ?? []
@@ -485,7 +482,7 @@ function CreateRequestDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Yangi xizmat</DialogTitle>
+          <DialogTitle>{t("services.newService")}</DialogTitle>
         </DialogHeader>
         <form
           className="flex flex-col gap-4"
@@ -512,24 +509,24 @@ function CreateRequestDialog({
             </select>
             {bookingForRoom && (
               <span className="text-xs text-neutral-400">
-                Mehmon: {bookingForRoom.guestName}
+                {t("services.guestLabel", { name: bookingForRoom.guestName })}
               </span>
             )}
           </label>
 
           <label className="flex flex-col gap-1.5">
-            <span className="text-sm text-neutral-600">Nima kerak</span>
+            <span className="text-sm text-neutral-600">{t("services.whatIsNeeded")}</span>
             <Input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="Masalan: Aeroportga taksi"
+              placeholder={t("services.titlePlaceholder")}
               className="h-11"
               required
             />
           </label>
 
           <div className="flex flex-col gap-1.5">
-            <span className="text-sm text-neutral-600">Turi</span>
+            <span className="text-sm text-neutral-600">{t("common.type")}</span>
             <div className="flex flex-wrap gap-1.5">
               {(Object.keys(TYPE_META) as ServiceType[]).map((key) => (
                 <button
@@ -543,28 +540,28 @@ function CreateRequestDialog({
                       : "border-border text-neutral-600 hover:bg-neutral-100",
                   )}
                 >
-                  {TYPE_META[key].label}
+                  {t(TYPE_META[key].labelKey)}
                 </button>
               ))}
             </div>
           </div>
 
           <label className="flex flex-col gap-1.5">
-            <span className="text-sm text-neutral-600">Izoh (ixtiyoriy)</span>
+            <span className="text-sm text-neutral-600">{t("services.noteField")}</span>
             <Textarea
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              placeholder="Vaqt, manzil, boshqa tafsilot"
+              placeholder={t("services.notePlaceholder")}
               rows={2}
             />
           </label>
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Bekor qilish
+              {t("common.cancel")}
             </Button>
             <Button type="submit" disabled={create.isPending || !roomId || !title.trim()}>
-              {create.isPending ? "Qo'shilmoqda…" : "Qo'shish"}
+              {create.isPending ? t("common.adding") : t("common.add")}
             </Button>
           </DialogFooter>
         </form>

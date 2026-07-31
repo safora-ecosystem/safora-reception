@@ -59,6 +59,7 @@ import {
   useChat,
 } from "@/lib/chat-realtime"
 import { shortDate } from "@/lib/format"
+import { t as tr, useT, type TKey } from "@/lib/i18n"
 import { useSetPageHeader } from "@/lib/page-header"
 import { usePermissions } from "@/lib/permissions"
 import { EmptyState } from "@/components/shared/empty-state"
@@ -71,11 +72,11 @@ import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
 
 
-const ROLE_LABEL: Record<string, string> = {
-  owner: "Rahbar",
-  manager: "Menejer",
-  reception: "Resepshn",
-  housekeeper: "Tozalash xodimi",
+const ROLE_KEY: Record<string, TKey> = {
+  owner: "roles.owner",
+  manager: "roles.manager",
+  reception: "roles.reception",
+  housekeeper: "roles.housekeeper",
 }
 
 const two = (n: number) => String(n).padStart(2, "0")
@@ -97,10 +98,10 @@ function listTime(iso: string): string {
 function dayLabel(iso: string): string {
   const d = new Date(iso)
   const now = new Date()
-  if (sameDay(d, now)) return "Bugun"
+  if (sameDay(d, now)) return tr("common.today")
   const yesterday = new Date(now)
   yesterday.setDate(now.getDate() - 1)
-  if (sameDay(d, yesterday)) return "Kecha"
+  if (sameDay(d, yesterday)) return tr("common.yesterday")
   return shortDate(iso)
 }
 /** Bitta "guruh" — bir tomondan, orasi 5 daqiqadan oshmagan xabarlar (messenger odati). */
@@ -112,7 +113,8 @@ function minutesBetween(a: string, b: string): number {
 type Tab = "guests" | "team" | "group"
 
 export function ChatPage() {
-  useSetPageHeader("Suhbat")
+  const t = useT()
+  useSetPageHeader(t("nav.chat"))
   const { can } = usePermissions()
   const canGuest = can("chat.guest")
   const canTeam = can("chat.team")
@@ -159,9 +161,9 @@ export function ChatPage() {
       archiveConversation(input.bookingId, input.archived),
     onSuccess: (_r, input) => {
       void qc.invalidateQueries({ queryKey: conversationsKey })
-      toast(input.archived ? "Suhbat arxivlandi" : "Suhbat arxivdan chiqarildi")
+      toast(input.archived ? t("chat.archived") : t("chat.unarchived"))
     },
-    onError: () => toast.error("Amalni bajarib bo'lmadi"),
+    onError: () => toast.error(t("errors.actionFailed")),
   })
   const archiveTeam = useMutation({
     mutationFn: (input: { userId: string; archived: boolean }) =>
@@ -169,9 +171,9 @@ export function ChatPage() {
     onSuccess: (_r, input) => {
       void qc.invalidateQueries({ queryKey: teamThreadsKey })
       void qc.invalidateQueries({ queryKey: teamUnreadKey })
-      toast(input.archived ? "Suhbat arxivlandi" : "Suhbat arxivdan chiqarildi")
+      toast(input.archived ? t("chat.archived") : t("chat.unarchived"))
     },
-    onError: () => toast.error("Amalni bajarib bo'lmadi"),
+    onError: () => toast.error(t("errors.actionFailed")),
   })
 
   function openGuest(bookingId: string) {
@@ -241,7 +243,7 @@ export function ChatPage() {
             </div>
           ) : (
             <p className="px-4 pt-4 text-sm font-medium text-neutral-900">
-              {tab === "guests" ? "Mehmonlar" : "Jamoa"}
+              {tab === "guests" ? t("chat.guests") : t("chat.team")}
             </p>
           )}
 
@@ -249,7 +251,7 @@ export function ChatPage() {
             <p className="flex items-center gap-2 px-4 pt-2 text-xs text-neutral-400">
               {/* Ulanish — OGOHLANTIRISH emas, HOLAT: amber nuqta o'rniga jim spinner. */}
               {status === "connecting" && <Spinner className="size-3 text-neutral-300" />}
-              {status === "connecting" ? "Ulanmoqda…" : "Jonli aloqa yo'q — xabarlar kechikishi mumkin"}
+              {status === "connecting" ? t("chat.connecting") : t("chat.noRealtime")}
             </p>
           )}
 
@@ -271,8 +273,8 @@ export function ChatPage() {
               ) : convItems.length === 0 ? (
                 <EmptyState
                   icon={MessagesSquare}
-                  title="Hozircha suhbat yo'q"
-                  hint="Mehmon xonadagi QR orqali yozsa shu yerda ko'rinadi."
+                  title={t("chat.emptyGuests")}
+                  hint={t("chat.emptyGuestsHint")}
                   className="py-10"
                 />
               ) : (
@@ -299,8 +301,8 @@ export function ChatPage() {
             ) : teamItems.length === 0 ? (
               <EmptyState
                 icon={Users}
-                title="Jamoada boshqa xodim yo'q"
-                hint="Rahbar xodim qo'shgach u shu yerda ko'rinadi."
+                title={t("chat.emptyTeam")}
+                hint={t("chat.emptyTeamHint")}
                 className="py-10"
               />
             ) : (
@@ -384,12 +386,12 @@ export function ChatPage() {
             selectedConv ? (
               <GuestThread conv={selectedConv} onBack={() => setMobileOpen(false)} />
             ) : (
-              <EmptyPane text="Suhbatni tanlang" />
+              <EmptyPane text={t("chat.pickConversation")} />
             )
           ) : selectedMate ? (
             <TeamThread thread={selectedMate} onBack={() => setMobileOpen(false)} />
           ) : (
-            <EmptyPane text="Xodimni tanlang" />
+            <EmptyPane text={t("chat.pickStaff")} />
           )}
         </section>
       </div>
@@ -400,6 +402,7 @@ export function ChatPage() {
 // ── Mehmon suhbati ───────────────────────────────────────────────────────────
 
 function GuestThread({ conv, onBack }: { conv: ChatConversation; onBack: () => void }) {
+  const t = useT()
   const qc = useQueryClient()
   const me = getSession()?.user
   const hotelId = me?.hotelId ?? ""
@@ -472,7 +475,7 @@ function GuestThread({ conv, onBack }: { conv: ChatConversation; onBack: () => v
       void qc.invalidateQueries({ queryKey: conversationsKey })
     },
     onError: (_err, input) => {
-      toast.error("Xabar yuborilmadi")
+      toast.error(t("chat.sendFailed"))
       setDraft((d) => (d ? d : input.text))
     },
   })
@@ -481,7 +484,7 @@ function GuestThread({ conv, onBack }: { conv: ChatConversation; onBack: () => v
     mutationFn: (input: { messageId: string; emoji: string | null }) =>
       reactGuestMessage(input.messageId, input.emoji),
     onSuccess: (res) => updateGuestReactions(qc, bookingId, res.messageId, res.reactions),
-    onError: () => toast.error("Reaksiya yuborilmadi"),
+    onError: () => toast.error(t("chat.reactionFailed")),
   })
 
   async function loadOlder() {
@@ -496,7 +499,7 @@ function GuestThread({ conv, onBack }: { conv: ChatConversation; onBack: () => v
           old ? { items: [...old.items, ...older.items], nextCursor: older.nextCursor } : older,
       )
     } catch {
-      toast.error("Avvalgi xabarlar yuklanmadi")
+      toast.error(t("chat.olderFailed"))
     } finally {
       setLoadingOlder(false)
     }
@@ -506,7 +509,7 @@ function GuestThread({ conv, onBack }: { conv: ChatConversation; onBack: () => v
     <ThreadShell
       threadKey={bookingId}
       title={conv.guestName}
-      subtitle={`${conv.roomNumber}-xona${conv.bookingStatus !== "checked_in" ? " · mehmon chiqib ketgan" : ""}`}
+      subtitle={`${t("stay.roomNo", { number: conv.roomNumber })}${conv.bookingStatus !== "checked_in" ? ` · ${t("chat.guestLeft")}` : ""}`}
       onBack={onBack}
       loading={messages.isLoading}
       error={messages.data === undefined && messages.isError ? messages.error : null}
@@ -515,7 +518,7 @@ function GuestThread({ conv, onBack }: { conv: ChatConversation; onBack: () => v
         messages.data?.nextCursor ? (
           <div className="flex justify-center pb-3">
             <Button variant="ghost" size="sm" onClick={loadOlder} disabled={loadingOlder}>
-              {loadingOlder ? "Yuklanmoqda…" : "Avvalgi xabarlar"}
+              {loadingOlder ? t("common.loading") : t("chat.older")}
             </Button>
           </div>
         ) : null
@@ -553,9 +556,9 @@ function GuestThread({ conv, onBack }: { conv: ChatConversation; onBack: () => v
   )
 }
 
-// ── Jamoa suhbati ────────────────────────────────────────────────────────────
 
 function TeamThread({ thread, onBack }: { thread: TeamThread; onBack: () => void }) {
+  const t = useT()
   const qc = useQueryClient()
   const meId = getSession()?.user.id ?? ""
   const otherId = thread.user.id
@@ -569,7 +572,6 @@ function TeamThread({ thread, onBack }: { thread: TeamThread; onBack: () => void
   const items = messages.data?.messages ?? []
   const last = items.length ? items[items.length - 1]! : null
 
-  // Ochiq turgan suhbatga kelgan xabar darhol o'qilgan bo'ladi (badge yig'ilib qolmasin).
   useEffect(() => {
     if (!last || last.senderId === meId) return
     void markTeamRead(otherId)
@@ -580,7 +582,6 @@ function TeamThread({ thread, onBack }: { thread: TeamThread; onBack: () => void
       .catch(() => {})
   }, [last, meId, otherId, qc])
 
-  // Optimistik yuborish — GuestThread'dagi bilan bir xil sabab: pending paytidagi Enter yutilmasin.
   const send = useMutation({
     mutationFn: (input: { text: string; replyToId?: string }) =>
       sendTeamMessage(otherId, input.text, input.replyToId),
@@ -593,7 +594,7 @@ function TeamThread({ thread, onBack }: { thread: TeamThread; onBack: () => void
       void qc.invalidateQueries({ queryKey: teamThreadsKey })
     },
     onError: (_err, input) => {
-      toast.error("Xabar yuborilmadi")
+      toast.error(t("chat.sendFailed"))
       setDraft((d) => (d ? d : input.text))
     },
   })
@@ -612,20 +613,20 @@ function TeamThread({ thread, onBack }: { thread: TeamThread; onBack: () => void
           : old,
       )
     },
-    onError: () => toast.error("Reaksiya yuborilmadi"),
+    onError: () => toast.error(t("chat.reactionFailed")),
   })
 
   return (
     <ThreadShell
       threadKey={otherId}
       title={thread.user.name}
-      subtitle={ROLE_LABEL[thread.user.role] ?? thread.user.role}
+      subtitle={ROLE_KEY[thread.user.role] ? t(ROLE_KEY[thread.user.role]) : thread.user.role}
       avatarUrl={thread.user.avatarUrl}
       onBack={onBack}
       loading={messages.isLoading}
       error={messages.data === undefined && messages.isError ? messages.error : null}
       onRetry={() => messages.refetch()}
-      emptyText="Hali yozishmagansiz — birinchi xabarni yozing."
+      emptyText={t("chat.emptyThread")}
       items={items.map((m) => ({
         id: m.id,
         mine: m.senderId === meId,
@@ -659,9 +660,9 @@ function TeamThread({ thread, onBack }: { thread: TeamThread; onBack: () => void
   )
 }
 
-// ── Jamoa guruhi ─────────────────────────────────────────────────────────────
 
 function GroupThread({ onBack }: { onBack: () => void }) {
+  const t = useT()
   const qc = useQueryClient()
   const meId = getSession()?.user.id ?? ""
   const [draft, setDraft] = useState("")
@@ -671,7 +672,6 @@ function GroupThread({ onBack }: { onBack: () => void }) {
   const list = messages.data?.messages ?? []
   const last = list.length ? list[list.length - 1]! : null
 
-  // Ochiq guruhga kelgan xabar darhol o'qilgan bo'ladi.
   useEffect(() => {
     if (!last || last.senderId === meId) return
     void markGroupRead()
@@ -689,7 +689,7 @@ function GroupThread({ onBack }: { onBack: () => void }) {
       sendGroupMessage(input.text, input.replyToId),
     onSuccess: (msg) => appendGroupMessage(qc, msg),
     onError: (_err, input) => {
-      toast.error("Xabar yuborilmadi")
+      toast.error(t("chat.sendFailed"))
       setDraft((d) => (d ? d : input.text))
     },
   })
@@ -698,7 +698,7 @@ function GroupThread({ onBack }: { onBack: () => void }) {
     mutationFn: (input: { messageId: string; emoji: string | null }) =>
       reactGroupMessage(input.messageId, input.emoji),
     onSuccess: (res) => updateGroupReactions(qc, res.messageId, res.reactions),
-    onError: () => toast.error("Reaksiya yuborilmadi"),
+    onError: () => toast.error(t("chat.reactionFailed")),
   })
 
   const items: ThreadItem[] = list.map((m: GroupMessage) => ({
@@ -716,13 +716,13 @@ function GroupThread({ onBack }: { onBack: () => void }) {
   return (
     <ThreadShell
       threadKey="group"
-      title="Jamoa guruhi"
-      subtitle="Barcha xodimlar bitta xonada"
+      title={t("chat.teamGroup")}
+      subtitle={t("chat.teamGroupHint")}
       onBack={onBack}
       loading={messages.isLoading}
       error={messages.data === undefined && messages.isError ? messages.error : null}
       onRetry={() => messages.refetch()}
-      emptyText="Guruh hali jim — birinchi xabarni yozing."
+      emptyText={t("chat.emptyGroup")}
       items={items}
       showAuthors
       replyTo={replyTo}
@@ -743,7 +743,6 @@ function GroupThread({ onBack }: { onBack: () => void }) {
   )
 }
 
-// ── Umumiy qismlar ───────────────────────────────────────────────────────────
 
 type ThreadItem = {
   id: string
@@ -768,7 +767,7 @@ function ThreadShell({
   onRetry,
   items,
   olderSlot,
-  emptyText = "Xabarlar yo'q.",
+  emptyText,
   showAuthors = false,
   replyTo,
   onReply,
@@ -782,18 +781,14 @@ function ThreadShell({
   threadKey: string
   title: string
   subtitle: string
-  /** Xodim suhbatida uning profil rasmi; mehmon va guruhda yo'q. */
   avatarUrl?: string | null
   onBack: () => void
   loading: boolean
-  /** Tarixning BOSHLANG'ICH yuklovi yiqildi (ko'rsatishga xabar yo'q) — sabab + retry chiziladi.
-      Bo'lmasa `emptyText` "Xabarlar yo'q" deb YOLG'ON gapirgan bo'lardi. */
   error?: unknown
   onRetry?: () => void | Promise<unknown>
   items: ThreadItem[]
   olderSlot?: React.ReactNode
   emptyText?: string
-  /** Guruhda begona xabar ustida muallif ismi ko'rinadi. */
   showAuthors?: boolean
   replyTo: ThreadItem | null
   onReply: (item: ThreadItem) => void
@@ -804,6 +799,7 @@ function ThreadShell({
   onSend: () => void
   pending: boolean
 }) {
+  const t = useT()
   const scrollRef = useRef<HTMLDivElement>(null)
   const nearBottomRef = useRef(true)
   const [showJump, setShowJump] = useState(false)
@@ -815,10 +811,6 @@ function ThreadShell({
   const firstId = items.length ? items[0]!.id : null
   const lastMine = items.length ? items[items.length - 1]!.mine : false
 
-  // Messenger scroll xulqi: (1) suhbat almashsa — pastga sakrash; (2) eski sahifa TEPAGA
-  // qo'shilsa — ko'rinayotgan xabar joyida qoladi (scrollTop delta bilan tuzatiladi);
-  // (3) yangi xabar kelsa — faqat pastda turgan bo'lsang yoki o'zing yozgan bo'lsang silliq
-  // pastga; tarixni o'qiyotgan odamni pastga TORTMAYMIZ, unga suzuvchi tugma ko'rinadi.
   const prevRef = useRef<{
     key: string | null
     firstId: string | null
@@ -841,7 +833,6 @@ function ThreadShell({
     prevRef.current = { key: threadKey, firstId, lastId, height: el.scrollHeight }
   }, [threadKey, firstId, lastId, lastMine])
 
-  // Kontekst menyu ochiq bo'lsa istalgan bosish/scroll/Esc yopadi.
   useEffect(() => {
     if (!menu) return
     const close = () => setMenu(null)
@@ -872,8 +863,6 @@ function ThreadShell({
     setShowJump(dist > 400)
   }
 
-  // Kun yorliqlari + guruhlash: bir tomonning ketma-ket (≤5 daqiqa oralig'idagi) xabarlari
-  // zich turadi va guruh davomida qo'shni burchaklar tekislanadi — lenta shovqinsiz o'qiladi.
   const rendered = useMemo(() => {
     const out: React.ReactNode[] = []
     let prev: ThreadItem | null = null
@@ -917,7 +906,7 @@ function ThreadShell({
           size="icon-sm"
           className="md:hidden"
           onClick={onBack}
-          aria-label="Orqaga"
+          aria-label={t("common.back")}
         >
           <ChevronLeft />
         </Button>
@@ -952,7 +941,7 @@ function ThreadShell({
             <div className="flex min-h-full flex-col justify-end">
               {olderSlot}
               {items.length === 0 ? (
-                <p className="pb-6 text-center text-sm text-neutral-400">{emptyText}</p>
+                <p className="pb-6 text-center text-sm text-neutral-400">{emptyText ?? t("chat.noMessages")}</p>
               ) : (
                 <div className="flex flex-col">{rendered}</div>
               )}
@@ -969,7 +958,7 @@ function ThreadShell({
                 behavior: "smooth",
               })
             }
-            aria-label="Oxirgi xabarga"
+            aria-label={t("chat.toLatest")}
             className="absolute right-4 bottom-4 z-10 flex size-9 items-center justify-center rounded-full border border-border bg-white text-neutral-600 shadow-md transition-colors animate-in fade-in zoom-in-95 hover:text-neutral-900"
           >
             <ChevronDown className="size-4" />
@@ -984,7 +973,7 @@ function ThreadShell({
             <p className="text-xs font-medium text-primary">{replyTo.author}</p>
             <p className="truncate text-xs text-neutral-500">{replyTo.text}</p>
           </div>
-          <Button variant="ghost" size="icon-xs" onClick={onCancelReply} aria-label="Bekor qilish">
+          <Button variant="ghost" size="icon-xs" onClick={onCancelReply} aria-label={t("common.cancel")}>
             <X />
           </Button>
         </div>
@@ -1000,7 +989,7 @@ function ThreadShell({
               onSend()
             }
           }}
-          placeholder="Xabar yozing…"
+          placeholder={t("chat.inputPlaceholder")}
           rows={1}
           className="max-h-36 min-h-10 flex-1 resize-none rounded-[1.25rem] border-transparent bg-neutral-100 px-4 py-2.5 shadow-none focus-visible:border-transparent focus-visible:ring-2 focus-visible:ring-ring/25"
         />
@@ -1009,7 +998,7 @@ function ThreadShell({
           className="size-10 shrink-0 rounded-full"
           onClick={onSend}
           disabled={!draft.trim() || pending}
-          aria-label="Yuborish"
+          aria-label={t("chat.send")}
         >
           {pending ? <Loader2 className="animate-spin" /> : <Send className="size-4" />}
         </Button>
@@ -1317,6 +1306,7 @@ function EmptyPane({ text }: { text: string }) {
 
 /** Guruh tabining chap paneli — bitta umumiy xona qatori (jonli unread bilan). */
 function GroupListTeaser({ onOpen }: { onOpen: () => void }) {
+  const t = useT()
   const unreadQ = useQuery({ queryKey: groupUnreadKey, queryFn: getGroupUnread, staleTime: 15_000 })
   const unread = unreadQ.data?.unread ?? 0
   return (
@@ -1331,14 +1321,14 @@ function GroupListTeaser({ onOpen }: { onOpen: () => void }) {
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline justify-between gap-2">
-            <p className="truncate text-sm font-medium text-neutral-900">Jamoa guruhi</p>
+            <p className="truncate text-sm font-medium text-neutral-900">{t("chat.teamGroup")}</p>
             {unread > 0 && (
               <span className="inline-flex h-5 min-w-[1.25rem] shrink-0 items-center justify-center rounded-full bg-primary px-1.5 text-[0.6875rem] font-medium tabular-nums text-primary-foreground">
                 {unread}
               </span>
             )}
           </div>
-          <p className="mt-0.5 truncate text-xs text-neutral-500">Barcha xodimlar bitta xonada</p>
+          <p className="mt-0.5 truncate text-xs text-neutral-500">{t("chat.teamGroupHint")}</p>
         </div>
       </button>
     </div>
@@ -1366,6 +1356,7 @@ function RowShell({
   archivedRow?: boolean
   onArchive: () => void
 }) {
+  const t = useT()
   return (
     <li className="group/row relative">
       <button
@@ -1409,8 +1400,8 @@ function RowShell({
           e.stopPropagation()
           onArchive()
         }}
-        title={archivedRow ? "Arxivdan chiqarish" : "Arxivlash"}
-        aria-label={archivedRow ? "Arxivdan chiqarish" : "Arxivlash"}
+        title={archivedRow ? t("chat.unarchive") : t("chat.archive")}
+        aria-label={archivedRow ? t("chat.unarchive") : t("chat.archive")}
         className="absolute right-2.5 bottom-2 hidden size-6 items-center justify-center rounded-md text-neutral-400 transition-colors group-hover/row:flex hover:bg-neutral-200/70 hover:text-neutral-700"
       >
         {archivedRow ? (
@@ -1436,13 +1427,14 @@ function GuestRow({
   onArchive: () => void
   archivedRow?: boolean
 }) {
+  const t = useT()
   return (
     <RowShell
       active={active}
       onClick={onClick}
       name={conv.guestName}
       time={listTime(conv.lastMessageAt)}
-      preview={`${conv.lastMessageSender === "staff" ? "Siz: " : ""}${conv.lastMessagePreview ?? `${conv.roomNumber}-xona`}`}
+      preview={`${conv.lastMessageSender === "staff" ? t("chat.youPrefix") : ""}${conv.lastMessagePreview ?? t("stay.roomNo", { number: conv.roomNumber })}`}
       unread={conv.unread}
       archivedRow={archivedRow}
       onArchive={onArchive}
@@ -1463,6 +1455,7 @@ function TeamRow({
   onArchive: () => void
   archivedRow?: boolean
 }) {
+  const t = useT()
   return (
     <RowShell
       active={active}
@@ -1472,8 +1465,10 @@ function TeamRow({
       time={thread.lastMessageAt ? listTime(thread.lastMessageAt) : null}
       preview={
         thread.lastMessagePreview
-          ? `${thread.lastMessageMine ? "Siz: " : ""}${thread.lastMessagePreview}`
-          : (ROLE_LABEL[thread.user.role] ?? thread.user.role)
+          ? `${thread.lastMessageMine ? t("chat.youPrefix") : ""}${thread.lastMessagePreview}`
+          : ROLE_KEY[thread.user.role]
+            ? t(ROLE_KEY[thread.user.role])
+            : thread.user.role
       }
       unread={thread.unread}
       archivedRow={archivedRow}

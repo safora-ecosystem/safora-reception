@@ -14,11 +14,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { getSession, ROLE_LABEL } from "@/lib/auth"
+import { getSession, ROLE_KEY } from "@/lib/auth"
+import { useT } from "@/lib/i18n"
 import { usePageHeader } from "@/lib/page-header"
 import { useTopbarSearch } from "@/lib/topbar-search"
 
 export function Topbar() {
+  const t = useT()
   const user = getSession()?.user
   const initial = (user?.name ?? "?").trim().charAt(0).toUpperCase()
 
@@ -53,8 +55,8 @@ export function Topbar() {
           ref={inputRef}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Mehmon, bron yoki xona qidiring"
-          aria-label="Qidirish"
+          placeholder={t("topbar.searchPlaceholder")}
+          aria-label={t("topbar.search")}
           className="h-11 rounded-panel border border-border bg-card pr-16 pl-11 text-[0.9375rem]"
         />
         {}
@@ -73,7 +75,7 @@ export function Topbar() {
         <Button
           variant="outline"
           size="icon-lg"
-          aria-label="Suhbat"
+          aria-label={t("topbar.chat")}
           className="rounded-full bg-white"
         >
           <Icon icon={Message02Icon} className="size-[1.125rem] text-neutral-500" strokeWidth={1.75} />
@@ -81,7 +83,7 @@ export function Topbar() {
         <Button
           variant="outline"
           size="icon-lg"
-          aria-label="Bildirishnomalar"
+          aria-label={t("topbar.notifications")}
           className="relative rounded-full bg-white"
         >
           <Icon
@@ -103,14 +105,14 @@ export function Topbar() {
               <AvatarFallback>{initial}</AvatarFallback>
             </Avatar>
             <div className="hidden leading-tight text-left lg:block">
-              <p className="text-[0.9375rem] font-medium text-neutral-900">{user?.name ?? "Xodim"}</p>
-              <p className="text-sm text-neutral-500">{user ? ROLE_LABEL[user.role] : ""}</p>
+              <p className="text-[0.9375rem] font-medium text-neutral-900">{user?.name ?? t("topbar.staff")}</p>
+              <p className="text-sm text-neutral-500">{user ? t(ROLE_KEY[user.role]) : ""}</p>
             </div>
             <ChevronDown className="hidden size-4 shrink-0 text-neutral-400 lg:block" strokeWidth={2} />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuLabel className="flex flex-col gap-0.5">
-              <span className="truncate text-sm font-medium text-neutral-900">{user?.name ?? "Xodim"}</span>
+              <span className="truncate text-sm font-medium text-neutral-900">{user?.name ?? t("topbar.staff")}</span>
               <span className="truncate text-xs font-normal text-neutral-500 tabular-nums">
                 {user?.staffHandle ?? ""}
               </span>
@@ -119,14 +121,14 @@ export function Topbar() {
             <DropdownMenuItem asChild>
               <Link to="/settings">
                 <UserRound strokeWidth={1.75} />
-                Profil va sozlamalar
+                {t("topbar.profileSettings")}
               </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem variant="destructive" asChild>
               <Link to="/logout">
                 <LogOut strokeWidth={1.75} />
-                Chiqish
+                {t("topbar.signOut")}
               </Link>
             </DropdownMenuItem>
           </DropdownMenuContent>

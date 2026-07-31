@@ -9,6 +9,7 @@ import PhoneNumberInput, {
 } from "react-phone-number-input/input"
 import { validatePhoneNumberLength } from "libphonenumber-js/min"
 import flags from "react-phone-number-input/flags"
+import { getLocale, t, type Locale } from "@/lib/i18n"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
 
@@ -37,10 +38,21 @@ const UZ_NAMES: Partial<Record<Country, string>> = {
   TN: "Tunis", DZ: "Jazoir", LY: "Liviya", ET: "Efiopiya", KE: "Keniya", NG: "Nigeriya",
 }
 
-const regionNames = new Intl.DisplayNames(["uz"], { type: "region" })
+const regionNames = new Map<Locale, Intl.DisplayNames>()
+
+function displayNames(locale: Locale): Intl.DisplayNames {
+  let names = regionNames.get(locale)
+  if (!names) {
+    names = new Intl.DisplayNames([locale], { type: "region" })
+    regionNames.set(locale, names)
+  }
+  return names
+}
 
 function countryName(country: Country): string {
-  return UZ_NAMES[country] ?? regionNames.of(country) ?? country
+  const locale = getLocale()
+  if (locale === "uz") return UZ_NAMES[country] ?? displayNames("uz").of(country) ?? country
+  return displayNames(locale).of(country) ?? UZ_NAMES[country] ?? country
 }
 
 interface CountryEntry {
@@ -49,20 +61,26 @@ interface CountryEntry {
   code: string
 }
 
-const ALL_COUNTRIES: CountryEntry[] = (() => {
+const countryCache = new Map<Locale, CountryEntry[]>()
+
+function allCountries(locale: Locale): CountryEntry[] {
+  const cached = countryCache.get(locale)
+  if (cached) return cached
   const entries = getCountries().map((country) => ({
     country,
     name: countryName(country),
     code: `+${getCountryCallingCode(country)}`,
   }))
   const rank = new Map(PINNED.map((c, i) => [c, i]))
-  return entries.sort((a, b) => {
+  const sorted = entries.sort((a, b) => {
     const ra = rank.get(a.country) ?? Infinity
     const rb = rank.get(b.country) ?? Infinity
     if (ra !== rb) return ra - rb
-    return a.name.localeCompare(b.name, "uz")
+    return a.name.localeCompare(b.name, locale)
   })
-})()
+  countryCache.set(locale, sorted)
+  return sorted
+}
 
 const PINNED_COUNT = PINNED.length
 
@@ -251,13 +269,14 @@ function CountryList({
   // 245 qator — har harfda qayta filtrlash terishni sekinlashtiradi, shuning uchun kechiktirilgan.
   const deferred = useDeferredValue(query)
 
+  const countries = allCountries(getLocale())
   const results = useMemo(() => {
     const q = deferred.trim().toLowerCase()
-    if (!q) return ALL_COUNTRIES
-    return ALL_COUNTRIES.filter(
+    if (!q) return countries
+    return countries.filter(
       (c) => c.name.toLowerCase().includes(q) || c.code.includes(q) || c.country.toLowerCase() === q,
     )
-  }, [deferred])
+  }, [deferred, countries])
 
   return (
     <div className="flex flex-col">
@@ -267,8 +286,8 @@ function CountryList({
           autoFocus
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Davlat qidiring"
-          aria-label="Davlat qidiring"
+          placeholder={t("phone.countrySearch")}
+          aria-label={t("phone.countrySearch")}
           className="h-8 w-full rounded-lg bg-transparent pr-2 pl-8 text-sm text-neutral-900 outline-none placeholder:text-neutral-400/70"
         />
       </div>

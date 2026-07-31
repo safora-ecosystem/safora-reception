@@ -7,9 +7,10 @@ import {
   type UseQueryResult,
 } from "@tanstack/react-query"
 import { toast } from "sonner"
+import { t } from "@/lib/i18n"
 import {
   addDays,
-  defaultLabels,
+  calendarLabels,
   epochDay,
   generateMockData,
   type BookingEditPatch,
@@ -129,7 +130,7 @@ export function useMockCalendarData(roomCount = 24): CalendarData {
           start: input.start,
           end: input.end,
           status: "blocked" as const,
-          label: defaultLabels.blockKindText[input.kind],
+          label: calendarLabels().blockKindText[input.kind],
           sublabel: input.reason,
           blockKind: input.kind,
           createdAt,
@@ -335,7 +336,7 @@ function mapBlock(b: RoomBlock): CalendarBooking {
     start: b.startDate.slice(0, 10),
     end: b.endDate.slice(0, 10),
     status: "blocked",
-    label: defaultLabels.blockKindText[b.kind],
+    label: calendarLabels().blockKindText[b.kind],
     sublabel: b.reason ?? undefined,
     blockKind: b.kind,
   }
@@ -463,7 +464,7 @@ function combineBookingChunks(results: UseQueryResult<Booking[], Error>[]) {
 
 function errMessage(e: unknown, fallback: string): string {
   if (e instanceof ApiError) {
-    if (e.status === 409) return "Holat o'zgardi — sahifani yangilang"
+    if (e.status === 409) return t("calendarToast.stale")
     const body = e.body as { message?: unknown } | null
     if (body && typeof body.message === "string") return body.message
   }
@@ -588,7 +589,7 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
               ...(input.reason ? { reason: input.reason } : {}),
             })
           }
-          toast.success(input.roomIds.length > 1 ? `${input.roomIds.length} ta xona yopildi` : "Xona yopildi")
+          toast.success(input.roomIds.length > 1 ? t("calendarToast.roomsBlocked", { count: input.roomIds.length }) : t("calendarToast.roomBlocked"))
           invalidate()
           return
         }
@@ -617,16 +618,16 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
             ...(r.guests?.length ? { guests: r.guests as GuestInput[] } : {}),
           })),
         })
-        toast.success(input.rooms.length > 1 ? `${input.rooms.length} ta bron yaratildi` : "Bron yaratildi")
+        toast.success(input.rooms.length > 1 ? `${input.rooms.length} ta bron yaratildi` : t("calendarToast.created"))
         invalidate()
       } catch (e) {
         // 409 = oradan boshqa xodim ulgurdi. Kalendarni darrov yangilaymiz, xodim kim band
         // qilganini ko'rib boshqa xona tanlasin (modal ochiq qoladi).
         if (e instanceof ApiError && e.status === 409) {
-          toast.error("Xona tanlangan sanalarda band — kalendar yangilandi")
+          toast.error(t("calendarToast.conflict"))
           invalidate()
         } else {
-          onError(e, "Bron yaratilmadi")
+          onError(e, t("calendarToast.createFailed"))
         }
         throw e
       }
@@ -638,10 +639,10 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
     async (id: string) => {
       try {
         await checkInBooking(id)
-        toast.success("Kirish belgilandi")
+        toast.success(t("calendarToast.checkedIn"))
         invalidate()
       } catch (e) {
-        onError(e, "Kirish bajarilmadi")
+        onError(e, t("calendarToast.checkInFailed"))
       }
     },
     [invalidate, onError],
@@ -651,10 +652,10 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
     async (id: string) => {
       try {
         await checkOutBooking(id)
-        toast.success("Chiqish belgilandi")
+        toast.success(t("calendarToast.checkedOut"))
         invalidate()
       } catch (e) {
-        onError(e, "Chiqish bajarilmadi")
+        onError(e, t("calendarToast.checkOutFailed"))
       }
     },
     [invalidate, onError],
@@ -664,10 +665,10 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
     async (id: string) => {
       try {
         await cancelBooking(id)
-        toast.success("Bron bekor qilindi")
+        toast.success(t("calendarToast.cancelled"))
         invalidate()
       } catch (e) {
-        onError(e, "Bekor qilinmadi")
+        onError(e, t("calendarToast.cancelFailed"))
       }
     },
     [invalidate, onError],
@@ -679,10 +680,10 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
       if (Object.keys(body).length === 0) return // hech narsa o'zgarmagan — so'rov yubormaymiz
       try {
         await apiUpdateBooking(id, body)
-        toast.success("Bron yangilandi")
+        toast.success(t("calendarToast.updated"))
         invalidate()
       } catch (e) {
-        onError(e, "Bron yangilanmadi")
+        onError(e, t("calendarToast.updateFailed"))
       }
     },
     [invalidate, onError],
@@ -690,7 +691,7 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
 
   const moveBooking = useCallback(
     async (id: string, next: CalendarDraft) => {
-      // Sudrashdan OLDINGI holat — "Qaytarish" shu joyga qaytaradi. Tasodifiy drag front-deskda
+      // Sudrashdan OLDINGI holat — t("calendarToast.undo") shu joyga qaytaradi. Tasodifiy drag front-deskda
       // tez-tez bo'ladi (umumiy sichqonchali stol); tasdiqlash oynasi har ko'chirishni
       // sekinlashtirgan bo'lardi, undo esa faqat xatoni to'g'irlaydi.
       const prev = bookingsQ.rows.find((b) => b.id === id)
@@ -701,10 +702,10 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
           checkOutDate: next.end,
         })
         invalidate()
-        toast.success("Bron ko'chirildi", {
+        toast.success(t("calendarToast.moved"), {
           action: prev
             ? {
-                label: "Qaytarish",
+                label: t("calendarToast.undo"),
                 onClick: () => {
                   apiUpdateBooking(id, {
                     roomId: prev.room.id,
@@ -712,17 +713,17 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
                     checkOutDate: prev.checkOutDate.slice(0, 10),
                   })
                     .then(() => {
-                      toast.success("Bron joyiga qaytarildi")
+                      toast.success(t("calendarToast.restored"))
                       invalidate()
                     })
                     // Eski katakni oradan boshqa xodim band qilgan bo'lishi mumkin (409).
-                    .catch((e) => onError(e, "Qaytarilmadi"))
+                    .catch((e) => onError(e, t("calendarToast.restoreFailed")))
                 },
               }
             : undefined,
         })
       } catch (e) {
-        onError(e, "Bron ko'chirilmadi")
+        onError(e, t("calendarToast.moveFailed"))
       }
     },
     [bookingsQ.rows, invalidate, onError],
@@ -732,10 +733,10 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
     async (id: string) => {
       try {
         await removeRoomBlock(isBlockId(id) ? blockIdOf(id) : id)
-        toast.success("Xona ochildi")
+        toast.success(t("calendarToast.unblocked"))
         invalidate()
       } catch (e) {
-        onError(e, "Xona ochilmadi")
+        onError(e, t("calendarToast.unblockFailed"))
       }
     },
     [invalidate, onError],
@@ -807,10 +808,10 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
     async (bookingId: string, input: { amount: number; note?: string }) => {
       try {
         await recordBookingPayment(bookingId, input)
-        toast.success("To'lov qabul qilindi")
+        toast.success(t("calendarToast.paymentTaken"))
         refreshGuests()
       } catch (e) {
-        onError(e, "To'lov yozilmadi")
+        onError(e, t("calendarToast.paymentFailed"))
         throw e // forma ochiq qolsin — xodim summani qaytadan termasin
       }
     },
@@ -821,10 +822,10 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
     async (bookingId: string, paymentId: string, reason: string) => {
       try {
         await voidBookingPayment(bookingId, paymentId, reason)
-        toast.success("To'lov storno qilindi")
+        toast.success(t("calendarToast.paymentVoided"))
         refreshGuests()
       } catch (e) {
-        onError(e, "Storno bajarilmadi")
+        onError(e, t("calendarToast.voidFailed"))
         throw e
       }
     },
@@ -849,8 +850,8 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
     (bookingId: string, guest: LooseGuestInput) =>
       guestAction(
         () => addBookingGuest(bookingId, toGuestInput(guest)),
-        "Mehmon qo'shildi",
-        "Mehmon qo'shilmadi",
+        t("calendarToast.guestAdded"),
+        t("calendarToast.guestAddFailed"),
       ),
     [guestAction],
   )
@@ -858,19 +859,19 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
     (bookingId: string, guestId: string, patch: Partial<LooseGuestInput>) =>
       guestAction(
         () => updateBookingGuest(bookingId, guestId, toGuestPatch(patch)),
-        "Saqlandi",
-        "Saqlanmadi",
+        t("calendarToast.saved"),
+        t("calendarToast.saveFailed"),
       ),
     [guestAction],
   )
   const removeGuest = useCallback(
     (bookingId: string, guestId: string) =>
-      guestAction(() => removeBookingGuest(bookingId, guestId), "Mehmon o'chirildi", "O'chirilmadi"),
+      guestAction(() => removeBookingGuest(bookingId, guestId), t("calendarToast.guestRemoved"), t("calendarToast.removeFailed")),
     [guestAction],
   )
   const makeGuestPrimary = useCallback(
     (bookingId: string, guestId: string) =>
-      guestAction(() => apiSetPrimaryGuest(bookingId, guestId), "Asosiy mehmon almashdi", "Almashtirilmadi"),
+      guestAction(() => apiSetPrimaryGuest(bookingId, guestId), t("calendarToast.primaryChanged"), t("calendarToast.primaryFailed")),
     [guestAction],
   )
 

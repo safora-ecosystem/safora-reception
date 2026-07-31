@@ -6,6 +6,8 @@ export type DateNames = {
   monthsShort: readonly string[]
   weekdaysFull: readonly string[]
   weekdaysShort: readonly string[]
+  longDatePattern: string
+  shortDatePattern: string
 }
 
 export type NumberNames = {
@@ -40,6 +42,8 @@ export const DATE_NAMES: Record<Locale, DateNames> = {
       "yakshanba", "dushanba", "seshanba", "chorshanba", "payshanba", "juma", "shanba",
     ],
     weekdaysShort: ["Ya", "Du", "Se", "Ch", "Pa", "Ju", "Sh"],
+    longDatePattern: "{d}-{month}, {y}",
+    shortDatePattern: "{d} {month}",
   },
   ru: {
     monthsFull: RU_MONTHS,
@@ -52,6 +56,8 @@ export const DATE_NAMES: Record<Locale, DateNames> = {
       "воскресенье", "понедельник", "вторник", "среда", "четверг", "пятница", "суббота",
     ],
     weekdaysShort: ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"],
+    longDatePattern: "{d} {month} {y}",
+    shortDatePattern: "{d} {month}",
   },
   en: {
     monthsFull: EN_MONTHS,
@@ -61,6 +67,8 @@ export const DATE_NAMES: Record<Locale, DateNames> = {
       "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday",
     ],
     weekdaysShort: ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"],
+    longDatePattern: "{d} {month} {y}",
+    shortDatePattern: "{d} {month}",
   },
 }
 

@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from "react"
+import { useT } from "@/lib/i18n"
 import { cn } from "@/lib/utils"
 import { fullNumber, seriesColor } from "@/components/shared/charts/chart-tokens"
 
@@ -32,8 +33,9 @@ export function DonutChart({
   format = fullNumber,
   legend = true,
   className,
-  ariaLabel = "Ulushlar diagrammasi",
+  ariaLabel,
 }: DonutChartProps) {
+  const t = useT()
   const [active, setActive] = useState<string | null>(null)
 
   const total = slices.reduce((sum, s) => sum + s.value, 0)
@@ -62,7 +64,7 @@ export function DonutChart({
           viewBox={half ? `0 0 ${SIZE} ${SIZE / 2 + STROKE / 2}` : `0 0 ${SIZE} ${SIZE}`}
           className="w-full"
           role="img"
-          aria-label={ariaLabel}
+          aria-label={ariaLabel ?? t("charts.donut")}
         >
           {/* Yo'lak — to'ldirilmagan qism. Uchi bo'laklar bilan BIR XIL kesimda: yo'lak
               yumaloq, bo'laklar tekis bo'lsa, to'la to'ldirilgan halqaning ikki chekkasida
