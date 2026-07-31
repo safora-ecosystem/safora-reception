@@ -3,10 +3,12 @@ import type { TKey } from "./i18n"
 
 export type ToneId = "marimba" | "bell" | "pop"
 
-export type NotifyPrefs = { sound: boolean; desktop: boolean; tone: ToneId }
+export type AlertToneId = "trill" | "dingdong" | "pulse"
+
+export type NotifyPrefs = { sound: boolean; desktop: boolean; tone: ToneId; alertTone: AlertToneId }
 
 const KEY = "safora_notify"
-const DEFAULTS: NotifyPrefs = { sound: true, desktop: false, tone: "marimba" }
+const DEFAULTS: NotifyPrefs = { sound: true, desktop: false, tone: "marimba", alertTone: "dingdong" }
 
 export const TONES: Array<{ id: ToneId; labelKey: TKey; hintKey: TKey }> = [
   { id: "marimba", labelKey: "tones.marimba", hintKey: "tones.marimbaHint" },
@@ -14,10 +16,20 @@ export const TONES: Array<{ id: ToneId; labelKey: TKey; hintKey: TKey }> = [
   { id: "pop", labelKey: "tones.pop", hintKey: "tones.popHint" },
 ]
 
+export const ALERT_TONES: Array<{ id: AlertToneId; labelKey: TKey; hintKey: TKey }> = [
+  { id: "trill", labelKey: "alertTones.trill", hintKey: "alertTones.trillHint" },
+  { id: "dingdong", labelKey: "alertTones.dingdong", hintKey: "alertTones.dingdongHint" },
+  { id: "pulse", labelKey: "alertTones.pulse", hintKey: "alertTones.pulseHint" },
+]
+
+const ALERT_IDS: readonly string[] = ALERT_TONES.map((t) => t.id)
+
 export function readNotifyPrefs(): NotifyPrefs {
   try {
     const raw = localStorage.getItem(KEY)
-    return raw ? { ...DEFAULTS, ...(JSON.parse(raw) as Partial<NotifyPrefs>) } : DEFAULTS
+    const merged = raw ? { ...DEFAULTS, ...(JSON.parse(raw) as Partial<NotifyPrefs>) } : DEFAULTS
+    if (!ALERT_IDS.includes(merged.alertTone)) merged.alertTone = DEFAULTS.alertTone
+    return merged
   } catch {
     return DEFAULTS
   }
@@ -54,9 +66,26 @@ export function useNotifyPrefs() {
 let ctx: AudioContext | null = null
 
 function ensureCtx(): AudioContext {
-  ctx ??= new AudioContext()
+  const Ctor =
+    window.AudioContext ??
+    (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+  if (!Ctor) throw new Error("WebAudio yo'q")
+  ctx ??= new Ctor()
   if (ctx.state === "suspended") void ctx.resume()
   return ctx
+}
+
+if (typeof window !== "undefined") {
+  const unlock = () => {
+    try {
+      ensureCtx()
+    } catch {
+    }
+    window.removeEventListener("pointerdown", unlock)
+    window.removeEventListener("keydown", unlock)
+  }
+  window.addEventListener("pointerdown", unlock)
+  window.addEventListener("keydown", unlock)
 }
 
 function marimbaHit(ac: AudioContext, out: AudioNode, freq: number, at: number, vol: number): void {
@@ -120,13 +149,65 @@ function tonePop(ac: AudioContext, out: AudioNode, t0: number): void {
   osc.stop(t0 + 0.3)
 }
 
-const PLAYERS: Record<ToneId, (ac: AudioContext, out: AudioNode, t0: number) => void> = {
+
+function toneTrill(ac: AudioContext, out: AudioNode, t0: number): void {
+  const notes = [440, 523.25, 659.25]
+  notes.forEach((freq, i) => marimbaHit(ac, out, freq, t0 + i * 0.09, 0.34))
+}
+
+function bellHit(ac: AudioContext, out: AudioNode, freq: number, at: number, vol: number): void {
+  const partials: Array<[number, number, number]> = [
+    [1, vol, 0.9],
+    [2, vol * 0.22, 0.45],
+    [4, vol * 0.06, 0.2],
+  ]
+  for (const [mult, v, dur] of partials) {
+    const osc = ac.createOscillator()
+    const gain = ac.createGain()
+    osc.type = "sine"
+    osc.frequency.value = freq * mult
+    gain.gain.setValueAtTime(0.0001, at)
+    gain.gain.exponentialRampToValueAtTime(v, at + 0.006)
+    gain.gain.exponentialRampToValueAtTime(0.0001, at + dur)
+    osc.connect(gain)
+    gain.connect(out)
+    osc.start(at)
+    osc.stop(at + dur + 0.05)
+  }
+}
+
+function toneDingdong(ac: AudioContext, out: AudioNode, t0: number): void {
+  bellHit(ac, out, 587.33, t0, 0.34)
+  bellHit(ac, out, 493.88, t0 + 0.28, 0.38)
+}
+
+function tonePulse(ac: AudioContext, out: AudioNode, t0: number): void {
+  for (const at of [t0, t0 + 0.19]) {
+    const osc = ac.createOscillator()
+    const gain = ac.createGain()
+    osc.type = "sine"
+    osc.frequency.setValueAtTime(185, at)
+    osc.frequency.exponentialRampToValueAtTime(118, at + 0.1)
+    gain.gain.setValueAtTime(0.0001, at)
+    gain.gain.exponentialRampToValueAtTime(0.6, at + 0.008)
+    gain.gain.exponentialRampToValueAtTime(0.0001, at + 0.17)
+    osc.connect(gain)
+    gain.connect(out)
+    osc.start(at)
+    osc.stop(at + 0.22)
+  }
+}
+
+const PLAYERS: Record<ToneId | AlertToneId, (ac: AudioContext, out: AudioNode, t0: number) => void> = {
   marimba: toneMarimba,
   bell: toneBell,
   pop: tonePop,
+  trill: toneTrill,
+  dingdong: toneDingdong,
+  pulse: tonePulse,
 }
 
-export function previewTone(tone: ToneId): void {
+export function previewTone(tone: ToneId | AlertToneId): void {
   try {
     const ac = ensureCtx()
     const lp = ac.createBiquadFilter()
@@ -146,13 +227,19 @@ export function playMessageChime(): void {
   previewTone(prefs.tone)
 }
 
-export function showDesktopNotification(title: string, body: string): void {
+export function playAlertChime(): void {
+  const prefs = readNotifyPrefs()
+  if (!prefs.sound) return
+  previewTone(prefs.alertTone)
+}
+
+export function showDesktopNotification(title: string, body: string, tag = "safora-chat"): void {
   const { desktop } = readNotifyPrefs()
   if (!desktop || typeof Notification === "undefined") return
   if (Notification.permission !== "granted") return
   if (document.visibilityState === "visible") return
   try {
-    new Notification(title, { body, icon: "/favicon.ico", tag: "safora-chat" })
+    new Notification(title, { body, icon: "/favicon.ico", tag })
   } catch {
   }
 }

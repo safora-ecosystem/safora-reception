@@ -601,6 +601,67 @@ export const updateServiceRequest = (
   body: { status?: ServiceRequestStatus; note?: string; amount?: number; assignedToId?: string },
 ) => api<ServiceRequest>(`/service-requests/${id}`, { method: "PATCH", body })
 
+// ── Housekeeping otcheti (GET /housekeeping/report, lost-items) ───────────────
+
+export type HkSessionStatus = "in_progress" | "done" | "cancelled"
+
+/** Bitta tozalash seansi — kim, qaysi xonani, qachondan qachongacha. */
+export type HkReportSession = {
+  id: string
+  roomNumber: string
+  floor: number | null
+  cleaner: string
+  status: HkSessionStatus
+  /** Qanday yopilgan: staff / reception / auto_expired (unutilgan seans). */
+  endReason: string | null
+  startedAt: string
+  finishedAt: string | null
+  minutes: number | null
+  /** Nisbiy URL'lar (`/files/hk/…`) — ko'rsatishda `hkFileUrl` bilan to'ldiriladi. */
+  photos: string[]
+}
+
+export type HkLostItem = {
+  id: string
+  roomNumber: string
+  itemName: string
+  place: string
+  photoUrl: string | null
+  reportedBy: string
+  createdAt: string
+  resolvedAt: string | null
+  resolvedBy: string | null
+}
+
+export type HkReport = {
+  range: { from: string; to: string }
+  summary: {
+    done: number
+    cancelled: number
+    /** Sana filtridan MUSTAQIL: hozir nechta xona tozalanmoqda. */
+    activeNow: number
+    avgMinutes: number | null
+    byCleaner: Array<{ userId: string; name: string; done: number; avgMinutes: number | null }>
+  }
+  sessions: HkReportSession[]
+  lostItems: HkLostItem[]
+}
+
+/** Sana chegaralari YYYY-MM-DD, mehmonxona zonasida talqin qilinadi (server). */
+export const getHousekeepingReport = (from?: string, to?: string) => {
+  const q = new URLSearchParams()
+  if (from) q.set("from", from)
+  if (to) q.set("to", to)
+  const qs = q.toString()
+  return api<HkReport>(`/housekeeping/report${qs ? `?${qs}` : ""}`)
+}
+
+export const resolveLostItem = (id: string) =>
+  api<HkLostItem>(`/housekeeping/lost-items/${id}/resolve`, { method: "PATCH" })
+
+/** Rasm fayllari autensiz alohida route'da yashaydi — URL'ni API bazasiga ulaymiz. */
+export const hkFileUrl = (path: string) => `${BASE_URL}${path}`
+
 // ── Faol seanslar (qurilmalar) ────────────────────────────────────────────────
 
 export type ActiveSession = {
@@ -660,6 +721,14 @@ export type PermissionCatalog = {
 }
 
 export const getMyPermissions = () => api<{ role: string; granted: string[] }>("/permissions/me")
+
+// ── Web push (FCM qurilma tokeni) ────────────────────────────────────────────
+
+export const registerPushToken = (token: string) =>
+  api<{ ok: true }>("/push/token", { method: "POST", body: { token, platform: "web" } })
+
+export const removePushToken = (token: string) =>
+  api<{ ok: true }>("/push/token", { method: "DELETE", body: { token } })
 
 export type HotelBranding = {
   name: string

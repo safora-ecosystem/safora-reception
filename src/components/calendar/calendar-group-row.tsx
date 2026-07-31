@@ -34,12 +34,13 @@ function CalendarGroupRowImpl({
 }: CalendarGroupRowProps) {
   const showRate = rate > 0 && dayWidth >= 44
   return (
-    // `border-y-2 border-brand-300` — rail'dagi qavat tugmasining ayni romi body bo'ylab davom
+    // `border-y border-brand-300` — rail'dagi qavat tugmasining ayni romi body bo'ylab davom
     // etadi: qavat tasmasi butun timeline kengligida ikki uzluksiz brand chiziq bilan ajralib
     // turadi (tepa — oldingi qavatdan, past — o'z xonalaridan). Ilgari bu yerda hairline bor edi
     // va qavat satri xona satrlariga qo'shilib ketardi.
+    // Qalinlik `calendar-rail.tsx` bilan BIR XIL bo'lishi shart — izohi o'sha yerda.
     <div
-      className="absolute left-0 border-y-2 border-brand-300"
+      className="absolute left-0 border-y border-brand-300"
       style={{ top: rowTop, height, width: bodyWidth }}
       aria-hidden
     >

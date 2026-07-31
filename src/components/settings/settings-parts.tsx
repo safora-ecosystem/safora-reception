@@ -1,5 +1,5 @@
 import type { ReactNode } from "react"
-import { Check, Loader2, Monitor, Smartphone } from "lucide-react"
+import { Check, Loader2, Monitor, Moon, Smartphone, Sun } from "lucide-react"
 import { toast } from "sonner"
 import { LocaleFlag } from "@/components/shared/locale-flag"
 import { Badge } from "@/components/ui/badge"
@@ -8,7 +8,8 @@ import { Card } from "@/components/ui/card"
 import { Switch } from "@/components/ui/switch"
 import type { ActiveSession } from "@/lib/api"
 import { relativeTime } from "@/lib/format"
-import { LOCALES, LOCALE_LABEL, useLocale, useT, type Locale } from "@/lib/i18n"
+import { LOCALES, LOCALE_LABEL, useLocale, useT, type Locale, type TKey } from "@/lib/i18n"
+import { previewTone, type AlertToneId, type ToneId } from "@/lib/notify"
 import { useTheme, type ThemePref } from "@/lib/theme"
 import { cn } from "@/lib/utils"
 
@@ -118,46 +119,88 @@ const THEMES: Array<{ value: ThemePref; labelKey: "auto" | "light" | "dark" }> =
   { value: "dark", labelKey: "dark" },
 ]
 
-function ThemePreview({ mode }: { mode: "light" | "dark" }) {
-  const c =
-    mode === "light"
-      ? { bg: "#f8f7f5", shell: "#ffffff", line: "#e7e5e4", ink: "#1c1917", sub: "#a8a29e" }
-      : { bg: "#0d0b08", shell: "#181410", line: "#413a34", ink: "#e6e1dc", sub: "#8f8880" }
+export function TonePicker<T extends ToneId | AlertToneId>({
+  tones,
+  value,
+  onChange,
+}: {
+  tones: ReadonlyArray<{ id: T; labelKey: TKey; hintKey: TKey }>
+  value: T
+  onChange: (tone: T) => void
+}) {
+  const t = useT()
   return (
-    <div
-      className="flex h-20 w-full gap-1.5 rounded-lg p-1.5"
-      style={{ backgroundColor: c.bg, border: `1px solid ${c.line}` }}
-      aria-hidden
-    >
-      <div className="flex w-1/4 flex-col gap-1 rounded-md p-1" style={{ backgroundColor: c.shell }}>
-        <span className="h-1.5 rounded-full" style={{ backgroundColor: "#f2570f" }} />
-        <span className="h-1.5 rounded-full" style={{ backgroundColor: c.sub }} />
-        <span className="h-1.5 rounded-full" style={{ backgroundColor: c.sub }} />
-      </div>
-      <div className="flex flex-1 flex-col gap-1 rounded-md p-1.5" style={{ backgroundColor: c.shell }}>
-        <span className="h-2 w-2/3 rounded-full" style={{ backgroundColor: c.ink }} />
-        <span className="h-1.5 w-full rounded-full" style={{ backgroundColor: c.line }} />
-        <span className="mt-auto flex gap-1">
-          <span className="h-4 flex-1 rounded" style={{ backgroundColor: "#f2570f" }} />
-          <span className="h-4 flex-1 rounded" style={{ backgroundColor: c.line }} />
-        </span>
-      </div>
+    <div className="flex gap-1 rounded-control bg-neutral-100 p-1">
+      {tones.map((tone) => (
+        <button
+          key={tone.id}
+          type="button"
+          aria-pressed={value === tone.id}
+          title={t(tone.hintKey)}
+          onClick={() => {
+            onChange(tone.id)
+            previewTone(tone.id)
+          }}
+          className={cn(
+            "rounded-[0.625rem] px-3 py-1.5 text-[0.8125rem] font-medium transition-colors",
+            value === tone.id
+              ? "bg-white text-neutral-900 shadow-xs"
+              : "text-neutral-500 hover:text-neutral-800",
+          )}
+        >
+          {t(tone.labelKey)}
+        </button>
+      ))}
     </div>
+  )
+}
+
+const SUN_GOLD = "#f59e0b"
+
+function ThemeTile({ mode }: { mode: ThemePref }) {
+  if (mode === "auto") {
+    return (
+      <span
+        aria-hidden
+        className="flex h-14 w-full overflow-hidden rounded-lg"
+        style={{ border: "1px solid #d6d3d1" }}
+      >
+        <span className="flex flex-1 items-center justify-center" style={{ background: "#ffffff" }}>
+          <Sun className="size-6" style={{ color: SUN_GOLD }} strokeWidth={1.75} />
+        </span>
+        <span className="flex flex-1 items-center justify-center" style={{ background: "#181410" }}>
+          <Moon className="size-6" style={{ color: SUN_GOLD }} strokeWidth={1.75} />
+        </span>
+      </span>
+    )
+  }
+  const Glyph = mode === "light" ? Sun : Moon
+  return (
+    <span
+      aria-hidden
+      className="flex h-14 w-full items-center justify-center rounded-lg"
+      style={
+        mode === "light"
+          ? { background: "#ffffff", border: "1px solid #e7e5e4" }
+          : { background: "#181410", border: "1px solid #38312b" }
+      }
+    >
+      <Glyph className="size-7" style={{ color: SUN_GOLD }} strokeWidth={1.75} />
+    </span>
   )
 }
 
 export function ThemeSection() {
   const t = useT()
-  const { pref, setPref, resolved } = useTheme()
+  const { pref, setPref } = useTheme()
   return (
     <Section title={t("settings.appearance.title")} hint={t("settings.appearance.hint")}>
       <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-3">
         {THEMES.map((theme) => {
           const on = pref === theme.value
-          const preview = theme.value === "auto" ? resolved : theme.value
           return (
             <PickCard key={theme.value} on={on} onClick={() => setPref(theme.value)}>
-              <ThemePreview mode={preview} />
+              <ThemeTile mode={theme.value} />
               <span className="flex items-center gap-1.5 px-1 pb-0.5">
                 <PickIndicator on={on} />
                 <span className="truncate text-sm font-medium text-neutral-900">
@@ -211,13 +254,9 @@ export function LanguageSection() {
                 {busy ? (
                   <Loader2 className="size-5 animate-spin text-neutral-400" strokeWidth={2} />
                 ) : (
-                  // Tanlanmagan bayroq susayadi — ilgari til KODI shu vazifani bajarardi
-                  // (`text-neutral-400` va `text-neutral-900`). Rang emas, faqat quvvat farqi:
-                  // bayroqning o'z ranglari qolgani uchun mamlakat baribir tanib olinadi.
-                  <LocaleFlag
-                    locale={code}
-                    className={cn("w-12 transition-opacity", !on && "opacity-70")}
-                  />
+                  // Bayroq HAR DOIM to'liq rangda: tanlovni ramka + belgi aytadi. Susaytirish
+                  // (opacity) bayroqlarni "o'chgan"dek ko'rsatib yuborar edi.
+                  <LocaleFlag locale={code} className="w-12" />
                 )}
               </span>
               <span className="flex items-center gap-1.5 px-1 pb-0.5">

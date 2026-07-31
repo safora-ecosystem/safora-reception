@@ -1,4 +1,4 @@
-import type { ReactNode } from "react"
+import { useId, type ReactNode } from "react"
 import type { Locale } from "@/lib/i18n"
 import { cn } from "@/lib/utils"
 
@@ -9,51 +9,70 @@ const UZ_STARS =
 const FLAGS: Record<Locale, ReactNode> = {
   uz: (
     <>
-      <path fill="#1eb53a" d="M0 320h640v160H0z" />
-      <path fill="#0099b5" d="M0 0h640v160H0z" />
-      <path fill="#ce1126" d="M0 153.6h640v172.8H0z" />
+      <path fill="#22c440" d="M0 320h640v160H0z" />
+      <path fill="#00a8c8" d="M0 0h640v160H0z" />
+      <path fill="#d91831" d="M0 153.6h640v172.8H0z" />
       <path fill="#fff" d="M0 163.2h640v153.6H0z" />
       {}
       <circle cx="134.4" cy="76.8" r="57.6" fill="#fff" />
-      <circle cx="153.6" cy="76.8" r="57.6" fill="#0099b5" />
+      <circle cx="153.6" cy="76.8" r="57.6" fill="#00a8c8" />
       <path fill="#fff" d={UZ_STARS} />
     </>
   ),
   ru: (
     <>
       <path fill="#fff" d="M0 0h640v160H0z" />
-      <path fill="#0039a6" d="M0 160h640v160H0z" />
-      <path fill="#d52b1e" d="M0 320h640v160H0z" />
+      <path fill="#0f4bc2" d="M0 160h640v160H0z" />
+      <path fill="#e03428" d="M0 320h640v160H0z" />
     </>
   ),
   en: (
     <>
-      <path fill="#012169" d="M0 0h640v480H0z" />
+      <path fill="#1f3d9c" d="M0 0h640v480H0z" />
       <path
         fill="#fff"
         d="m75 0 244 181L562 0h78v62L400 241l240 178v61h-80L320 301 81 480H0v-60l239-178L0 64V0z"
       />
       <path
-        fill="#c8102e"
+        fill="#d8122e"
         d="m424 281 216 159v40L369 281zm-184 20 6 35L54 480H0zM640 0v3L391 191l2-44L590 0zM0 0l239 176h-60L0 42z"
       />
       <path fill="#fff" d="M241 0v480h160V0zM0 160v160h640V160z" />
-      <path fill="#c8102e" d="M0 193v96h640v-96zM273 0v480h96V0z" />
+      <path fill="#d8122e" d="M0 193v96h640v-96zM273 0v480h96V0z" />
     </>
   ),
 }
 
+const WAVE_PATH =
+  "M0 26 C90 8 200 6 330 14 C430 20 500 44 640 30 L640 434 C500 448 430 424 330 418 C200 410 90 412 0 430 Z"
+
 export function LocaleFlag({ locale, className }: { locale: Locale; className?: string }) {
+  const uid = useId().replace(/[^a-zA-Z0-9]/g, "")
+  const clipId = `flagwave-${uid}`
+  const shadeId = `flagshade-${uid}`
   return (
-    <span
-      aria-hidden
-      className={cn(
-        "block aspect-[4/3] shrink-0 overflow-hidden rounded-[3px] border border-neutral-900/10",
-        className,
-      )}
-    >
+    <span aria-hidden className={cn("block aspect-[4/3] shrink-0", className)}>
       <svg viewBox="0 0 640 480" className="block h-full w-full">
-        {FLAGS[locale]}
+        <defs>
+          <clipPath id={clipId}>
+            <path d={WAVE_PATH} />
+          </clipPath>
+          {/* Soya to'lqin FAZASIGA bog'langan: x≈120 dagi ko'tarilgan burma yorug', x≈520
+              dagi chuqur burma soyada — emoji bayroqlardagi mato hajmi shundan chiqadi. */}
+          <linearGradient id={shadeId} x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stopColor="#000" stopOpacity=".08" />
+            <stop offset=".15" stopColor="#fff" stopOpacity=".15" />
+            <stop offset=".45" stopColor="#000" stopOpacity=".03" />
+            <stop offset=".78" stopColor="#000" stopOpacity=".17" />
+            <stop offset="1" stopColor="#000" stopOpacity=".05" />
+          </linearGradient>
+        </defs>
+        <g clipPath={`url(#${clipId})`}>
+          {FLAGS[locale]}
+          <rect width="640" height="480" fill={`url(#${shadeId})`} />
+        </g>
+        {/* Nozik kontur — oq yo'lli bayroq (RU) oq kartada shaklini yo'qotmasin. */}
+        <path d={WAVE_PATH} fill="none" stroke="#000" strokeOpacity=".14" strokeWidth="5" />
       </svg>
     </span>
   )

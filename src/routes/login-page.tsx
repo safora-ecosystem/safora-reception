@@ -33,7 +33,7 @@ function LanguagePicker() {
 	const { locale, pending, setLocale } = useLocale()
 	return (
 		<div className='mt-6 flex justify-center'>
-			<div className='flex gap-0.5 rounded-control bg-neutral-100 p-0.5'>
+			<div className='flex gap-0.5 rounded-control bg-neutral-100 p-1'>
 				{LOCALES.map(code => (
 					<button
 						key={code}

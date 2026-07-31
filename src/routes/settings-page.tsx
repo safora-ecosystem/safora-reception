@@ -13,14 +13,15 @@ import {
   SessionRow,
   ThemeSection,
   Toggle,
+  TonePicker,
 } from "@/components/settings/settings-parts"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { listSessions, revokeOtherSessions, revokeSession } from "@/lib/api"
 import { ROLE_KEY, getSession } from "@/lib/auth"
 import { useT } from "@/lib/i18n"
-import { TONES, playMessageChime, previewTone, requestDesktopPermission, useNotifyPrefs } from "@/lib/notify"
-import { cn } from "@/lib/utils"
+import { ALERT_TONES, TONES, playMessageChime, requestDesktopPermission, useNotifyPrefs } from "@/lib/notify"
+import { disableWebPush, enableWebPush } from "@/lib/push"
 
 export function SettingsPage() {
   const t = useT()
@@ -57,10 +58,13 @@ export function SettingsPage() {
   async function toggleDesktop(next: boolean) {
     if (!next) {
       set({ desktop: false })
+      void disableWebPush()
       return
     }
-    if (await requestDesktopPermission()) set({ desktop: true })
-    else toast.error(t("settings.notifications.denied"))
+    if (await requestDesktopPermission()) {
+      set({ desktop: true })
+      void enableWebPush()
+    } else toast.error(t("settings.notifications.denied"))
   }
 
   return (
@@ -105,33 +109,22 @@ export function SettingsPage() {
                 label={t("settings.notifications.sound")}
               />
             </Row>
+            {}
             <Row
-              label={t("settings.notifications.tone")}
-              hint={t("settings.notifications.toneHint")}
+              label={t("settings.notifications.chatTone")}
+              hint={t("settings.notifications.chatToneHint")}
             >
-              <div className="flex gap-1 rounded-control bg-neutral-100 p-0.5">
-                {}
-                {TONES.map((tone) => (
-                  <button
-                    key={tone.id}
-                    type="button"
-                    aria-pressed={prefs.tone === tone.id}
-                    title={t(tone.hintKey)}
-                    onClick={() => {
-                      set({ tone: tone.id })
-                      previewTone(tone.id)
-                    }}
-                    className={cn(
-                      "rounded-[0.5rem] px-2.5 py-1 text-[0.8125rem] font-medium transition-colors",
-                      prefs.tone === tone.id
-                        ? "bg-white text-neutral-900 shadow-xs"
-                        : "text-neutral-500 hover:text-neutral-800",
-                    )}
-                  >
-                    {t(tone.labelKey)}
-                  </button>
-                ))}
-              </div>
+              <TonePicker tones={TONES} value={prefs.tone} onChange={(tone) => set({ tone })} />
+            </Row>
+            <Row
+              label={t("settings.notifications.alertTone")}
+              hint={t("settings.notifications.alertToneHint")}
+            >
+              <TonePicker
+                tones={ALERT_TONES}
+                value={prefs.alertTone}
+                onChange={(alertTone) => set({ alertTone })}
+              />
             </Row>
             <Row
               label={t("settings.notifications.desktop")}

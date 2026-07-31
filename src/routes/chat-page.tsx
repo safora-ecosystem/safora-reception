@@ -217,7 +217,7 @@ export function ChatPage() {
         >
           {canGuest && canTeam ? (
             <div className="shrink-0 p-3 pb-0">
-              <div className="flex gap-0.5 rounded-control bg-neutral-100 p-0.5">
+              <div className="flex gap-0.5 rounded-control bg-neutral-100 p-1">
                 <TabButton
                   icon={UserStar01Icon}
                   active={tab === "guests"}

@@ -198,7 +198,7 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
         if (hk === "clean" && new Date(b.checkedOutAt).toLocaleDateString("en-CA") !== today) continue
         const col = epochDay(b.end) - originDay
         if (col < 0 || col >= range.days) continue
-        map.set(room.id, { left: Math.round((col + checkOutFrac) * dayWidth) + 2, width, status: hk })
+        map.set(room.id, { left: Math.round((col + checkOutFrac) * dayWidth), width, status: hk })
       }
       return map
     }, [rooms, bookings, cleaningMinutes, dayWidth, originDay, range.days, checkOutFrac, today])

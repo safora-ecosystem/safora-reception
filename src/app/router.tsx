@@ -7,6 +7,7 @@ import { RoomsPage } from "@/routes/rooms-page"
 import { GuestsPage } from "@/routes/guests-page"
 import { GuestsArchivePage } from "@/routes/guests-archive-page"
 import { RequestsPage } from "@/routes/requests-page"
+import { HousekeepingPage } from "@/routes/housekeeping-page"
 import { HelpPage } from "@/routes/help-page"
 import { SettingsPage } from "@/routes/settings-page"
 import { ChatPage } from "@/routes/chat-page"
@@ -73,6 +74,12 @@ const chatRoute = createRoute({
   component: ChatPage,
 })
 
+const housekeepingRoute = createRoute({
+  getParentRoute: () => appLayoutRoute,
+  path: "/housekeeping",
+  component: HousekeepingPage,
+})
+
 const settingsRoute = createRoute({
   getParentRoute: () => appLayoutRoute,
   path: "/settings",
@@ -105,6 +112,7 @@ const routeTree = rootRoute.addChildren([
     guestsArchiveRoute,
     requestsRoute,
     chatRoute,
+    housekeepingRoute,
     settingsRoute,
     helpRoute,
     logoutRoute,

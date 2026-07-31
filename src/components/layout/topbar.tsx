@@ -1,10 +1,10 @@
 import { useEffect, useRef } from "react"
-import { Message02Icon, NotificationBubbleIcon, Search01Icon } from "@hugeicons/core-free-icons"
+import { BellIcon, BubbleChatIcon, Search01Icon } from "@hugeicons/core-free-icons"
 import { Button } from "@/components/ui/button"
 import { Icon } from "@/components/ui/icon"
 import { Input } from "@/components/ui/input"
 import { Link } from "@tanstack/react-router"
-import { ChevronDown, LogOut, UserRound } from "lucide-react"
+import { BellOff, CalendarClock, ChevronDown, LogOut, TriangleAlert, UserRound } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   DropdownMenu,
@@ -15,7 +15,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { getSession, ROLE_KEY } from "@/lib/auth"
+import { useChatBadge } from "@/lib/chat-realtime"
+import { money, shortDate } from "@/lib/format"
 import { useT } from "@/lib/i18n"
+import { useNotices } from "@/lib/notices"
 import { usePageHeader } from "@/lib/page-header"
 import { useTopbarSearch } from "@/lib/topbar-search"
 
@@ -27,6 +30,8 @@ export function Topbar() {
   const { actions } = usePageHeader()
 
   const { query, setQuery } = useTopbarSearch()
+  const chatBadge = useChatBadge()
+  const notices = useNotices()
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -72,35 +77,93 @@ export function Topbar() {
       {actions ? <div className="hidden shrink-0 items-center gap-2 sm:flex">{actions}</div> : null}
 
       <div className="flex shrink-0 items-center gap-2">
+        {}
         <Button
+          asChild
           variant="outline"
           size="icon-lg"
           aria-label={t("topbar.chat")}
-          className="rounded-full bg-white"
-        >
-          <Icon icon={Message02Icon} className="size-[1.125rem] text-neutral-500" strokeWidth={1.75} />
-        </Button>
-        <Button
-          variant="outline"
-          size="icon-lg"
-          aria-label={t("topbar.notifications")}
           className="relative rounded-full bg-white"
         >
-          <Icon
-            icon={NotificationBubbleIcon}
-            className="size-[1.125rem] text-neutral-500"
-            strokeWidth={1.75}
-          />
-          <span className="absolute top-2 right-2 size-1.5 rounded-full bg-primary ring-2 ring-white" />
+          <Link to="/chat">
+            <Icon icon={BubbleChatIcon} className="size-[1.125rem] text-neutral-500" strokeWidth={1.75} />
+            {chatBadge && (
+              <span className="absolute -top-1 -right-1 flex h-[1.125rem] min-w-[1.125rem] items-center justify-center rounded-full bg-primary px-1 text-[0.625rem] font-semibold text-primary-foreground ring-2 ring-white tabular-nums">
+                {chatBadge}
+              </span>
+            )}
+          </Link>
         </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="outline"
+              size="icon-lg"
+              aria-label={t("topbar.notifications")}
+              className="relative rounded-full bg-white"
+            >
+              {}
+              <Icon icon={BellIcon} className="size-[1.125rem] text-neutral-500" strokeWidth={1.75} />
+              {notices.length > 0 && (
+                <span className="absolute top-2 right-2 size-1.5 rounded-full bg-primary ring-2 ring-white" />
+              )}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-80">
+            <DropdownMenuLabel>{t("topbar.notifications")}</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {notices.length === 0 ? (
+              <div className="flex flex-col items-center gap-2 px-4 py-6 text-center">
+                <BellOff className="size-5 text-neutral-300" strokeWidth={1.75} />
+                <p className="text-sm text-neutral-500">{t("topbar.notifEmpty")}</p>
+              </div>
+            ) : (
+              notices.map((n) => (
+                <DropdownMenuItem key={`${n.kind}:${n.org.id}`}>
+                  <div className="flex items-start gap-2.5">
+                    {n.kind === "debt" ? (
+                      <TriangleAlert className="mt-0.5 size-4 shrink-0 text-destructive" strokeWidth={1.75} />
+                    ) : (
+                      <CalendarClock className="mt-0.5 size-4 shrink-0 text-neutral-400" strokeWidth={1.75} />
+                    )}
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-medium text-neutral-900">
+                        {n.kind === "debt"
+                          ? t("topbar.notifDebt")
+                          : n.expired
+                            ? t("topbar.notifContractOver")
+                            : t("topbar.notifContractSoon")}
+                      </span>
+                      <span className="mt-0.5 block truncate text-xs text-neutral-500 tabular-nums">
+                        {n.kind === "debt"
+                          ? t("topbar.notifDebtBody", {
+                              org: n.org.shortName ?? n.org.name,
+                              balance: money(n.org.balance),
+                              limit: money(n.org.creditLimit ?? 0),
+                            })
+                          : t("topbar.notifContractBody", {
+                              org: n.org.shortName ?? n.org.name,
+                              date: n.org.contractTo ? shortDate(n.org.contractTo) : "—",
+                            })}
+                      </span>
+                    </span>
+                  </div>
+                </DropdownMenuItem>
+              ))
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         <span className="mx-1 hidden h-7 w-px bg-border sm:block" aria-hidden />
 
-        {}
+        {/* Profil menyusi — sidebar'dagi "Chiqish" qatori shu yerga ko'chdi. Chiqish har kuni
+            bosiladigan amal emas, lekin navigatsiyada doimiy qator egallab turardi; profil
+            esa hamisha o'ng yuqorida — odam uni aynan shu yerda qidiradi. */}
         <DropdownMenu>
           <DropdownMenuTrigger className="flex items-center gap-2.5 rounded-panel px-1 py-1 outline-none transition-colors hover:bg-neutral-100 focus-visible:ring-3 focus-visible:ring-ring/40 data-[state=open]:bg-neutral-100">
             <Avatar size="lg">
-              {}
+              {/* Radix rasm yuklanmaguncha (yoki umuman bo'lmasa) fallback'ni ushlab turadi —
+                  ya'ni bosh harf hech qachon "sakrab" almashmaydi. */}
               {user?.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.name} />}
               <AvatarFallback>{initial}</AvatarFallback>
             </Avatar>

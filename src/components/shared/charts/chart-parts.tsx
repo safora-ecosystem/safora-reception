@@ -125,7 +125,7 @@ export function RangeToggle<T extends string | number>({
       }}
       className="shrink-0"
     >
-      <TabsList aria-label={ariaLabel ?? t("charts.timeWindow")} className="h-9">
+      <TabsList aria-label={ariaLabel ?? t("charts.timeWindow")}>
         {options.map((option) => (
           <TabsTrigger
             key={String(option.value)}

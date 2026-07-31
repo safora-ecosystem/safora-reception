@@ -18,13 +18,13 @@ export function StatCard({ label, value, unit, hint, hero = false }: StatCardPro
   return (
     <div
       className={cn(
-        "relative flex flex-col gap-3 overflow-hidden rounded-card px-5 py-4",
+        "relative flex flex-col gap-1.5 overflow-hidden rounded-card px-5 py-3.5",
         hero
           ? "sheen-brand border border-transparent bg-hero text-hero-foreground"
           : "border border-border bg-card text-neutral-900"
       )}
     >
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex items-center justify-between gap-3">
         <span
           className={cn(
             "text-[0.9375rem] font-medium",
@@ -36,20 +36,20 @@ export function StatCard({ label, value, unit, hint, hero = false }: StatCardPro
         <span
           aria-hidden
           className={cn(
-            "flex size-8 shrink-0 items-center justify-center rounded-full border",
+            "flex size-7 shrink-0 items-center justify-center rounded-full border",
             hero ? "border-white/25 text-hero-foreground" : "border-border text-neutral-400"
           )}
         >
-          <ArrowUpRight className="size-4" strokeWidth={2} />
+          <ArrowUpRight className="size-3.5" strokeWidth={2} />
         </span>
       </div>
 
-      <div className="flex flex-col gap-1">
+      <div className="flex flex-col gap-0.5">
         <div className="flex items-baseline gap-1.5">
           {}
           <RollingNumber
             value={value}
-            className="text-[2.5rem] font-semibold tracking-tight"
+            className="text-[2.25rem] font-semibold tracking-tight"
           />
           {unit && (
             <span

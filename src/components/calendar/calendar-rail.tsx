@@ -27,7 +27,7 @@ function CalendarRailImpl({ lanes, virtualItems, offsetTop, onToggleGroup }: Cal
               key={lane.id}
               type="button"
               onClick={() => onToggleGroup(lane.group)}
-              className="absolute left-0 flex w-full items-center gap-1.5 border-y-2 border-brand-300 bg-neutral-50 px-3 text-left hover:bg-neutral-100"
+              className="absolute left-0 flex w-full items-center gap-1.5 border-y border-brand-300 bg-neutral-50 px-3 text-left hover:bg-neutral-100"
               style={{ top: vi.start - offsetTop, height: vi.size }}
               aria-expanded={!lane.collapsed}
             >

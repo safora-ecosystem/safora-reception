@@ -1,6 +1,7 @@
 import {
   Analytics02Icon,
   Calendar02Icon,
+  CleanIcon,
   Door01Icon,
   HelpCircleIcon,
   Message02Icon,
@@ -26,6 +27,7 @@ export const navItems: NavItem[] = [
   { to: "/requests", labelKey: "nav.services", icon: SparklesIcon, permission: "requests.view" },
   { to: "/chat", labelKey: "nav.chat", icon: Message02Icon, permission: "chat.guest" },
   { to: "/guests", labelKey: "nav.guests", icon: UserStar01Icon, permission: "guests.view" },
+  { to: "/housekeeping", labelKey: "hk.title", icon: CleanIcon },
 ]
 
 export const systemNavItems: NavItem[] = [
