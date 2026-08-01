@@ -81,9 +81,9 @@ export function Topbar() {
         <Button
           asChild
           variant="outline"
-          size="icon-lg"
+          size="icon-xl"
           aria-label={t("topbar.chat")}
-          className="relative rounded-full bg-white"
+          className="relative bg-white"
         >
           <Link to="/chat">
             <Icon icon={BubbleChatIcon} className="size-[1.125rem] text-neutral-500" strokeWidth={1.75} />
@@ -98,9 +98,9 @@ export function Topbar() {
           <DropdownMenuTrigger asChild>
             <Button
               variant="outline"
-              size="icon-lg"
+              size="icon-xl"
               aria-label={t("topbar.notifications")}
-              className="relative rounded-full bg-white"
+              className="relative bg-white"
             >
               {}
               <Icon icon={BellIcon} className="size-[1.125rem] text-neutral-500" strokeWidth={1.75} />
