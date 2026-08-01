@@ -2,11 +2,11 @@ import {
   Analytics02Icon,
   Calendar02Icon,
   CleanIcon,
+  ConciergeBellIcon,
   Door01Icon,
   HelpCircleIcon,
   Message02Icon,
   Settings02Icon,
-  SparklesIcon,
   UserStar01Icon,
 } from "@hugeicons/core-free-icons"
 import type { IconData } from "@/components/ui/icon"
@@ -24,7 +24,7 @@ export const navItems: NavItem[] = [
   { to: "/", labelKey: "nav.stats", icon: Analytics02Icon },
   { to: "/calendar", labelKey: "nav.calendar", icon: Calendar02Icon, permission: "calendar.view" },
   { to: "/rooms", labelKey: "nav.rooms", icon: Door01Icon, permission: "rooms.view" },
-  { to: "/requests", labelKey: "nav.services", icon: SparklesIcon, permission: "requests.view" },
+  { to: "/requests", labelKey: "nav.services", icon: ConciergeBellIcon, permission: "requests.view" },
   { to: "/chat", labelKey: "nav.chat", icon: Message02Icon, permission: "chat.guest" },
   { to: "/guests", labelKey: "nav.guests", icon: UserStar01Icon, permission: "guests.view" },
   { to: "/housekeeping", labelKey: "hk.title", icon: CleanIcon },

@@ -138,6 +138,10 @@ function handleServerPublication(qc: QueryClient, raw: unknown): void {
         reactions?: ReactionRow[]
         roomId?: string
         status?: string
+        event?: string
+        requestId?: string
+        source?: string
+        title?: string
       }
     | undefined
   if (!data?.type) return
@@ -150,6 +154,20 @@ function handleServerPublication(qc: QueryClient, raw: unknown): void {
           : r,
       ),
     )
+    return
+  }
+
+  if (data.type === "service-request") {
+    void qc.invalidateQueries({ queryKey: ["service-requests"] })
+    void qc.invalidateQueries({ queryKey: ["service-request-stats"] })
+    if (data.event === "created" && data.source === "guest") {
+      playMessageChime()
+      showDesktopNotification(
+        t("services.incomingTitle"),
+        data.title ?? t("services.newService"),
+        "safora-service",
+      )
+    }
     return
   }
 

@@ -578,8 +578,20 @@ export type ServiceCatalogItem = {
   active: boolean
 }
 
-export const listServiceRequests = (status?: ServiceRequestStatus) =>
-  api<ServiceRequest[]>(`/service-requests${status ? `?status=${status}` : ""}`)
+/** `limit` — server sukut bo'yicha 100 qator beradi (30 kunlik oyna). Doska bitta so'rovda
+    uchala ustunni to'ldiradi, shuning uchun undan ko'proq so'raydi; DTO shifti 200. */
+export const listServiceRequests = (params?: {
+  status?: ServiceRequestStatus
+  from?: string
+  limit?: number
+}) => {
+  const q = new URLSearchParams()
+  if (params?.status) q.set("status", params.status)
+  if (params?.from) q.set("from", params.from)
+  if (params?.limit) q.set("limit", String(params.limit))
+  const query = q.toString()
+  return api<ServiceRequest[]>(`/service-requests${query ? `?${query}` : ""}`)
+}
 
 export const getServiceRequestStats = () => api<ServiceRequestStats>("/service-requests/stats")
 
