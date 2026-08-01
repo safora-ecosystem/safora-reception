@@ -32,8 +32,9 @@ export function useNotices(): Notice[] {
   const t = useT()
   const q = useQuery({
     queryKey: ["notices", "organizations"],
-    // Arxivdagi tashkilotning qarzi ham, shartnomasi ham endi kunlik ish emas.
-    queryFn: () => listOrganizations({ status: "active" }),
+    // Arxivdagi tashkilotning qarzi ham, shartnomasi ham endi kunlik ish emas —
+    // endpoint o'zi faqat faollarni qaytaradi (?status=active ichida hardcode).
+    queryFn: () => listOrganizations(),
     staleTime: 60_000,
     refetchInterval: 120_000,
     retry: false,

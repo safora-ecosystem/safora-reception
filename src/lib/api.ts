@@ -474,6 +474,8 @@ export type Organization = {
   contactName: string | null
   contactPhone: string | null
   contractNumber: string | null
+  /** Shartnoma tugash sanasi (ISO) — tugagan/tugayotgan shartnoma ogohlantirishi shundan. */
+  contractTo: string | null
   /** Rack rate'dan chegirma foizi — korporativ tarif AYNAN shundan chiqadi (Decimal → string). */
   discountPercent: string | number | null
   /** Kelishilgan qarz shifti. Oshsa resepshn OGOHLANTIRILADI, bron bloklanmaydi. */
