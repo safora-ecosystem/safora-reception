@@ -26,6 +26,7 @@ import { money } from "@/lib/format"
 import { useT } from "@/lib/i18n"
 import { usePermissions } from "@/lib/permissions"
 import { quoteOfTheDay } from "@/lib/motivation"
+import { methodLabel, methodsTotal, sortedMethods, visibleFlags } from "@/lib/shift-report"
 import {
   holdShiftGate,
   lastKnownShiftOpen,
@@ -479,34 +480,6 @@ export function ShiftNoteReminder() {
 
 type CloseStep = { step: "summary" } | { step: "result"; session: ShiftSession }
 
-/** To'lov usullari ekranda doim shu tartibda — naqd birinchi (g'aladonga tegishlisi),
-    keyin bank kanallari. `adjustment` — qo'lda tuzatish, oxirida. */
-const METHOD_ORDER = ["cash", "card", "transfer", "adjustment"] as const
-
-function methodLabel(t: ReturnType<typeof useT>, method: string): string {
-  switch (method) {
-    case "cash":
-      return t("payment.cash")
-    case "card":
-      return t("payment.card")
-    case "transfer":
-      return t("payment.transfer")
-    case "adjustment":
-      return t("payment.manual")
-    default:
-      return method
-  }
-}
-
-/** byMethod'ni barqaror tartibda chizish uchun: ma'lum usullar oldin, notanishlari keyin. */
-function sortedMethods(byMethod: Record<string, { amount: number; count: number }>) {
-  return Object.entries(byMethod).sort(([a], [b]) => {
-    const ia = METHOD_ORDER.indexOf(a as (typeof METHOD_ORDER)[number])
-    const ib = METHOD_ORDER.indexOf(b as (typeof METHOD_ORDER)[number])
-    return (ia < 0 ? METHOD_ORDER.length : ia) - (ib < 0 ? METHOD_ORDER.length : ib)
-  })
-}
-
 /** Hisobot qatori — dialog ichida ham, natijada ham bir xil ko'rinadi. */
 function MoneyRow({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
   return (
@@ -538,7 +511,6 @@ function buildReportHtml(
   const fmt = (n: number | null) => (n == null ? "—" : `${n.toLocaleString("uz-UZ")} so'm`)
   const dt = (iso: string | null) => (iso ? new Date(iso).toLocaleString() : "—")
   const flagText: Record<string, string> = {
-    VARIANCE: t("shiftSession.flagVariance"),
     FORCE_CLOSED: t("shiftSession.flagForceClosed"),
     TAKEN_OVER: t("shiftSession.flagTakenOver"),
     POST_CLOSE_VOID: t("shiftSession.flagPostCloseVoid"),
@@ -556,14 +528,11 @@ function buildReportHtml(
       ? `<h2 style="font-size:13px;color:#777;margin:0 0 4px">${t("shiftSession.reportByMethod")}</h2>
   <table style="width:100%;border-collapse:collapse;font-size:14px">${sortedMethods(r.cash.byMethod)
     .map(([m, v]) => row(`${esc(methodLabel(t, m))} ×${v.count}`, fmt(v.amount)))
-    .join("")}</table>`
-      : ""
+    .join("")}
+    <tr><td colspan="2" style="border-top:1px solid #e5e5e5;padding:0"></td></tr>
+    ${row(t("shiftSession.reportTotal"), fmt(methodsTotal(r.cash.byMethod)))}</table>`
+      : `<p style="font-size:14px;color:#777;margin:0">${t("shiftSession.closeNoPayments")}</p>`
   }
-  <h2 style="font-size:13px;color:#777;margin:16px 0 4px">${t("shiftSession.reportDrawer")}</h2>
-  <table style="width:100%;border-collapse:collapse;font-size:14px">
-    ${row(t("shiftSession.openingCash"), fmt(s.openingCash))}
-    ${row(t("shiftSession.drawerBalance"), fmt(s.expectedCash))}
-  </table>
   ${
     r.cash.movements.length
       ? `<h2 style="font-size:13px;color:#777;margin:16px 0 4px">${t("shiftSession.reportMovements")}</h2>
@@ -573,8 +542,10 @@ function buildReportHtml(
       : ""
   }
   ${
-    r.flags.length
-      ? `<h2 style="font-size:13px;color:#777;margin:16px 0 4px">·</h2><ul style="font-size:13px;padding-left:18px;margin:0">${r.flags
+    visibleFlags(r.flags).length
+      ? `<h2 style="font-size:13px;color:#777;margin:16px 0 4px">·</h2><ul style="font-size:13px;padding-left:18px;margin:0">${visibleFlags(
+          r.flags,
+        )
           .map((f) => `<li>${flagText[f] ?? f}</li>`)
           .join("")}</ul>`
       : ""
@@ -703,32 +674,40 @@ export function ShiftCloseDialog({
 
         {state.step === "summary" && (
           <div className="flex flex-col gap-3">
-            {/* SMENA HISOBOTI (v3.5): xodim raqam kiritmaydi — tizim yozganini ko'rsatadi.
-                Usullar bo'yicha kesim — founder aynan shuni so'radi. */}
+            {/* SMENA HISOBOTI: xodim BIRORTA raqam kiritmaydi — tizim yozganini ko'rsatadi.
+                Naqd/karta/o'tkazma/boshqa kesimi + jami. Boshqa hech nima (founder). */}
             {currentQ.isPending ? (
               <Skeleton className="h-20 w-full rounded-card" aria-hidden />
             ) : (
               <dl className="flex flex-col gap-1.5 rounded-card bg-neutral-50 p-3 text-sm">
                 {totals && Object.keys(totals.byMethod).length > 0 ? (
-                  sortedMethods(totals.byMethod).map(([m, v]) => (
-                    <MoneyRow
-                      key={m}
-                      label={`${methodLabel(t, m)} ×${v.count}`}
-                      value={money(v.amount)}
-                    />
-                  ))
+                  <>
+                    {sortedMethods(totals.byMethod).map(([m, v]) => (
+                      <MoneyRow
+                        key={m}
+                        label={`${methodLabel(t, m)} ×${v.count}`}
+                        value={money(v.amount)}
+                      />
+                    ))}
+                    {/* Chiqim (kassadan harajat) — sanoq emas, YOZILGAN hujjat: shu smenada
+                        g'aladondan chiqqan pul hisobotda ko'rinmasa, jami yolg'on bo'lardi. */}
+                    {totals.movementCount > 0 && (
+                      <MoneyRow
+                        label={`${t("shiftSession.closeExpenses")} ×${totals.movementCount}`}
+                        value={money(totals.movementNet)}
+                      />
+                    )}
+                    <div className="mt-1 border-t border-neutral-200 pt-1.5">
+                      <MoneyRow
+                        label={t("shiftSession.reportTotal")}
+                        value={money(methodsTotal(totals.byMethod))}
+                        strong
+                      />
+                    </div>
+                  </>
                 ) : (
                   <p className="text-sm text-neutral-500">{t("shiftSession.closeNoPayments")}</p>
                 )}
-                {totals && totals.movementCount > 0 && (
-                  <MoneyRow
-                    label={`${t("shiftSession.closeExpenses")} ×${totals.movementCount}`}
-                    value={money(totals.movementNet)}
-                  />
-                )}
-                <div className="mt-1 border-t border-neutral-200 pt-1.5">
-                  <MoneyRow label={t("shiftSession.openingCash")} value={money(session.openingCash)} strong />
-                </div>
               </dl>
             )}
 
@@ -755,19 +734,30 @@ export function ShiftCloseDialog({
 
         {state.step === "result" && (
           <div className="flex flex-col gap-3">
-            <dl className="flex flex-col gap-1.5 rounded-card bg-neutral-50 p-3 text-sm">
-              {reportQ.data && Object.keys(reportQ.data.cash.byMethod).length > 0 &&
-                sortedMethods(reportQ.data.cash.byMethod).map(([m, v]) => (
-                  <MoneyRow key={m} label={`${methodLabel(t, m)} ×${v.count}`} value={money(v.amount)} />
-                ))}
-              <div className="mt-1 border-t border-neutral-200 pt-1.5">
-                <MoneyRow
-                  label={t("shiftSession.drawerBalance")}
-                  value={money(state.session.expectedCash ?? 0)}
-                  strong
-                />
-              </div>
-            </dl>
+            {/* Hisobot hali kelmagan bo'lsa SKELET: bo'sh ro'yxatni "to'lov yo'q" deb
+                o'qish — yolg'on hisobot bo'lardi. */}
+            {reportQ.data == null ? (
+              <Skeleton className="h-20 w-full rounded-card" aria-hidden />
+            ) : (
+              <dl className="flex flex-col gap-1.5 rounded-card bg-neutral-50 p-3 text-sm">
+                {Object.keys(reportQ.data.cash.byMethod).length > 0 ? (
+                  <>
+                    {sortedMethods(reportQ.data.cash.byMethod).map(([m, v]) => (
+                      <MoneyRow key={m} label={`${methodLabel(t, m)} ×${v.count}`} value={money(v.amount)} />
+                    ))}
+                    <div className="mt-1 border-t border-neutral-200 pt-1.5">
+                      <MoneyRow
+                        label={t("shiftSession.reportTotal")}
+                        value={money(methodsTotal(reportQ.data.cash.byMethod))}
+                        strong
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-sm text-neutral-500">{t("shiftSession.closeNoPayments")}</p>
+                )}
+              </dl>
+            )}
 
             {/* Hisobot — xohlasa qog'ozda/faylda oladi; xohlamasa to'g'ridan chiqadi. */}
             <div className="flex gap-2">

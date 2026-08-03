@@ -536,7 +536,7 @@ export const recordBookingPayment = (
 
 /** NAQD qator stornosida `cashReturned` MAJBURIY savol: pul mehmonga jismonan qaytdimi (true)
     yoki xato yozuv — pul kassada qoldi/kirmagan (false)? Server taxmin qilmaydi (aks holda 400
-    CASH_RETURN_UNSPECIFIED) — noto'g'ri default smena kassa farqini jimgina buzadi.
+    CASH_RETURN_UNSPECIFIED) — noto'g'ri default smena naqd hisobotini jimgina buzadi.
     Karta/o'tkazmada e'tiborga olinmaydi. */
 export const voidBookingPayment = (
   bookingId: string,
@@ -568,14 +568,6 @@ export type ShiftSession = {
   closedBy: { id: string; name: string } | null
   /** 0=norma, 1=24h, 2=48h, 3=72h — "ochiq qolib ketdi" zinasi (faqat xabar). */
   escalationLevel: number
-  /** G'aladon qoldig'i ochilishda — TIZIM ko'chiradi (oldingi yopilishning expectedCash'i). */
-  openingCash: number
-  /** Yopilishda muhrlangan daftar qoldig'i (formula: SHIFT-DESIGN 3.3). */
-  expectedCash: number | null
-  /** LEGACY (v3.5'gacha qo'lda sanalgan smenalar): yangi yopilishlarda har doim null. */
-  countedCash: number | null
-  /** LEGACY: counted − expected. Yangi yopilishlarda null — farq hisoblanmaydi (0.6). */
-  variance: number | null
   note: string | null
   shiftId: string | null
 }
@@ -604,7 +596,7 @@ export const shiftKeys = {
 
 export const getCurrentShift = () => api<ShiftCurrent>("/shift-sessions/current")
 
-/** Ochishda PUL YUBORILMAYDI (v3.5): ochilish qoldig'ini server oldingi yopilishdan ko'chiradi.
+/** Ochishda PUL YUBORILMAYDI: smena sessiyasi — javobgarlik oynasi, kassa apparati emas.
     `expectTakeover` — faol sessiya boshqa xodimniki bo'lsa: ochilishim uni handover bilan
     yopadi va yangisini ochadi (bitta atomik amal — qog'oz topshiruvining o'zi). */
 export const openShiftSession = (body: {
@@ -613,8 +605,8 @@ export const openShiftSession = (body: {
   expectTakeover?: boolean
 }) => api<ShiftCurrent>("/shift-sessions/open", { method: "POST", body })
 
-/** Yakunlash so'rovida PUL YO'Q (SHIFT-DESIGN 0.6): xodim g'aladonni sanamaydi — server
-    daftar qoldig'ini o'zi hisoblab muhrlaydi, natija hisobot bo'lib qaytadi. */
+/** Yakunlash so'rovida PUL YO'Q: xodim hech nima sanamaydi va kiritmaydi — smena to'lovlari
+    allaqachon yozilgan, natija AVTOMATIK hisobot bo'lib qaytadi (izoh — ixtiyoriy). */
 export const closeShiftSession = (id: string, body: { note?: string }) =>
   api<ShiftSession>(`/shift-sessions/${id}/close`, { method: "POST", body })
 

@@ -1,7 +1,6 @@
 import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { PageLayout } from "@/components/layout/page-layout"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
 import { EmptyState } from "@/components/shared/empty-state"
@@ -14,12 +13,12 @@ import {
   type ShiftSession,
 } from "@/lib/api"
 import { money, shortDate } from "@/lib/format"
+import { methodLabel, methodsTotal, sortedMethods, visibleFlags } from "@/lib/shift-report"
 import { useT, type TKey } from "@/lib/i18n"
 import { cn } from "@/lib/utils"
 
 
 const FLAG_KEY: Record<string, TKey> = {
-  VARIANCE: "shiftSession.flagVariance",
   FORCE_CLOSED: "shiftSession.flagForceClosed",
   TAKEN_OVER: "shiftSession.flagTakenOver",
   POST_CLOSE_VOID: "shiftSession.flagPostCloseVoid",
@@ -40,19 +39,16 @@ function SessionRow({ s, onOpen }: { s: ShiftSession; onOpen: () => void }) {
             {shortDate(s.openedAt)}
             {s.closedAt ? ` — ${shortDate(s.closedAt)}` : ""}
           </p>
+          {/* Ikkinchi qator — smena eslatmasi (bo'lsa). Pul raqami qatorga chiqmaydi:
+              ro'yxat mehmon oldida ochiladi, hisobot esa bosilganda ko'rinadi. */}
           <p className="truncate text-xs text-neutral-500">
             {s.status === "open" ? (
               <span className="font-medium text-brand-700">{t("shiftSession.openBadge")}</span>
             ) : (
-              t("shiftSession.drawerBalance")
+              (s.note ?? "")
             )}
           </p>
         </div>
-        {s.status === "closed" && s.expectedCash != null && (
-          <Badge variant="outline" className="shrink-0 tabular-nums">
-            {money(s.expectedCash)}
-          </Badge>
-        )}
       </button>
     </li>
   )
@@ -71,23 +67,9 @@ function ReportDialog({ sessionId, onClose }: { sessionId: string; onClose: () =
           <SkeletonList rows={4} />
         ) : (
           <div className="flex flex-col gap-4 text-sm">
-            {/* Kassa: boshlang'ich → qoldiq. Sanoq ustuni faqat LEGACY smenalarda chiqadi. */}
-            <dl className="flex flex-col gap-1 tabular-nums">
-              <div className="flex justify-between">
-                <dt className="text-neutral-500">{t("shiftSession.openingCash")}</dt>
-                <dd className="font-medium">{money(r.session.openingCash)}</dd>
-              </div>
-              {r.session.expectedCash != null && (
-                <div className="flex justify-between">
-                  <dt className="text-neutral-500">{t("shiftSession.drawerBalance")}</dt>
-                  <dd className="font-medium">{money(r.session.expectedCash)}</dd>
-                </div>
-              )}
-            </dl>
-
-            {r.flags.length > 0 && (
+            {visibleFlags(r.flags).length > 0 && (
               <ul className="flex flex-col gap-1">
-                {r.flags.map((f) => (
+                {visibleFlags(r.flags).map((f) => (
                   <li
                     key={f}
                     className="rounded-control bg-warning-surface px-2.5 py-1.5 text-xs font-medium text-warning-surface-foreground"
@@ -104,15 +86,21 @@ function ReportDialog({ sessionId, onClose }: { sessionId: string; onClose: () =
                   {t("shiftSession.reportByMethod")}
                 </h3>
                 <ul className="flex flex-col gap-0.5 tabular-nums">
-                  {Object.entries(r.cash.byMethod).map(([m, v]) => (
+                  {sortedMethods(r.cash.byMethod).map(([m, v]) => (
                     <li key={m} className="flex justify-between text-sm">
                       <span className="text-neutral-600">
-                        {t(`payment.${m === "adjustment" ? "manual" : (m as "cash" | "card" | "transfer")}`)}
+                        {methodLabel(t, m)}
                         <span className="ml-1 text-xs text-neutral-400">×{v.count}</span>
                       </span>
                       <span className="font-medium">{money(v.amount)}</span>
                     </li>
                   ))}
+                  <li className="mt-1 flex justify-between border-t border-neutral-200 pt-1.5 text-sm">
+                    <span className="font-medium text-neutral-700">{t("shiftSession.reportTotal")}</span>
+                    <span className="font-semibold text-neutral-900">
+                      {money(methodsTotal(r.cash.byMethod))}
+                    </span>
+                  </li>
                 </ul>
               </section>
             )}
