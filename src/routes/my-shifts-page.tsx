@@ -14,35 +14,20 @@ import {
   type ShiftSession,
 } from "@/lib/api"
 import { money, shortDate } from "@/lib/format"
-import { useT, type TFunc, type TKey } from "@/lib/i18n"
+import { useT, type TKey } from "@/lib/i18n"
 import { cn } from "@/lib/utils"
 
 
 const FLAG_KEY: Record<string, TKey> = {
   VARIANCE: "shiftSession.flagVariance",
-  UNCOUNTED: "shiftSession.flagUncounted",
   FORCE_CLOSED: "shiftSession.flagForceClosed",
   TAKEN_OVER: "shiftSession.flagTakenOver",
-  OPENING_MISMATCH: "shiftSession.flagOpeningMismatch",
   POST_CLOSE_VOID: "shiftSession.flagPostCloseVoid",
   ESCALATED: "shiftSession.flagEscalated",
 }
 
-function varianceText(t: TFunc, v: number | null): { text: string; tone: "ok" | "bad" } | null {
-  if (v == null) return null
-  if (v === 0) return { text: t("shiftSession.resultEven"), tone: "ok" }
-  return {
-    text:
-      v < 0
-        ? t("shiftSession.resultShort", { amount: money(Math.abs(v)) })
-        : t("shiftSession.resultOver", { amount: money(Math.abs(v)) }),
-    tone: "bad",
-  }
-}
-
 function SessionRow({ s, onOpen }: { s: ShiftSession; onOpen: () => void }) {
   const t = useT()
-  const v = varianceText(t, s.variance)
   return (
     <li>
       <button
@@ -59,13 +44,13 @@ function SessionRow({ s, onOpen }: { s: ShiftSession; onOpen: () => void }) {
             {s.status === "open" ? (
               <span className="font-medium text-brand-700">{t("shiftSession.openBadge")}</span>
             ) : (
-              v?.text
+              t("shiftSession.drawerBalance")
             )}
           </p>
         </div>
-        {s.status === "closed" && v && (
-          <Badge variant={v.tone === "ok" ? "outline" : "destructive"} className="shrink-0 tabular-nums">
-            {s.variance === 0 ? "0" : money(Math.abs(s.variance ?? 0))}
+        {s.status === "closed" && s.expectedCash != null && (
+          <Badge variant="outline" className="shrink-0 tabular-nums">
+            {money(s.expectedCash)}
           </Badge>
         )}
       </button>
@@ -86,7 +71,7 @@ function ReportDialog({ sessionId, onClose }: { sessionId: string; onClose: () =
           <SkeletonList rows={4} />
         ) : (
           <div className="flex flex-col gap-4 text-sm">
-            {/* Kutilgan — formula sifatida emas (owner paneli ishi), lekin uch son yonma-yon. */}
+            {/* Kassa: boshlang'ich → qoldiq. Sanoq ustuni faqat LEGACY smenalarda chiqadi. */}
             <dl className="flex flex-col gap-1 tabular-nums">
               <div className="flex justify-between">
                 <dt className="text-neutral-500">{t("shiftSession.openingCash")}</dt>
@@ -94,14 +79,8 @@ function ReportDialog({ sessionId, onClose }: { sessionId: string; onClose: () =
               </div>
               {r.session.expectedCash != null && (
                 <div className="flex justify-between">
-                  <dt className="text-neutral-500">{t("shiftSession.resultExpected")}</dt>
+                  <dt className="text-neutral-500">{t("shiftSession.drawerBalance")}</dt>
                   <dd className="font-medium">{money(r.session.expectedCash)}</dd>
-                </div>
-              )}
-              {r.session.countedCash != null && (
-                <div className="flex justify-between">
-                  <dt className="text-neutral-500">{t("shiftSession.resultCounted")}</dt>
-                  <dd className="font-medium">{money(r.session.countedCash)}</dd>
                 </div>
               )}
             </dl>

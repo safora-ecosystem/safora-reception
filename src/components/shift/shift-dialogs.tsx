@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Check, X } from "lucide-react"
 import { toast } from "sonner"
@@ -37,8 +37,6 @@ import {
 import { cn } from "@/lib/utils"
 
 
-const UZS_NOTES = [200_000, 100_000, 50_000, 20_000, 10_000, 5_000, 2_000, 1_000] as const
-
 
 function OpenForm({ current, onDone }: { current: ShiftCurrent; onDone?: () => void }) {
   const t = useT()
@@ -47,17 +45,12 @@ function OpenForm({ current, onDone }: { current: ShiftCurrent; onDone?: () => v
   const active = current.session
   const takeover = active != null && active.user.id !== me?.id
   const prevNote = takeover ? (active?.note ?? null) : (current.lastClosed?.note ?? null)
-  const prefill = takeover ? null : current.lastClosed?.countedCash
 
-  const [amount, setAmount] = useState(prefill != null ? String(prefill) : "")
   const [ack, setAck] = useState(false)
-  const amountNum = Number(amount)
-  const valid = amount !== "" && Number.isFinite(amountNum) && amountNum >= 0
 
   const openMut = useMutation({
     mutationFn: () =>
       openShiftSession({
-        openingCash: amountNum,
         ...(takeover ? { expectTakeover: true } : {}),
         ...(prevNote ? { prevNoteAck: ack } : {}),
       }),
@@ -83,10 +76,6 @@ function OpenForm({ current, onDone }: { current: ShiftCurrent; onDone?: () => v
           {t("shiftSession.takeoverNotice", { name: active.user.name })}
         </p>
       )}
-      <label className="flex flex-col gap-1.5">
-        <span className="text-xs font-medium text-neutral-600">{t("shiftSession.openingCash")}</span>
-        <MoneyInput value={amount} onChange={setAmount} ariaLabel={t("shiftSession.openingCash")} size="lg" />
-      </label>
       {prevNote && (
         <div className="rounded-card bg-neutral-50 p-3">
           <p className="text-xs font-medium text-neutral-500">{t("shiftSession.prevNote")}</p>
@@ -104,7 +93,7 @@ function OpenForm({ current, onDone }: { current: ShiftCurrent; onDone?: () => v
       )}
       <Button
         size="xl"
-        disabled={!valid || (prevNote != null && !ack) || openMut.isPending}
+        disabled={(prevNote != null && !ack) || openMut.isPending}
         onClick={() => openMut.mutate()}
       >
         <Check /> {t("shiftSession.start")}
@@ -139,14 +128,9 @@ function GateStartButton({ current }: { current: ShiftCurrent }) {
   const t = useT()
   const qc = useQueryClient()
   const prevNote = current.lastClosed?.note ?? null
-  const openingCash = current.lastClosed?.countedCash ?? 0
 
   const openMut = useMutation({
-    mutationFn: () =>
-      openShiftSession({
-        openingCash,
-        ...(prevNote ? { prevNoteAck: true } : {}),
-      }),
+    mutationFn: () => openShiftSession(prevNote ? { prevNoteAck: true } : {}),
     onSuccess: () => {
       toast.success(t("shiftSession.opened"))
       void qc.invalidateQueries({ queryKey: shiftKeys.all })
@@ -491,13 +475,49 @@ export function ShiftNoteReminder() {
   )
 }
 
-// ── Yopish oqimi: blind count → tasdiq → natija ───────────────────────────────
+// ── Yakunlash oqimi: hisobot → natija ────────────────────────────────────────
 
-type CloseStep =
-  | { step: "count" }
-  | { step: "confirm" }
-  | { step: "outlier" }
-  | { step: "result"; session: ShiftSession }
+type CloseStep = { step: "summary" } | { step: "result"; session: ShiftSession }
+
+/** To'lov usullari ekranda doim shu tartibda — naqd birinchi (g'aladonga tegishlisi),
+    keyin bank kanallari. `adjustment` — qo'lda tuzatish, oxirida. */
+const METHOD_ORDER = ["cash", "card", "transfer", "adjustment"] as const
+
+function methodLabel(t: ReturnType<typeof useT>, method: string): string {
+  switch (method) {
+    case "cash":
+      return t("payment.cash")
+    case "card":
+      return t("payment.card")
+    case "transfer":
+      return t("payment.transfer")
+    case "adjustment":
+      return t("payment.manual")
+    default:
+      return method
+  }
+}
+
+/** byMethod'ni barqaror tartibda chizish uchun: ma'lum usullar oldin, notanishlari keyin. */
+function sortedMethods(byMethod: Record<string, { amount: number; count: number }>) {
+  return Object.entries(byMethod).sort(([a], [b]) => {
+    const ia = METHOD_ORDER.indexOf(a as (typeof METHOD_ORDER)[number])
+    const ib = METHOD_ORDER.indexOf(b as (typeof METHOD_ORDER)[number])
+    return (ia < 0 ? METHOD_ORDER.length : ia) - (ib < 0 ? METHOD_ORDER.length : ib)
+  })
+}
+
+/** Hisobot qatori — dialog ichida ham, natijada ham bir xil ko'rinadi. */
+function MoneyRow({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
+  return (
+    <div className="flex justify-between gap-4">
+      <dt className={cn("text-neutral-500", strong && "font-medium text-neutral-700")}>{label}</dt>
+      <dd className={cn("tabular-nums", strong ? "font-semibold text-neutral-900" : "font-medium")}>
+        {value}
+      </dd>
+    </div>
+  )
+}
 
 /** Foydalanuvchi kiritgan matn HTML'ga chiqishdan oldin. MAJBURIY: `printReport` hisobotni
     `srcdoc` bilan chizadi — bu SHU ORIGIN. Eslatma/sabab matnini oldingi smena xodimi yozadi,
@@ -517,20 +537,10 @@ function buildReportHtml(
   const s = r.session
   const fmt = (n: number | null) => (n == null ? "—" : `${n.toLocaleString("uz-UZ")} so'm`)
   const dt = (iso: string | null) => (iso ? new Date(iso).toLocaleString() : "—")
-  const varianceLine =
-    s.variance == null
-      ? t("shiftSession.flagUncounted")
-      : s.variance === 0
-        ? t("shiftSession.resultEven")
-        : s.variance < 0
-          ? t("shiftSession.resultShort", { amount: fmt(Math.abs(s.variance)) })
-          : t("shiftSession.resultOver", { amount: fmt(Math.abs(s.variance)) })
   const flagText: Record<string, string> = {
     VARIANCE: t("shiftSession.flagVariance"),
-    UNCOUNTED: t("shiftSession.flagUncounted"),
     FORCE_CLOSED: t("shiftSession.flagForceClosed"),
     TAKEN_OVER: t("shiftSession.flagTakenOver"),
-    OPENING_MISMATCH: t("shiftSession.flagOpeningMismatch"),
     POST_CLOSE_VOID: t("shiftSession.flagPostCloseVoid"),
     ESCALATED: t("shiftSession.flagEscalated"),
   }
@@ -541,20 +551,19 @@ function buildReportHtml(
 <body style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:520px;margin:24px auto;padding:0 16px;color:#1a1a1a">
   <h1 style="font-size:18px;margin:0">${t("shiftSession.reportTitle")}</h1>
   <p style="margin:4px 0 16px;color:#777;font-size:13px">${esc(s.user.name)} · ${dt(s.openedAt)} — ${dt(s.closedAt)}</p>
-  <table style="width:100%;border-collapse:collapse;font-size:14px">
-    ${row(t("shiftSession.openingCash"), fmt(s.openingCash))}
-    ${row(t("shiftSession.resultExpected"), fmt(s.expectedCash))}
-    ${row(t("shiftSession.resultCounted"), fmt(s.countedCash))}
-  </table>
-  <p style="margin:12px 0;font-size:14px;font-weight:700">${varianceLine}</p>
   ${
     Object.keys(r.cash.byMethod).length
-      ? `<h2 style="font-size:13px;color:#777;margin:16px 0 4px">${t("shiftSession.reportByMethod")}</h2>
-  <table style="width:100%;border-collapse:collapse;font-size:14px">${Object.entries(r.cash.byMethod)
-    .map(([m, v]) => row(`${m} ×${v.count}`, fmt(v.amount)))
+      ? `<h2 style="font-size:13px;color:#777;margin:0 0 4px">${t("shiftSession.reportByMethod")}</h2>
+  <table style="width:100%;border-collapse:collapse;font-size:14px">${sortedMethods(r.cash.byMethod)
+    .map(([m, v]) => row(`${esc(methodLabel(t, m))} ×${v.count}`, fmt(v.amount)))
     .join("")}</table>`
       : ""
   }
+  <h2 style="font-size:13px;color:#777;margin:16px 0 4px">${t("shiftSession.reportDrawer")}</h2>
+  <table style="width:100%;border-collapse:collapse;font-size:14px">
+    ${row(t("shiftSession.openingCash"), fmt(s.openingCash))}
+    ${row(t("shiftSession.drawerBalance"), fmt(s.expectedCash))}
+  </table>
   ${
     r.cash.movements.length
       ? `<h2 style="font-size:13px;color:#777;margin:16px 0 4px">${t("shiftSession.reportMovements")}</h2>
@@ -618,32 +627,27 @@ export function ShiftCloseDialog({
   const t = useT()
   const qc = useQueryClient()
   const me = getSession()?.user
-  const [state, setState] = useState<CloseStep>({ step: "count" })
+  const [state, setState] = useState<CloseStep>({ step: "summary" })
   // Dialog ochiqligida gate ushlab turiladi — o'zi yopgan sessiya gate'ni chaqirib, natija
   // ekranini o'chirib yubormasin (shift-gate.ts izohi).
   useEffect(() => {
     holdShiftGate(open)
     return () => holdShiftGate(false)
   }, [open])
-  const [amount, setAmount] = useState("")
   const [note, setNote] = useState("")
-  const [showDenoms, setShowDenoms] = useState(false)
-  const [denoms, setDenoms] = useState<Record<number, string>>({})
-  const amountNum = Number(amount)
-  const valid = amount !== "" && Number.isFinite(amountNum) && amountNum >= 0
 
-  const denomSum = useMemo(
-    () => UZS_NOTES.reduce((sum, n) => sum + n * (Number(denoms[n]) || 0), 0),
-    [denoms],
-  )
+  // Yakunlashdan OLDINGI rasm — jonli hisob. ShiftCard/gate bilan BITTA kesh kaliti, ya'ni
+  // qo'shimcha so'rov tug'ilmaydi. Yopilgach hisobot autoritativ raqamni beradi.
+  const currentQ = useQuery({
+    queryKey: shiftKeys.current,
+    queryFn: getCurrentShift,
+    retry: false,
+    enabled: state.step === "summary",
+  })
+  const totals = currentQ.data?.session?.id === session.id ? currentQ.data.totals : null
 
   const closeMut = useMutation({
-    mutationFn: (opts?: { confirmed?: boolean }) =>
-      closeShiftSession(session.id, {
-        countedCash: amountNum,
-        ...(note.trim() ? { note: note.trim() } : {}),
-        ...(opts?.confirmed ? { confirmedOutlier: true } : {}),
-      }),
+    mutationFn: () => closeShiftSession(session.id, note.trim() ? { note: note.trim() } : {}),
     onSuccess: (closed) => {
       toast.success(t("shiftSession.closedToast"))
       void qc.invalidateQueries({ queryKey: shiftKeys.all })
@@ -661,18 +665,11 @@ export function ShiftCloseDialog({
           onClosed?.()
           return
         }
-        // Kattalik qayta-so'rashi (9.3): kutilgan OSHKOR bo'lmaydi — faqat savol.
-        if (body?.code === "COUNT_OUTLIER") {
-          setState({ step: "outlier" })
-          return
-        }
       }
       toast.error(t("shiftSession.closeFailed"))
-      setState({ step: "count" })
+      setState({ step: "summary" })
     },
   })
-
-  const variance = state.step === "result" ? state.session.variance : null
 
   // Hisobot — natija bosqichida fonda tortiladi: yuklab olish/chop etish darrov tayyor bo'lsin.
   const reportQ = useQuery({
@@ -701,64 +698,38 @@ export function ShiftCloseDialog({
       <DialogContent className="max-w-sm">
         <DialogTitle>{t("shiftSession.closeTitle")}</DialogTitle>
         <DialogDescription>
-          {state.step === "result" ? "" : t("shiftSession.countHint")}
+          {state.step === "result" ? t("shiftSession.resultHint") : t("shiftSession.closeHint")}
         </DialogDescription>
 
-        {state.step === "count" && (
+        {state.step === "summary" && (
           <div className="flex flex-col gap-3">
-            <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium text-neutral-600">
-                {t("shiftSession.countPrompt")}
-              </span>
-              <MoneyInput
-                value={amount}
-                onChange={(v) => {
-                  setAmount(v)
-                  setShowDenoms(false)
-                }}
-                ariaLabel={t("shiftSession.countPrompt")}
-                size="lg"
-                autoFocus
-              />
-            </label>
-
-            <button
-              type="button"
-              className="self-start text-xs font-medium text-brand-700 hover:text-brand-800"
-              onClick={() => setShowDenoms((v) => !v)}
-            >
-              {t("shiftSession.denomToggle")}
-            </button>
-            {showDenoms && (
-              <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 rounded-card bg-neutral-50 p-3">
-                {UZS_NOTES.map((n) => (
-                  <label key={n} className="flex items-center justify-between gap-2 text-xs tabular-nums">
-                    <span className="text-neutral-500">{money(n)}</span>
-                    <input
-                      inputMode="numeric"
-                      value={denoms[n] ?? ""}
-                      onChange={(e) => {
-                        const digits = e.target.value.replace(/\D/g, "")
-                        const next = { ...denoms, [n]: digits }
-                        setDenoms(next)
-                        const sum = UZS_NOTES.reduce(
-                          (acc, note2) => acc + note2 * (Number(next[note2]) || 0),
-                          0,
-                        )
-                        setAmount(sum > 0 ? String(sum) : "")
-                      }}
-                      placeholder="0"
-                      aria-label={money(n)}
-                      // Bu SUMMA emas, DONA — shuning uchun MoneyInput emas. Lekin yonidagi
-                      // pul maydonlari bilan bir tilda: markazda, tabular, bo'sh emas ("0").
-                      className="h-8 w-16 rounded-control border border-neutral-200 bg-white px-2 text-center text-sm font-semibold tabular-nums outline-none placeholder:font-medium placeholder:text-neutral-300 hover:border-neutral-300 focus-visible:border-brand-400 focus-visible:ring-3 focus-visible:ring-ring/15"
+            {/* SMENA HISOBOTI (v3.5): xodim raqam kiritmaydi — tizim yozganini ko'rsatadi.
+                Usullar bo'yicha kesim — founder aynan shuni so'radi. */}
+            {currentQ.isPending ? (
+              <Skeleton className="h-20 w-full rounded-card" aria-hidden />
+            ) : (
+              <dl className="flex flex-col gap-1.5 rounded-card bg-neutral-50 p-3 text-sm">
+                {totals && Object.keys(totals.byMethod).length > 0 ? (
+                  sortedMethods(totals.byMethod).map(([m, v]) => (
+                    <MoneyRow
+                      key={m}
+                      label={`${methodLabel(t, m)} ×${v.count}`}
+                      value={money(v.amount)}
                     />
-                  </label>
-                ))}
-                <p className="col-span-2 mt-1 text-right text-xs font-semibold text-neutral-800 tabular-nums">
-                  = {money(denomSum)}
-                </p>
-              </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-neutral-500">{t("shiftSession.closeNoPayments")}</p>
+                )}
+                {totals && totals.movementCount > 0 && (
+                  <MoneyRow
+                    label={`${t("shiftSession.closeExpenses")} ×${totals.movementCount}`}
+                    value={money(totals.movementNet)}
+                  />
+                )}
+                <div className="mt-1 border-t border-neutral-200 pt-1.5">
+                  <MoneyRow label={t("shiftSession.openingCash")} value={money(session.openingCash)} strong />
+                </div>
+              </dl>
             )}
 
             <label className="flex flex-col gap-1.5">
@@ -772,44 +743,11 @@ export function ShiftCloseDialog({
             </label>
 
             <div className="flex justify-end gap-2">
-              <Button variant="ghost" onClick={() => onOpenChange(false)}>
+              <Button variant="ghost" disabled={closeMut.isPending} onClick={() => onOpenChange(false)}>
                 <X /> {t("common.back")}
               </Button>
-              <Button disabled={!valid} onClick={() => setState({ step: "confirm" })}>
-                {t("shiftSession.finish")}
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {state.step === "confirm" && (
-          <div className="flex flex-col gap-3">
-            <p className="text-lg font-semibold text-neutral-900 tabular-nums">
-              {t("shiftSession.confirmQuestion", { amount: money(amountNum) })}
-            </p>
-            <p className="text-xs leading-relaxed text-neutral-500">{t("shiftSession.confirmHint")}</p>
-            <div className="flex justify-end gap-2">
-              <Button variant="ghost" disabled={closeMut.isPending} onClick={() => setState({ step: "count" })}>
-                {t("common.back")}
-              </Button>
-              <Button disabled={closeMut.isPending} onClick={() => closeMut.mutate(undefined)}>
-                <Check /> {t("common.confirm")}
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {state.step === "outlier" && (
-          <div className="flex flex-col gap-3">
-            <p className="rounded-card bg-warning-surface p-3 text-sm leading-relaxed text-warning-surface-foreground">
-              {t("shiftSession.outlierQuestion")}
-            </p>
-            <div className="flex justify-end gap-2">
-              <Button variant="ghost" disabled={closeMut.isPending} onClick={() => setState({ step: "count" })}>
-                {t("shiftSession.outlierRecount")}
-              </Button>
-              <Button disabled={closeMut.isPending} onClick={() => closeMut.mutate({ confirmed: true })}>
-                {t("shiftSession.outlierClose")}
+              <Button disabled={closeMut.isPending} onClick={() => closeMut.mutate()}>
+                <Check /> {t("shiftSession.finish")}
               </Button>
             </div>
           </div>
@@ -817,28 +755,17 @@ export function ShiftCloseDialog({
 
         {state.step === "result" && (
           <div className="flex flex-col gap-3">
-            <div
-              className={cn(
-                "rounded-card p-3 text-sm font-semibold",
-                variance === 0 || variance == null
-                  ? "bg-success-surface text-success-surface-foreground"
-                  : "bg-destructive-surface text-destructive-surface-foreground",
-              )}
-            >
-              {variance == null || variance === 0
-                ? t("shiftSession.resultEven")
-                : variance < 0
-                  ? t("shiftSession.resultShort", { amount: money(Math.abs(variance)) })
-                  : t("shiftSession.resultOver", { amount: money(Math.abs(variance)) })}
-            </div>
-            <dl className="flex flex-col gap-1 text-sm tabular-nums">
-              <div className="flex justify-between">
-                <dt className="text-neutral-500">{t("shiftSession.resultExpected")}</dt>
-                <dd className="font-medium">{money(state.session.expectedCash ?? 0)}</dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-neutral-500">{t("shiftSession.resultCounted")}</dt>
-                <dd className="font-medium">{money(state.session.countedCash ?? 0)}</dd>
+            <dl className="flex flex-col gap-1.5 rounded-card bg-neutral-50 p-3 text-sm">
+              {reportQ.data && Object.keys(reportQ.data.cash.byMethod).length > 0 &&
+                sortedMethods(reportQ.data.cash.byMethod).map(([m, v]) => (
+                  <MoneyRow key={m} label={`${methodLabel(t, m)} ×${v.count}`} value={money(v.amount)} />
+                ))}
+              <div className="mt-1 border-t border-neutral-200 pt-1.5">
+                <MoneyRow
+                  label={t("shiftSession.drawerBalance")}
+                  value={money(state.session.expectedCash ?? 0)}
+                  strong
+                />
               </div>
             </dl>
 

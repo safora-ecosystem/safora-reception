@@ -554,7 +554,7 @@ export const voidBookingPayment = (
 // hech qachon o'zi yopmaydi. Naqd guard (SHIFT_REQUIRED) server tomonda — panel qulaylik qatlami.
 
 export type ShiftSessionStatus = "open" | "closed"
-/** self = egasi sanab yopdi; handover = keyingi kassir qabul qilib oldi; forced = menejer. */
+/** self = egasi yakunladi; handover = keyingi kassir qabul qilib oldi; forced = menejer. */
 export type ShiftCloseReason = "self" | "handover" | "forced"
 export type CashMovementKind = "deposit" | "withdrawal" | "refund"
 
@@ -568,10 +568,13 @@ export type ShiftSession = {
   closedBy: { id: string; name: string } | null
   /** 0=norma, 1=24h, 2=48h, 3=72h — "ochiq qolib ketdi" zinasi (faqat xabar). */
   escalationLevel: number
+  /** G'aladon qoldig'i ochilishda — TIZIM ko'chiradi (oldingi yopilishning expectedCash'i). */
   openingCash: number
-  countedCash: number | null
+  /** Yopilishda muhrlangan daftar qoldig'i (formula: SHIFT-DESIGN 3.3). */
   expectedCash: number | null
-  /** counted − expected; null = hali yopilmagan yoki sanalmagan (forced). */
+  /** LEGACY (v3.5'gacha qo'lda sanalgan smenalar): yangi yopilishlarda har doim null. */
+  countedCash: number | null
+  /** LEGACY: counted − expected. Yangi yopilishlarda null — farq hisoblanmaydi (0.6). */
   variance: number | null
   note: string | null
   shiftId: string | null
@@ -601,21 +604,19 @@ export const shiftKeys = {
 
 export const getCurrentShift = () => api<ShiftCurrent>("/shift-sessions/current")
 
-/** `expectTakeover` — faol sessiya boshqa xodimniki bo'lsa: mening sanog'im uni handover bilan
+/** Ochishda PUL YUBORILMAYDI (v3.5): ochilish qoldig'ini server oldingi yopilishdan ko'chiradi.
+    `expectTakeover` — faol sessiya boshqa xodimniki bo'lsa: ochilishim uni handover bilan
     yopadi va yangisini ochadi (bitta atomik amal — qog'oz topshiruvining o'zi). */
 export const openShiftSession = (body: {
-  openingCash: number
   note?: string
   prevNoteAck?: boolean
   expectTakeover?: boolean
 }) => api<ShiftCurrent>("/shift-sessions/open", { method: "POST", body })
 
-/** Blind count: kutilgan summa so'rovda YO'Q — server javobda ochadi (expected/variance).
-    `confirmedOutlier` — 409 COUNT_OUTLIER'dan keyingi bir martalik tasdiq (9.3). */
-export const closeShiftSession = (
-  id: string,
-  body: { countedCash: number; note?: string; confirmedOutlier?: boolean },
-) => api<ShiftSession>(`/shift-sessions/${id}/close`, { method: "POST", body })
+/** Yakunlash so'rovida PUL YO'Q (SHIFT-DESIGN 0.6): xodim g'aladonni sanamaydi — server
+    daftar qoldig'ini o'zi hisoblab muhrlaydi, natija hisobot bo'lib qaytadi. */
+export const closeShiftSession = (id: string, body: { note?: string }) =>
+  api<ShiftSession>(`/shift-sessions/${id}/close`, { method: "POST", body })
 
 export const recordCashMovement = (
   id: string,

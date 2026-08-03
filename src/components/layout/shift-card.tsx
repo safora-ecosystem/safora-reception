@@ -55,8 +55,9 @@ function durationOf(openedAt: string, now: Date): string {
 }
 
 // Sidebar'ning qoraygan fokus kartasi: soat + sana + HAQIQIY smena holati (ilgari bu yerda
-// soatdan chiqarilgan "yolg'on" smena yorlig'i turardi). Jonli NAQD summa ATAYLAB ko'rsatilmaydi
-// (SHIFT-DESIGN 9): sidebar mehmonlarga ham ko'rinadi va blind count'ni o'ldirardi.
+// soatdan chiqarilgan "yolg'on" smena yorlig'i turardi). Jonli NAQD summa ATAYLAB
+// ko'rsatilmaydi (SHIFT-DESIGN 9): sidebar mehmon oldida ochiq turadi — kassa raqami
+// yakunlash oynasida va hisobotda, bu yerda emas.
 // Uch qator, boshqa emas: [soat · sana] / [holat · aloqa nuqtasi + versiya] / [bitta amal].
 export function ShiftCard() {
   const t = useT()
