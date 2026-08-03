@@ -1,4 +1,4 @@
-import { memo, useId, useLayoutEffect, useRef } from "react"
+import { memo, useId } from "react"
 import { motion, useReducedMotion } from "framer-motion"
 import { Input } from "@/components/ui/input"
 import { DropdownSelect } from "@/components/ui/dropdown-select"
@@ -88,75 +88,6 @@ function SegmentedImpl({
         )
       })}
     </div>
-  )
-}
-
-function groupDigits(digits: string): string {
-  const trimmed = digits.replace(/^0+(?=\d)/, "")
-  return trimmed.replace(/\B(?=(\d{3})+(?!\d))/g, " ")
-}
-
-export function MoneyInput({
-  value,
-  onChange,
-  ariaLabel,
-  placeholder,
-  className,
-}: {
-  value: string
-  onChange: (v: string) => void
-  ariaLabel: string
-  placeholder?: string
-  className?: string
-}) {
-  const ref = useRef<HTMLInputElement>(null)
-  const caret = useRef<number | null>(null)
-
-  useLayoutEffect(() => {
-    const el = ref.current
-    if (!el || caret.current == null) return
-    el.setSelectionRange(caret.current, caret.current)
-    caret.current = null
-  })
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const el = e.target
-    const digitsBeforeCaret = el.value.slice(0, el.selectionStart ?? 0).replace(/\D/g, "").length
-    const digits = el.value.replace(/\D/g, "")
-    const formatted = groupDigits(digits)
-
-    let seen = 0
-    let position = 0
-    if (digitsBeforeCaret > 0) {
-      position = formatted.length
-      for (let i = 0; i < formatted.length; i++) {
-        if (formatted.charCodeAt(i) >= 48 && formatted.charCodeAt(i) <= 57) {
-          seen++
-          if (seen === digitsBeforeCaret) {
-            position = i + 1
-            break
-          }
-        }
-      }
-    }
-    caret.current = position
-    onChange(digits.replace(/^0+(?=\d)/, ""))
-  }
-
-  return (
-    <input
-      ref={ref}
-      type="text"
-      inputMode="numeric"
-      aria-label={ariaLabel}
-      placeholder={placeholder}
-      value={value === "" ? "" : groupDigits(value)}
-      onChange={handleChange}
-      className={cn(
-        "h-9 rounded-control border border-neutral-200 bg-white px-2.5 text-right text-sm font-medium text-neutral-900 tabular-nums transition-colors outline-none placeholder:font-normal placeholder:text-neutral-400/70 hover:border-neutral-300 focus-visible:border-brand-400 focus-visible:ring-3 focus-visible:ring-ring/15",
-        className,
-      )}
-    />
   )
 }
 

@@ -1,4 +1,12 @@
-import { useCallback, useMemo, useRef, type PointerEvent as ReactPointerEvent, type RefObject } from "react"
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent,
+  type RefObject,
+} from "react"
 import {
   BAR_VPAD,
   barRect,
@@ -19,6 +27,7 @@ export interface CalendarMoveHandlers {
   finish: (e: ReactPointerEvent) => void
   cancel: () => void
   consumeClick: () => boolean
+  contextMenu: (e: ReactMouseEvent) => void
 }
 
 interface MoveConfig {
@@ -38,6 +47,7 @@ interface MoveConfig {
   checkInFrac: number
   checkOutFrac: number
   onCommit: (id: string, next: CalendarDraft) => void
+  onReject?: () => void
 }
 
 interface MoveState {
@@ -50,10 +60,23 @@ interface MoveState {
   originLaneIndex: number
   pointerId: number
   dragged: boolean
+  mode: "pending" | "pan" | "drag"
+  pointerType: string
+  downX: number
+  downY: number
+  lastX: number
+  lastY: number
+  holdTimer: number | null
+  sourceEl: HTMLElement | null
 }
 
 const EDGE = 56
 const MAX_SPEED = 22
+
+const ARM_PX = 8
+
+const HOLD_MS = 350
+const TOUCH_SLOP_PX = 12
 
 function draftOf(s: MoveState, originDay: number, lanes: Lane[]): CalendarDraft {
   const lane = lanes[s.laneIndex]
@@ -77,6 +100,7 @@ export function useCalendarMove(config: MoveConfig): CalendarMoveHandlers {
     const draft = draftOf(s, config.originDay, config.lanes)
     const bodyWidth = config.days * config.dayWidth
     const r = barRect(draft.start, draft.end, config.originDay, config.dayWidth, bodyWidth, config.checkInFrac, config.checkOutFrac)
+    const conflict = hasConflict(draft, config.bookings, s.booking.id)
     paintSelectionShape(
       ov,
       r.left,
@@ -85,8 +109,17 @@ export function useCalendarMove(config: MoveConfig): CalendarMoveHandlers {
       config.rowHeight - 2 * BAR_VPAD,
       r.clippedStart,
       r.clippedEnd,
-      hasConflict(draft, config.bookings, s.booking.id),
+      conflict,
     )
+    ov.style.backgroundColor = conflict ? "" : "var(--cal-booked-border)"
+    ov.style.boxShadow = "var(--shadow-lg)"
+    const fill = ov.firstElementChild as HTMLElement | null
+    if (fill) fill.style.backgroundColor = conflict ? "" : "var(--cal-booked-surface)"
+    const label = ov.querySelector<HTMLElement>("[data-ghost-label]")
+    if (label) {
+      label.textContent = s.booking.label
+      label.style.color = conflict ? "var(--destructive-surface-foreground)" : "var(--cal-booked-foreground)"
+    }
   }, [config])
 
   const apply = useCallback(() => {
@@ -166,6 +199,39 @@ export function useCalendarMove(config: MoveConfig): CalendarMoveHandlers {
     }
   }, [config, tick, stopAutoScroll])
 
+  const hide = useCallback(() => {
+    const ov = config.overlayRef.current
+    if (ov) ov.style.display = "none"
+  }, [config])
+
+  const settleRef = useRef<() => void>(() => {})
+  const cancelRef = useRef<() => void>(() => {})
+
+  const winHandlers = useRef({
+    up: (ev: globalThis.PointerEvent) => {
+      const s = stateRef.current
+      if (s && ev.pointerId === s.pointerId) settleRef.current()
+    },
+    cancel: () => {
+      if (stateRef.current) cancelRef.current()
+    },
+    key: (ev: KeyboardEvent) => {
+      if (ev.key === "Escape" && stateRef.current) cancelRef.current()
+    },
+  })
+  const attachWindow = useCallback(() => {
+    const h = winHandlers.current
+    window.addEventListener("pointerup", h.up)
+    window.addEventListener("pointercancel", h.cancel)
+    window.addEventListener("keydown", h.key, true)
+  }, [])
+  const detachWindow = useCallback(() => {
+    const h = winHandlers.current
+    window.removeEventListener("pointerup", h.up)
+    window.removeEventListener("pointercancel", h.cancel)
+    window.removeEventListener("keydown", h.key, true)
+  }, [])
+
   const start = useCallback(
     (e: ReactPointerEvent, booking: CalendarBooking) => {
       suppressClickRef.current = false
@@ -180,7 +246,7 @@ export function useCalendarMove(config: MoveConfig): CalendarMoveHandlers {
       if (laneIndex < 0) return
 
       pointerRef.current = { x: e.clientX, y: e.clientY }
-      stateRef.current = {
+      const state: MoveState = {
         booking,
         nights: epochDay(booking.end) - epochDay(booking.start),
         grabOffset: pointerCol - startCol,
@@ -190,55 +256,132 @@ export function useCalendarMove(config: MoveConfig): CalendarMoveHandlers {
         originLaneIndex: laneIndex,
         pointerId: e.pointerId,
         dragged: false,
+        mode: "pending",
+        pointerType: e.pointerType,
+        downX: e.clientX,
+        downY: e.clientY,
+        lastX: e.clientX,
+        lastY: e.clientY,
+        holdTimer: null,
+        sourceEl: e.currentTarget as HTMLElement,
+      }
+      stateRef.current = state
+      if (e.pointerType === "touch") {
+        state.holdTimer = window.setTimeout(() => {
+          const st = stateRef.current
+          if (st !== state || st.mode !== "pending") return
+          st.holdTimer = null
+          st.mode = "drag"
+          st.dragged = true
+          if (st.sourceEl) st.sourceEl.style.opacity = "0.35"
+          paint()
+        }, HOLD_MS)
       }
       e.currentTarget.setPointerCapture(e.pointerId)
+      attachWindow()
     },
-    [config],
+    [config, attachWindow, paint],
   )
+
+  const clearHold = useCallback(() => {
+    const s = stateRef.current
+    if (s?.holdTimer != null) {
+      clearTimeout(s.holdTimer)
+      s.holdTimer = null
+    }
+  }, [])
 
   const move = useCallback(
     (e: ReactPointerEvent) => {
-      if (!stateRef.current) return
+      const s = stateRef.current
+      if (!s) return
       pointerRef.current = { x: e.clientX, y: e.clientY }
-      apply()
-      syncAutoScroll()
+      if (s.mode === "pending") {
+        const dist = Math.hypot(e.clientX - s.downX, e.clientY - s.downY)
+        if (s.pointerType === "touch") {
+          if (dist >= TOUCH_SLOP_PX) {
+            clearHold()
+            s.mode = "pan"
+          }
+        } else if (dist >= ARM_PX) {
+          s.mode = "drag"
+          if (s.sourceEl) s.sourceEl.style.opacity = "0.35"
+        }
+      }
+      if (s.mode === "pan") {
+        const scroller = config.scrollRef.current
+        if (scroller) {
+          scroller.scrollLeft -= e.clientX - s.lastX
+          scroller.scrollTop -= e.clientY - s.lastY
+        }
+      } else if (s.mode === "drag") {
+        apply()
+        syncAutoScroll()
+      }
+      s.lastX = e.clientX
+      s.lastY = e.clientY
     },
-    [apply, syncAutoScroll],
+    [apply, syncAutoScroll, config, clearHold],
   )
 
-  const hide = useCallback(() => {
-    const ov = config.overlayRef.current
-    if (ov) ov.style.display = "none"
-  }, [config])
+  const settle = useCallback(() => {
+    const s = stateRef.current
+    if (!s) return
+    clearHold()
+    stateRef.current = null
+    stopAutoScroll()
+    hide()
+    detachWindow()
+    if (s.sourceEl) s.sourceEl.style.opacity = ""
+
+    if (s.mode === "pan") {
+      suppressClickRef.current = true
+      return
+    }
+    if (!s.dragged) return
+    suppressClickRef.current = true
+
+    if (s.startCol === s.originCol && s.laneIndex === s.originLaneIndex) return
+    const draft = draftOf(s, config.originDay, config.lanes)
+    if (hasConflict(draft, config.bookings, s.booking.id)) {
+      config.onReject?.()
+      return
+    }
+    config.onCommit(s.booking.id, draft)
+  }, [config, hide, stopAutoScroll, detachWindow, clearHold])
+  settleRef.current = settle
 
   const finish = useCallback(
     (e: ReactPointerEvent) => {
       const s = stateRef.current
       if (!s) return
-      stateRef.current = null
-      stopAutoScroll()
-      hide()
       try {
         e.currentTarget.releasePointerCapture(s.pointerId)
       } catch {
       }
-
-      if (!s.dragged) return
-      suppressClickRef.current = true
-
-      if (s.startCol === s.originCol && s.laneIndex === s.originLaneIndex) return
-      const draft = draftOf(s, config.originDay, config.lanes)
-      if (hasConflict(draft, config.bookings, s.booking.id)) return
-      config.onCommit(s.booking.id, draft)
+      settle()
     },
-    [config, hide, stopAutoScroll],
+    [settle],
   )
 
   const cancel = useCallback(() => {
+    const s = stateRef.current
+    clearHold()
     stateRef.current = null
     stopAutoScroll()
     hide()
-  }, [hide, stopAutoScroll])
+    detachWindow()
+    if (s?.sourceEl) s.sourceEl.style.opacity = ""
+    if (s?.dragged || s?.mode === "pan") suppressClickRef.current = true
+  }, [hide, stopAutoScroll, detachWindow, clearHold])
+  cancelRef.current = cancel
+
+  const contextMenu = useCallback((e: ReactMouseEvent) => {
+    if (stateRef.current?.pointerType === "touch") e.preventDefault()
+  }, [])
+
+  useEffect(() => detachWindow, [detachWindow])
+  useEffect(() => stopAutoScroll, [stopAutoScroll])
 
   const consumeClick = useCallback(() => {
     const v = suppressClickRef.current
@@ -247,7 +390,7 @@ export function useCalendarMove(config: MoveConfig): CalendarMoveHandlers {
   }, [])
 
   return useMemo(
-    () => ({ start, move, finish, cancel, consumeClick }),
-    [start, move, finish, cancel, consumeClick],
+    () => ({ start, move, finish, cancel, consumeClick, contextMenu }),
+    [start, move, finish, cancel, consumeClick, contextMenu],
   )
 }

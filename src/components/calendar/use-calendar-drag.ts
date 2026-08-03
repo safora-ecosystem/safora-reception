@@ -1,4 +1,4 @@
-import { useCallback, useRef, type PointerEvent as ReactPointerEvent, type RefObject } from "react"
+import { useCallback, useEffect, useRef, type PointerEvent as ReactPointerEvent, type RefObject } from "react"
 import {
   BAR_VPAD,
   barRectFromDays,
@@ -45,6 +45,18 @@ const MAX_SPEED = 22
 const DRAG_OPACITY = "1"
 const HOVER_OPACITY = "0.4"
 
+function clearMoveSkin(ov: HTMLElement) {
+  ov.style.backgroundColor = ""
+  ov.style.boxShadow = ""
+  const fill = ov.firstElementChild as HTMLElement | null
+  if (fill) fill.style.backgroundColor = ""
+  const label = ov.querySelector<HTMLElement>("[data-ghost-label]")
+  if (label) {
+    label.textContent = ""
+    label.style.color = ""
+  }
+}
+
 function draftFromState(s: DragState, originDay: number): CalendarDraft {
   const min = Math.min(s.startDay, s.curDay)
   const max = Math.max(s.startDay, s.curDay)
@@ -65,6 +77,7 @@ export function useCalendarDrag(config: DragConfig) {
     const s = dragRef.current
     const ov = config.overlayRef.current
     if (!s || !ov) return
+    clearMoveSkin(ov)
     const draft = draftFromState(s, config.originDay)
     const bodyWidth = config.days * config.dayWidth
     const r = barRectFromDays(
@@ -127,6 +140,7 @@ export function useCalendarDrag(config: DragConfig) {
         return
       }
       target.style.cursor = ""
+      clearMoveSkin(ov)
       const bodyWidth = config.days * config.dayWidth
       const r = barRectFromDays(day, day + 1, config.dayWidth, bodyWidth, config.checkInFrac, config.checkOutFrac)
       ov.style.opacity = HOVER_OPACITY
@@ -187,6 +201,34 @@ export function useCalendarDrag(config: DragConfig) {
     }
   }, [config, tick, stopAutoScroll])
 
+  const settleRef = useRef<() => void>(() => {})
+  const cancelRef = useRef<() => void>(() => {})
+
+  const winHandlers = useRef({
+    up: (ev: globalThis.PointerEvent) => {
+      const s = dragRef.current
+      if (s && ev.pointerId === s.pointerId) settleRef.current()
+    },
+    cancel: () => {
+      if (dragRef.current) cancelRef.current()
+    },
+    key: (ev: KeyboardEvent) => {
+      if (ev.key === "Escape" && dragRef.current) cancelRef.current()
+    },
+  })
+  const attachWindow = useCallback(() => {
+    const h = winHandlers.current
+    window.addEventListener("pointerup", h.up)
+    window.addEventListener("pointercancel", h.cancel)
+    window.addEventListener("keydown", h.key, true)
+  }, [])
+  const detachWindow = useCallback(() => {
+    const h = winHandlers.current
+    window.removeEventListener("pointerup", h.up)
+    window.removeEventListener("pointercancel", h.cancel)
+    window.removeEventListener("keydown", h.key, true)
+  }, [])
+
   const start = useCallback(
     (e: ReactPointerEvent, roomId: string, rowTop: number) => {
       if (e.button !== 0) return
@@ -211,9 +253,10 @@ export function useCalendarDrag(config: DragConfig) {
         pointerId: e.pointerId,
       }
       e.currentTarget.setPointerCapture(e.pointerId)
+      attachWindow()
       paint()
     },
-    [config, paint],
+    [config, paint, attachWindow],
   )
 
   const move = useCallback(
@@ -229,31 +272,44 @@ export function useCalendarDrag(config: DragConfig) {
     [apply, syncAutoScroll, paintHover],
   )
 
+  const settle = useCallback(() => {
+    const s = dragRef.current
+    if (!s) return
+    dragRef.current = null
+    stopAutoScroll()
+    detachWindow()
+    const ov = config.overlayRef.current
+    if (ov) ov.style.display = "none"
+    const draft = draftFromState(s, config.originDay)
+    if (hasConflict(draft, config.bookings)) return
+    config.onCommit(draft)
+  }, [config, stopAutoScroll, detachWindow])
+  settleRef.current = settle
+
   const finish = useCallback(
     (e: ReactPointerEvent) => {
       const s = dragRef.current
       if (!s) return
-      dragRef.current = null
-      stopAutoScroll()
-      const ov = config.overlayRef.current
-      if (ov) ov.style.display = "none"
       try {
         e.currentTarget.releasePointerCapture(s.pointerId)
       } catch {
       }
-      const draft = draftFromState(s, config.originDay)
-      if (hasConflict(draft, config.bookings)) return
-      config.onCommit(draft)
+      settle()
     },
-    [config, stopAutoScroll],
+    [settle],
   )
 
   const cancel = useCallback(() => {
     dragRef.current = null
     stopAutoScroll()
+    detachWindow()
     const ov = config.overlayRef.current
     if (ov) ov.style.display = "none"
-  }, [config])
+  }, [config, stopAutoScroll, detachWindow])
+  cancelRef.current = cancel
+
+  useEffect(() => detachWindow, [detachWindow])
+  useEffect(() => stopAutoScroll, [stopAutoScroll])
 
   const hoverEnd = useCallback(() => {
     if (dragRef.current) return

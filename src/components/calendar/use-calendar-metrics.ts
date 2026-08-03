@@ -8,9 +8,9 @@ export interface CalendarMetrics {
   dayScale: number
 }
 
-const COMFORTABLE: CalendarMetrics = { railWidth: 200, rowHeight: 52, headerHeight: 104, dayScale: 1 }
-const COZY: CalendarMetrics = { railWidth: 172, rowHeight: 46, headerHeight: 100, dayScale: 0.86 }
-const COMPACT: CalendarMetrics = { railWidth: 140, rowHeight: 42, headerHeight: 84, dayScale: 0.75 }
+const COMFORTABLE: CalendarMetrics = { railWidth: 200, rowHeight: 52, headerHeight: 118, dayScale: 1 }
+const COZY: CalendarMetrics = { railWidth: 172, rowHeight: 46, headerHeight: 110, dayScale: 0.86 }
+const COMPACT: CalendarMetrics = { railWidth: 140, rowHeight: 42, headerHeight: 88, dayScale: 0.75 }
 
 function tierForWidth(w: number): CalendarMetrics {
   if (w >= 1600) return COMFORTABLE

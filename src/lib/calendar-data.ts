@@ -17,11 +17,13 @@ import {
   type CalendarActivityEntry,
   type CalendarBooking,
   type CalendarCreateInput,
+  nightsBetween,
   type CalendarDraft,
   type CalendarOrganization,
   type CalendarPaymentEntry,
   type CalendarRange,
   type CalendarRoom,
+  type CalendarSplitInput,
 } from "@/components/calendar"
 import {
   ApiError,
@@ -41,6 +43,8 @@ import {
   removeBookingGuest,
   removeRoomBlock,
   setPrimaryGuest as apiSetPrimaryGuest,
+  splitBooking as apiSplitBooking,
+  shiftKeys,
   updateBooking as apiUpdateBooking,
   updateBookingGuest,
   voidBookingPayment,
@@ -73,6 +77,7 @@ export interface CalendarData {
   cancel: (id: string) => Promise<void>
   editBooking: (id: string, patch: BookingEditPatch) => Promise<void>
   moveBooking: (id: string, next: CalendarDraft) => Promise<void>
+  splitBooking: (id: string, input: CalendarSplitInput) => Promise<void>
   removeBlock: (id: string) => Promise<void>
 
   selectGuestsFor: (bookingId: string | null) => void
@@ -84,8 +89,15 @@ export interface CalendarData {
   makeGuestPrimary: (bookingId: string, guestId: string) => Promise<void>
 
   payments: CalendarPaymentEntry[] | null
-  recordPayment?: (bookingId: string, input: { amount: number; note?: string }) => Promise<void>
-  voidPayment?: (bookingId: string, paymentId: string, reason: string) => Promise<void>
+  recordPayment?: (
+    bookingId: string,
+    input: { amount: number; method: "cash" | "card" | "transfer"; note?: string; eventId: string },
+  ) => Promise<void>
+  voidPayment?: (
+    bookingId: string,
+    paymentId: string,
+    input: { reason: string; cashReturned?: boolean },
+  ) => Promise<void>
   activity: CalendarActivityEntry[] | null
   activityLoading: boolean
 }
@@ -180,11 +192,11 @@ export function useMockCalendarData(roomCount = 24): CalendarData {
         ...(patch.end !== undefined ? { end: patch.end } : {}),
         ...(patch.guestName !== undefined ? { label: patch.guestName } : {}),
         ...(patch.guestPhone !== undefined ? { sublabel: patch.guestPhone } : {}),
-        ...(patch.totalAmount !== undefined || patch.paidAmount !== undefined
+        ...(patch.totalAmount !== undefined
           ? {
               payment: {
-                total: patch.totalAmount ?? b.payment?.total ?? 0,
-                paid: patch.paidAmount ?? b.payment?.paid ?? 0,
+                total: patch.totalAmount,
+                paid: b.payment?.paid ?? 0,
               },
             }
           : {}),
@@ -200,6 +212,51 @@ export function useMockCalendarData(roomCount = 24): CalendarData {
 
   const removeBlock = useCallback(
     async (id: string) => setBookings((prev) => prev.filter((b) => b.id !== id)),
+    [],
+  )
+
+  // Mock rejimida bo'lish REAL serverning natijasini takrorlaydi: birinchi qism qisqaradi,
+  // ikkinchisi yangi xonada paydo bo'ladi, ikkalasi bir xil `linkId` oladi — kalendar uzuq
+  // chiziqli izni aynan shundan chizadi.
+  const splitBooking = useCallback(
+    async (id: string, input: CalendarSplitInput) =>
+      setBookings((prev) => {
+        const b = prev.find((x) => x.id === id)
+        if (!b) return prev
+        const linkId = b.linkId ?? `link-${mockIdSeq++}`
+        const total = b.payment?.total ?? 0
+        const nights = nightsBetween(b.start, b.end)
+        const secondNights = nightsBetween(input.splitDate, b.end)
+        const secondTotal =
+          input.totalAmount ?? (nights > 0 ? Math.round((total * secondNights) / nights) : 0)
+        const firstTotal = Math.round((total - secondTotal) * 100) / 100
+        const paid = b.payment?.paid ?? 0
+        const paidMoved = Math.max(0, Math.round((paid - firstTotal) * 100) / 100)
+        return [
+          ...prev.map((x) =>
+            x.id === id
+              ? {
+                  ...x,
+                  end: input.splitDate,
+                  linkId,
+                  ...(x.payment ? { payment: { total: firstTotal, paid: paid - paidMoved } } : {}),
+                }
+              : x,
+          ),
+          {
+            ...b,
+            id: `bk-split-${mockIdSeq++}`,
+            roomId: input.roomId,
+            start: input.splitDate,
+            end: b.end,
+            status: "booked" as const,
+            linkId,
+            checkedInAt: null,
+            checkedOutAt: null,
+            ...(b.payment ? { payment: { total: secondTotal, paid: paidMoved } } : {}),
+          },
+        ]
+      }),
     [],
   )
 
@@ -296,6 +353,7 @@ export function useMockCalendarData(roomCount = 24): CalendarData {
     cancel,
     editBooking,
     moveBooking,
+    splitBooking,
     removeBlock,
     selectGuestsFor: setSelectedId,
     guests,
@@ -363,6 +421,7 @@ function mapBooking(b: Booking): CalendarBooking {
     createdAt: b.createdAt,
     guestCount: b._count?.guests,
     note: b.note,
+    linkId: b.linkId,
     organization: b.organization
       ? { id: b.organization.id, name: b.organization.name, shortName: b.organization.shortName }
       : null,
@@ -397,7 +456,8 @@ function toUpdateBody(patch: BookingEditPatch): UpdateBookingBody {
     ...(patch.start !== undefined ? { checkInDate: patch.start } : {}),
     ...(patch.end !== undefined ? { checkOutDate: patch.end } : {}),
     ...(patch.totalAmount !== undefined ? { totalAmount: patch.totalAmount } : {}),
-    ...(patch.paidAmount !== undefined ? { paidAmount: patch.paidAmount } : {}),
+    // paidAmount ATAYLAB yo'q: legacy adjustment-eshigi panel tomondan yopilgan
+    // (BookingEditPatch'dagi izoh).
     ...(patch.note !== undefined ? { note: patch.note } : {}),
   }
 }
@@ -489,7 +549,10 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
   // Shu sabab bu so'rov `error` hisobiga ham kirmaydi — u kalendarning yashash sharti emas.
   const orgsQ = useQuery({
     queryKey: ["organizations"],
-    queryFn: listOrganizations,
+    // O'ralgan chaqiruv: `listOrganizations` ni TO'G'RIDAN-TO'G'RI berish mumkin emas —
+    // TanStack queryFn'ga kontekst obyektini uzatadi va u panellarda ixtiyoriy filtr
+    // argumenti bo'lib tushib qolardi (owner panelida `listOrganizations(params?)`).
+    queryFn: () => listOrganizations(),
     enabled,
     staleTime: 5 * 60_000,
     retry: 1,
@@ -605,12 +668,14 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
           ...(input.note ? { note: input.note } : {}),
           ...(input.organizationId ? { organizationId: input.organizationId } : {}),
           ...(input.orgRef ? { orgRef: input.orgRef } : {}),
+          ...(input.method ? { method: input.method } : {}),
           // Joylashtirish ro'yxati bo'lsa har xona o'z mehmoni bilan ketadi (korporativ oqim);
           // bo'lmasa faqat summa uzatiladi va umumiy mehmon hamma xonaga nusxalanadi.
           rooms: input.rooms.map((r) => ({
             roomId: r.roomId,
             totalAmount: r.totalAmount,
             paidAmount: r.paidAmount,
+            ...(r.eventId ? { eventId: r.eventId } : {}),
             ...(r.guestName ? { guestName: r.guestName } : {}),
             ...(r.guestPhone ? { guestPhone: r.guestPhone } : {}),
             ...(r.guestDocType ? { guestDocType: r.guestDocType as never } : {}),
@@ -695,6 +760,26 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
       // tez-tez bo'ladi (umumiy sichqonchali stol); tasdiqlash oynasi har ko'chirishni
       // sekinlashtirgan bo'lardi, undo esa faqat xatoni to'g'irlaydi.
       const prev = bookingsQ.rows.find((b) => b.id === id)
+      // OPTIMISTIK: bar YANGI katakka darhol o'tadi — sekin tarmoqda server javobini kutish
+      // "drag ishlamadi" bo'lib tuyulardi (prod audit, 2026-08-01). Avval in-flight so'rovlar
+      // bekor qilinadi (parallel poll eski holatni ustidan yozib "sakrab qaytish" ko'rsatmasin),
+      // snapshot esa XATODA aynan qaytariladi — offline'da ham rollback ishlaydi (invalidate
+      // yolg'iz yetmasdi: refetch ham yiqilsa optimistik holat ekranda qolib ketardi).
+      await qc.cancelQueries({ queryKey: ["bookings"] })
+      const snapshots = qc.getQueriesData<Booking[]>({ queryKey: ["bookings"] })
+      const nextRoom = (qc.getQueryData<Room[]>(["rooms"]) ?? []).find((r) => r.id === next.roomId)
+      qc.setQueriesData<Booking[]>({ queryKey: ["bookings"] }, (rows) =>
+        rows?.map((b) =>
+          b.id === id
+            ? {
+                ...b,
+                checkInDate: next.start,
+                checkOutDate: next.end,
+                ...(nextRoom ? { room: { ...b.room, id: nextRoom.id, number: nextRoom.number } } : {}),
+              }
+            : b,
+        ),
+      )
       try {
         await apiUpdateBooking(id, {
           roomId: next.roomId,
@@ -723,10 +808,40 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
             : undefined,
         })
       } catch (e) {
+        // Rollback: optimistik yozuvlar snapshot'dan sinxron qaytadi (tarmoqsiz ham ishlaydi);
+        // 409 bo'lsa onError o'zi invalidate qilib server haqiqatini ham tortadi.
+        for (const [key, data] of snapshots) qc.setQueryData(key, data)
         onError(e, t("calendarToast.moveFailed"))
       }
     },
-    [bookingsQ.rows, invalidate, onError],
+    [bookingsQ.rows, qc, invalidate, onError],
+  )
+
+  // Bo'lish serverda BITTA tranzaksiya: birinchi qism qisqaradi, ikkinchisi yangi xonada
+  // ochiladi, ikkalasi bir xil `link_id` oladi. Yangi xona band bo'lsa 409 qaytadi va DB'da
+  // hech narsa o'zgarmaydi — shu sabab bu yerda "yarim bo'lingan" holatni tozalash kodi yo'q.
+  const splitBooking = useCallback(
+    async (id: string, input: CalendarSplitInput) => {
+      try {
+        await apiSplitBooking(id, {
+          splitDate: input.splitDate,
+          roomId: input.roomId,
+          ...(input.totalAmount !== undefined ? { totalAmount: input.totalAmount } : {}),
+        })
+        toast.success(t("calendarToast.splitDone"))
+        invalidate()
+      } catch (e) {
+        if (e instanceof ApiError && e.status === 409) {
+          toast.error(t("calendarToast.splitBusy"))
+          invalidate()
+        } else {
+          onError(e, t("calendarToast.splitFailed"))
+        }
+        // Oyna ochiq qolsin: xodim boshqa xona yoki sana tanlab qayta urinsin.
+        throw e
+      }
+    },
+    [invalidate, onError],
   )
 
   const removeBlock = useCallback(
@@ -805,12 +920,22 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
   }, [qc])
 
   const recordPayment = useCallback(
-    async (bookingId: string, input: { amount: number; note?: string }) => {
+    async (
+      bookingId: string,
+      input: { amount: number; method: "cash" | "card" | "transfer"; note?: string; eventId: string },
+    ) => {
       try {
         await recordBookingPayment(bookingId, input)
         toast.success(t("calendarToast.paymentTaken"))
         refreshGuests()
       } catch (e) {
+        // Server guard'i: naqd uchun faol smena kerak (gate fail-open'dan o'tilgan yoki smena
+        // hozirgina yopilgan holat). Aniq yo'l ko'rsatamiz — ShiftCard'dagi "Boshlash".
+        if (e instanceof ApiError && (e.body as { code?: string })?.code === "SHIFT_REQUIRED") {
+          toast.error(t("shiftSession.required"))
+          void qc.invalidateQueries({ queryKey: shiftKeys.all })
+          throw e
+        }
         onError(e, t("calendarToast.paymentFailed"))
         throw e // forma ochiq qolsin — xodim summani qaytadan termasin
       }
@@ -819,9 +944,9 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
   )
 
   const voidPayment = useCallback(
-    async (bookingId: string, paymentId: string, reason: string) => {
+    async (bookingId: string, paymentId: string, input: { reason: string; cashReturned?: boolean }) => {
       try {
-        await voidBookingPayment(bookingId, paymentId, reason)
+        await voidBookingPayment(bookingId, paymentId, input)
         toast.success(t("calendarToast.paymentVoided"))
         refreshGuests()
       } catch (e) {
@@ -910,6 +1035,7 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
     cancel,
     editBooking,
     moveBooking,
+    splitBooking,
     removeBlock,
     selectGuestsFor: setSelectedId,
     guests,

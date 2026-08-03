@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useState } from "react"
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion"
 import {
   Building2,
@@ -24,7 +24,8 @@ import { cn } from "@/lib/utils"
 import { addDays, busyRoomsIn, nightsBetween } from "./geometry"
 import { groupThousands } from "./labels"
 import { Field, Section, StayCard } from "./modal-parts"
-import { DOC_TYPES, DocSelect, MoneyInput, Segmented } from "./form-parts"
+import { DOC_TYPES, DocSelect, Segmented } from "./form-parts"
+import { MoneyInput } from "@/components/shared/money-input"
 import {
   OrganizationPicker,
   OrganizationTerms,
@@ -185,8 +186,15 @@ function CreateForm({
   const [end, setEnd] = useState(draft.end)
   const [selectedIds, setSelectedIds] = useState<string[]>([draft.roomId])
   const [payMode, setPayMode] = useState<PayMode>("unpaid")
+  const [payMethod, setPayMethod] = useState<"cash" | "card" | "transfer">("cash")
   const [partialInput, setPartialInput] = useState("")
   const [busy, setBusy] = useState(false)
+  // Avans qatorlarining idempotentlik kalitlari — dialogning BITTA ochilishi davomida har
+  // xonaga bitta kalit. Submit ichida yaratilsa 409'dan keyingi qayta urinish YANGI kalit
+  // olardi va server dubl avans yozardi; muvaffaqiyatda dialog yopiladi, keyingisi toza.
+  const eventIdsRef = useRef<Record<string, string>>({})
+  const eventIdFor = (roomId: string) =>
+    (eventIdsRef.current[roomId] ??= crypto.randomUUID())
 
   const isBlock = mode === "block"
   const isCorporate = mode === "corporate"
@@ -441,10 +449,13 @@ function CreateForm({
               }
             : {}),
           ...(note.trim() ? { note: note.trim() } : {}),
+          // Usul faqat pul olinayotganda ma'noli; kalit ham faqat avansli xonaga.
+          ...(paid > 0 ? { method: payMethod } : {}),
           rooms: lines.map((l, i) => ({
             roomId: l.room.id,
             totalAmount: finalTotals[i],
             paidAmount: perRoomPaid[i],
+            ...(perRoomPaid[i] > 0 ? { eventId: eventIdFor(l.room.id) } : {}),
           })),
         })
       }
@@ -762,12 +773,14 @@ function CreateForm({
               grandTotal={grandTotal}
               paid={paid}
               payMode={payMode}
+              payMethod={payMethod}
               partialInput={partialInput}
               paidTooBig={paidTooBig}
               overCapacity={overCapacity ? (capacity as number) : null}
               guestTotal={guestTotal}
               corporate={isCorporate}
               onPayMode={setPayMode}
+              onPayMethod={setPayMethod}
               onPartial={setPartialInput}
             />
           )}
@@ -984,7 +997,6 @@ const CompanionsBlock = memo(function CompanionsBlock({
                     value={c.rate ?? ""}
                     onChange={(v) => onPatch(c.key, { rate: v })}
                     ariaLabel={labels.extraGuestRate}
-                    placeholder={labels.extraGuestRate}
                   />
                 </div>
 
@@ -1048,7 +1060,10 @@ interface MoneyPanelProps {
   guestTotal: number
   /** Korporativ: to'lov tanlagichi o'rniga "kompaniya hisobiga" izohi chiqadi. */
   corporate: boolean
+  /** Avans usuli — pul olinayotgandagina ko'rinadi (payMode ≠ unpaid). */
+  payMethod: "cash" | "card" | "transfer"
   onPayMode: (m: PayMode) => void
+  onPayMethod: (m: "cash" | "card" | "transfer") => void
   onPartial: (v: string) => void
 }
 
@@ -1067,7 +1082,9 @@ const MoneyPanel = memo(function MoneyPanel({
   overCapacity,
   guestTotal,
   corporate,
+  payMethod,
   onPayMode,
+  onPayMethod,
   onPartial,
 }: MoneyPanelProps) {
   return (
@@ -1170,14 +1187,35 @@ const MoneyPanel = memo(function MoneyPanel({
             />
           )}
 
-          {!corporate && payMode === "partial" && (
-            <MoneyInput
-              value={partialInput}
-              onChange={onPartial}
-              ariaLabel={labels.prepayment}
-              placeholder={labels.prepayment}
-              className={cn("w-full", paidTooBig && "border-destructive ring-3 ring-destructive/15")}
+          {/* Usul — pul olinayotgandagina so'raladi. Naqd oldindan tanlangan (eng ko'p holat),
+              lekin karta bir bosishda: usulni to'g'ri yozish kassa (smena) hisobining o'zagi. */}
+          {!corporate && payMode !== "unpaid" && (
+            <Segmented
+              value={payMethod}
+              onChange={(v) => onPayMethod(v as "cash" | "card" | "transfer")}
+              size="sm"
+              options={[
+                { value: "cash", label: labels.paymentMethodText.cash ?? "cash" },
+                { value: "card", label: labels.paymentMethodText.card ?? "card" },
+                { value: "transfer", label: labels.paymentMethodText.transfer ?? "transfer" },
+              ]}
             />
+          )}
+
+          {/* Yorliq maydon USTIDA: `lg` o'lchamda uzun matnli placeholder raqamning o'rnini
+              egallab, maydonni "matn maydoni"dek ko'rsatib qo'yardi. */}
+          {!corporate && payMode === "partial" && (
+            <label className="flex flex-col gap-1.5">
+              <span className="text-xs font-medium text-neutral-600">{labels.prepayment}</span>
+              <MoneyInput
+                value={partialInput}
+                onChange={onPartial}
+                ariaLabel={labels.prepayment}
+                size="lg"
+                invalid={paidTooBig}
+                className="w-full"
+              />
+            </label>
           )}
 
           {!corporate && lines.length > 0 && (

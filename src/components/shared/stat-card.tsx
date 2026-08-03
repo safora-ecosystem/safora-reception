@@ -1,9 +1,8 @@
-import { Children } from "react"
 import { ArrowUpRight } from "lucide-react"
+import { Children, type ReactNode } from "react"
 import { motion, useReducedMotion } from "framer-motion"
-import type { ReactNode } from "react"
-import { fadeInUp, staggerContainer } from "@/lib/motion-presets"
 import { RollingNumber } from "@/components/shared/rolling-number"
+import { fadeInUp, staggerContainer } from "@/lib/motion-presets"
 import { cn } from "@/lib/utils"
 
 type StatCardProps = {
@@ -12,13 +11,22 @@ type StatCardProps = {
   unit?: string
   hint?: string
   hero?: boolean
+  compact?: boolean
 }
 
-export function StatCard({ label, value, unit, hint, hero = false }: StatCardProps) {
+export function StatCard({
+  label,
+  value,
+  unit,
+  hint,
+  hero = false,
+  compact = false,
+}: StatCardProps) {
   return (
     <div
       className={cn(
-        "relative flex flex-col gap-1.5 overflow-hidden rounded-card px-5 py-3.5",
+        "relative flex flex-col overflow-hidden rounded-card",
+        compact ? "gap-1 px-4 py-3" : "gap-1.5 px-5 py-3.5",
         hero
           ? "sheen-brand border border-transparent bg-hero text-hero-foreground"
           : "border border-border bg-card text-neutral-900"
@@ -27,7 +35,8 @@ export function StatCard({ label, value, unit, hint, hero = false }: StatCardPro
       <div className="flex items-center justify-between gap-3">
         <span
           className={cn(
-            "text-[0.9375rem] font-medium",
+            "font-medium",
+            compact ? "text-sm" : "text-[0.9375rem]",
             hero ? "text-hero-foreground/85" : "text-neutral-500"
           )}
         >
@@ -36,11 +45,12 @@ export function StatCard({ label, value, unit, hint, hero = false }: StatCardPro
         <span
           aria-hidden
           className={cn(
-            "flex size-7 shrink-0 items-center justify-center rounded-full border",
+            "flex shrink-0 items-center justify-center rounded-full border",
+            compact ? "size-6" : "size-7",
             hero ? "border-white/25 text-hero-foreground" : "border-border text-neutral-400"
           )}
         >
-          <ArrowUpRight className="size-3.5" strokeWidth={2} />
+          <ArrowUpRight className={compact ? "size-3" : "size-3.5"} strokeWidth={2} />
         </span>
       </div>
 
@@ -49,12 +59,16 @@ export function StatCard({ label, value, unit, hint, hero = false }: StatCardPro
           {}
           <RollingNumber
             value={value}
-            className="text-[2.25rem] font-semibold tracking-tight"
+            className={cn(
+              "font-semibold tracking-tight",
+              compact ? "text-[1.875rem]" : "text-[2.25rem]"
+            )}
           />
           {unit && (
             <span
               className={cn(
-                "text-lg font-medium tabular-nums",
+                "font-medium tabular-nums",
+                compact ? "text-base" : "text-lg",
                 hero ? "text-hero-foreground/70" : "text-neutral-400"
               )}
             >
@@ -65,7 +79,7 @@ export function StatCard({ label, value, unit, hint, hero = false }: StatCardPro
         {hint && (
           <span
             className={cn(
-              "text-[0.8125rem]",
+              compact ? "text-xs" : "text-[0.8125rem]",
               hero ? "text-hero-foreground/80" : "text-neutral-500"
             )}
           >

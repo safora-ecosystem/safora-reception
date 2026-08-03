@@ -1,5 +1,6 @@
 import { Outlet, useLocation } from "@tanstack/react-router"
 import { NoticeBanner } from "@/components/layout/notice-banner"
+import { ShiftGate, ShiftNoteReminder } from "@/components/shift/shift-dialogs"
 import { Sidebar } from "@/components/layout/sidebar"
 import { Topbar } from "@/components/layout/topbar"
 import { OfflineBanner } from "@/components/shared/offline-banner"
@@ -18,6 +19,10 @@ export function RootLayout() {
       <TopbarSearchProvider>
         {}
         <LocaleBoundary>
+        {}
+        <ShiftGate>
+        {}
+        <ShiftNoteReminder />
         <div className="flex h-svh gap-3 bg-background p-3 text-foreground">
           <Sidebar />
           <div className="flex min-w-0 flex-1 flex-col gap-3">
@@ -37,6 +42,7 @@ export function RootLayout() {
             </main>
           </div>
         </div>
+        </ShiftGate>
         </LocaleBoundary>
       </TopbarSearchProvider>
       </ChatRealtimeProvider>

@@ -18,24 +18,24 @@ export function SkeletonStatCard() {
   return (
     <div
       aria-hidden
-      className="flex flex-col gap-3 rounded-card border border-border bg-card px-5 py-4"
+      className="flex flex-col gap-3 overflow-hidden rounded-card border border-border bg-card px-5 py-4"
     >
       <div className="flex items-start justify-between gap-3">
-        <Skeleton className="h-4 w-28" />
+        <Skeleton className="h-[1.375rem] w-28" />
         <Skeleton className="size-8 rounded-full" />
       </div>
-      <div className="flex flex-col gap-2">
-        <Skeleton className="h-9 w-20" />
-        <Skeleton className="h-3.5 w-32" />
+      <div className="flex flex-col gap-1">
+        <Skeleton className="h-10 w-32" />
+        <Skeleton className="h-[1.1875rem] w-40" />
       </div>
     </div>
   )
 }
 
-export function SkeletonStatGrid({ cols = 4 }: { cols?: 3 | 4 | 5 }) {
+export function SkeletonStatGrid({ count = 4, cols = 4 }: { count?: number; cols?: 3 | 4 | 5 }) {
   return (
     <StatGrid cols={cols} animate={false}>
-      {Array.from({ length: cols }).map((_, i) => (
+      {Array.from({ length: count }).map((_, i) => (
         <SkeletonStatCard key={i} />
       ))}
     </StatGrid>

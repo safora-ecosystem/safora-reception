@@ -18,6 +18,7 @@ export type {
   CalendarBookingInput,
   CalendarBlockInput,
   CalendarCreateRoom,
+  CalendarSplitInput,
   CalendarGuest,
   CalendarGuestInput,
   CalendarPaymentEntry,

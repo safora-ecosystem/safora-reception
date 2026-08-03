@@ -1,4 +1,4 @@
-import type { ComponentType, ReactNode } from "react"
+import type { ReactNode } from "react"
 
 
 export type CalendarStatus = "booked" | "checked_in" | "checked_out" | "cancelled" | "blocked"
@@ -53,6 +53,7 @@ export interface CalendarBooking {
   organization?: { id: string; name: string; shortName?: string | null } | null
   orgRef?: string | null
   blockKind?: CalendarBlockKind
+  linkId?: string | null
   meta?: Record<string, unknown>
 }
 
@@ -64,9 +65,9 @@ export interface CalendarRange {
 export interface StatusVisual {
   bar: string
   text?: string
+  labelClass?: string
   border?: string
   strip?: string
-  icon?: ComponentType<{ className?: string }>
   hidden?: boolean
 }
 
@@ -186,12 +187,34 @@ export interface CalendarLabels {
   guestQr: string
   unblock: string
 
+  split: string
+  splitTitle: string
+  splitHint: string
+  splitDate: string
+  splitRoom: string
+  splitFirst: string
+  splitSecond: string
+  splitBusy: string
+  splitTooShort: string
+  splitLinked: string
+  confirmSplit: string
+
+  invoice: string
+  invoiceTitle: string
+  invoiceNumber: string
+  invoiceIssue: string
+  invoicePrint: string
+  invoiceExcel: string
+  invoiceStale: string
+
   paymentHistory: string
   receivePayment: string
   paymentNotePlaceholder: string
   paymentMethodText: Record<string, string>
   voidPayment: string
   voidReasonPlaceholder: string
+  voidCashReturned: string
+  voidCashKept: string
   voided: string
   paymentOverRemaining: string
   paidReadOnlyHint: string
@@ -245,6 +268,7 @@ export interface CalendarCreateRoom {
   roomId: string
   totalAmount: number
   paidAmount: number
+  eventId?: string
 
   guestName?: string
   guestPhone?: string
@@ -304,7 +328,14 @@ export interface CalendarBookingInput {
   note?: string
   organizationId?: string
   orgRef?: string
+  method?: "cash" | "card" | "transfer"
   rooms: CalendarCreateRoom[]
+}
+
+export interface CalendarSplitInput {
+  splitDate: string
+  roomId: string
+  totalAmount?: number
 }
 
 export interface CalendarBlockInput {
@@ -322,7 +353,6 @@ export interface BookingEditPatch {
   start?: string
   end?: string
   totalAmount?: number
-  paidAmount?: number
   note?: string
 }
 
@@ -339,7 +369,6 @@ export interface ReservationCalendarProps {
   headerHeight?: number
   groupByFloor?: boolean
   overscan?: number
-  cleaningMinutes?: number
   statusConfig?: Partial<StatusConfig>
   labels?: Partial<CalendarLabels>
   matchIds?: ReadonlySet<string> | null
@@ -362,8 +391,23 @@ export interface ReservationCalendarProps {
   onSetPrimaryGuest?: (bookingId: string, guestId: string) => void | Promise<void>
 
   payments?: CalendarPaymentEntry[] | null
-  onRecordPayment?: (bookingId: string, input: { amount: number; note?: string }) => void | Promise<void>
-  onVoidPayment?: (bookingId: string, paymentId: string, reason: string) => void | Promise<void>
+  onRecordPayment?: (
+    bookingId: string,
+    input: {
+      amount: number
+      method: "cash" | "card" | "transfer"
+      note?: string
+      eventId: string
+    },
+  ) => void | Promise<void>
+  onVoidPayment?: (
+    bookingId: string,
+    paymentId: string,
+    input: {
+      reason: string
+      cashReturned?: boolean
+    },
+  ) => void | Promise<void>
   activity?: CalendarActivityEntry[] | null
   activityLoading?: boolean
 
@@ -372,6 +416,9 @@ export interface ReservationCalendarProps {
   onOpenChat?: (booking: CalendarBooking) => void
   onEditBooking?: (id: string, patch: BookingEditPatch) => void | Promise<void>
   onMoveBooking?: (id: string, next: CalendarDraft) => void | Promise<void>
+  onSplitBooking?: (id: string, input: CalendarSplitInput) => void | Promise<void>
+  onInvoice?: (booking: CalendarBooking) => void
+  onMoveConflict?: () => void
 
   isLoading?: boolean
   error?: ReactNode

@@ -1,12 +1,12 @@
 import { memo, useState } from "react"
 import { motion } from "framer-motion"
+import { CleanIcon } from "@hugeicons/core-free-icons"
+import { Icon } from "@/components/ui/icon"
 import { cn } from "@/lib/utils"
 import {
   BAR_RADIUS,
   BAR_VPAD,
-  barShapePath,
-  barSlant,
-  epochDay,
+  barCornerRadius,
   nightsBetween,
   type BarRect,
 } from "./geometry"
@@ -22,11 +22,12 @@ interface CalendarBarProps {
   rowHeight: number
   visual: StatusVisual
   labels: CalendarLabels
-  today: string
   selected: boolean
+  linked?: boolean
   onSelect: (booking: CalendarBooking) => void
   movable?: boolean
   dimmed?: boolean
+  cleaning?: "dirty" | "in_progress" | "clean" | null
   move?: CalendarMoveHandlers
   tooltip?: CalendarTooltipHandlers
   enterDelay?: number | null
@@ -36,8 +37,14 @@ const BAR_ENTER_FROM = { opacity: 0, filter: "blur(6px)" }
 const BAR_ENTER_EASE: [number, number, number, number] = [0.22, 0.61, 0.36, 1]
 const BAR_ENTER_DURATION = 0.28
 
-const ICON_MIN_PX = 60
 const PAYMENT_MIN_PX = 108
+
+const CORNER_BADGE_PX = 17
+const CLEANING_LOOK = {
+  dirty: "bg-warning",
+  in_progress: "bg-brand-500",
+  clean: "bg-success",
+} as const
 
 function fmtDay(iso: string, labels: CalendarLabels): string {
   return labels.formatDay(iso)
@@ -88,11 +95,12 @@ function CalendarBarImpl({
   rowHeight,
   visual,
   labels,
-  today,
   selected,
+  linked = false,
   onSelect,
   movable = false,
   dimmed = false,
+  cleaning = null,
   move,
   tooltip,
   enterDelay = null,
@@ -104,36 +112,21 @@ function CalendarBarImpl({
   const [entry] = useState(() => enterDelay)
   const entering = entry != null
   const nights = nightsBetween(booking.start, booking.end)
-  // Amber diqqat konturi ikki operatsion og'riqqa: (1) ichkarida, chiqish kuni o'tgan;
-  // (2) kelishi kerak edi, kelmagan (no-show nomzodi — bekor qilinsin yoki kiritilsin).
-  const overdue =
-    (booking.status === "checked_in" && epochDay(booking.end) < epochDay(today)) ||
-    (booking.status === "booked" && epochDay(booking.start) < epochDay(today))
   const barHeight = rowHeight - 2 * BAR_VPAD
-  const showIcon = rect.width >= ICON_MIN_PX
   const corporate = booking.organization != null
   const showPayment = booking.payment != null && !corporate && rect.width >= PAYMENT_MIN_PX
   const showCorporate = corporate && rect.width >= PAYMENT_MIN_PX
-  const StatusIcon = visual.icon
 
-  const slant = barSlant(barHeight, rect.width)
-  // Kontur qalinligi diqqat holatlarida ikki barobar — ichki shakl shunga qarab kichrayadi.
-  const strokeWidth = selected || overdue ? 2 : 1
-  const clipPath = barShapePath(rect.width, barHeight, slant, BAR_RADIUS, rect.clippedStart, rect.clippedEnd)
-  // Ichki (fill) qatlam har tomondan `strokeWidth`cha kichik. Qiyalik ham shu nisbatda kichrayadi,
-  // aks holda ichki qiya qirra tashqisiga parallel chiqmay kontur uchlarda yo'g'onlashardi.
-  const innerH = Math.max(barHeight - 2 * strokeWidth, 0)
-  const innerClipPath = barShapePath(
-    Math.max(rect.width - 2 * strokeWidth, 0),
-    innerH,
-    barHeight > 0 ? (slant * innerH) / barHeight : slant,
-    BAR_RADIUS - strokeWidth,
-    rect.clippedStart,
-    rect.clippedEnd,
-  )
-  // Kontent qiya uchga urilmasin: matn vertikal markazda tursa ham ikonka bar balandligini
-  // deyarli to'ldiradi, shuning uchun bo'shliq qiyalikning katta qismicha bo'lishi kerak.
-  const inset = Math.round(slant * 0.75) + 6
+  // Kontur qalinligi tanlanganda ikki barobar — ichki radius konsentrik qoladi
+  // (tashqi radius − stroke), aks holda kontur burchaklarda yo'g'onlashib ko'rinardi.
+  // Ilgari "overdue" (kelmagan/chiqmagan) bron ham amber konturda ajratilardi — founder
+  // (2026-07-31 kechqurun) olib tashlatdi: signal deb o'qilmay, bezakday turardi. Kechikkan
+  // bronni endi chap burchakdagi son emas, detal oynasi/ro'yxatlar aytadi.
+  const strokeWidth = selected || linked ? 2 : 1
+  const borderRadius = barCornerRadius(BAR_RADIUS, rect.clippedStart, rect.clippedEnd)
+  const innerRadius = barCornerRadius(BAR_RADIUS - strokeWidth, rect.clippedStart, rect.clippedEnd)
+  // Kontent yumaloq burchakka urilmasin — radius'cha yon bo'shliq yetadi.
+  const inset = BAR_RADIUS
 
 
   const title =
@@ -170,6 +163,9 @@ function CalendarBarImpl({
       onPointerMove={move?.move}
       onPointerUp={move?.finish}
       onPointerCancel={move?.cancel}
+      // Touch long-press "ko'tarish"da brauzer kontekst-menyusi ochilmasin (hook faqat touch
+      // jestida to'sadi — sichqonchaning o'ng tugmasi odatdagidek ishlaydi).
+      onContextMenu={move?.contextMenu}
       // Custom tooltip — kursor o'rni + bar chegarasini beramiz (touch'da hover yo'q → chiqmaydi).
       onMouseEnter={(e) => {
         const r = e.currentTarget.getBoundingClientRect()
@@ -184,10 +180,14 @@ function CalendarBarImpl({
         "hover:z-20 focus-visible:z-20 focus-visible:outline-none",
         // Kontur qatlami — BITTA bg klassi bo'lishi shart (ikkitasi bo'lsa CSS tartibi hal qilardi).
         // Variantli klasslar (hover/focus) Tailwind stylesheet'ida keyin turadi → ular ustun keladi.
-        selected ? "z-30 bg-brand-500" : overdue ? "bg-warning" : visual.border,
+        // Tanlangan — to'liq brend konturi; ZANJIRDOSH — bir pog'ona jimroq brend
+        // (u javob, tanlov emas) + fill sal yorishadi.
+        selected ? "z-30 bg-brand-500" : linked ? "z-20 bg-brand-300 brightness-110" : visual.border,
         "focus-visible:bg-brand-500",
-        // touch-none: touch/pen'da sudrash gestini brauzer scroll uchun o'g'irlamasin (ko'chirish ishlasin).
-        movable && "touch-none active:cursor-grabbing",
+        // touch-none: touch/pen'da sudrash gestini brauzer scroll uchun o'g'irlamasin (ko'chirish
+        // ishlasin — scroll niyatini hook o'zi pan qilib beradi). select-none: long-press iOS'da
+        // matn tanlash/callout ochmasin.
+        movable && "touch-none select-none active:cursor-grabbing",
         dimmed && "opacity-25",
       )}
       style={{
@@ -195,29 +195,52 @@ function CalendarBarImpl({
         width: rect.width,
         top: rowTop + BAR_VPAD,
         height: barHeight,
-        clipPath,
+        borderRadius,
         // Kontur qalinligi = padding. Diqqat holatlarida qalinroq (ring o'rnini bosadi).
         padding: strokeWidth,
       }}
     >
       {/* Fill + kontent — ism CHAPDA (native <button> markazlashni meros oladi → text-left SHART).
-          Ikonka ism yonida, to'lov glifi oxirida; ikkalasi ham tor bar'da yashiriladi.
-          O'z clip-path'i bor: kontur qatlami ostidan chiqib ketmasin. */}
+          To'lov glifi oxirida, tor bar'da yashiriladi. O'z konsentrik radius'i bor: kontur
+          qatlami ostidan chiqib ketmasin. */}
       <span
         className={cn(
           "flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden text-left text-[0.8125rem] leading-none font-medium",
           visual.bar,
           visual.text,
         )}
-        style={{ clipPath: innerClipPath, paddingLeft: inset, paddingRight: inset }}
+        style={{ borderRadius: innerRadius, paddingLeft: inset, paddingRight: inset }}
       >
-        {showIcon && StatusIcon && (
-          <StatusIcon className={cn("size-4 shrink-0", overdue && "text-warning")} />
-        )}
-        <span className="min-w-0 truncate">{booking.label}</span>
+        <span className={cn("min-w-0 truncate", visual.labelClass)}>{booking.label}</span>
         {showCorporate && <CorporateGlyph />}
         {showPayment && booking.payment && <PaymentGlyph payment={booking.payment} />}
       </span>
+      {/* Burchak badge'lari — ichki span'dan KEYIN (uning overflow-hidden'i kesmasin, ustida
+          chizilsin). Oynadan kesilgan uchda chizilmaydi (clippedEnd/clippedStart): burchakning
+          o'zi diapazon chegarasidan tashqarida — belgi yolg'on joyda suzardi. */}
+      {cleaning && !rect.clippedEnd && (
+        <span
+          aria-hidden
+          className={cn(
+            "text-on-fill pointer-events-none absolute flex items-center justify-center rounded-full",
+            CLEANING_LOOK[cleaning],
+          )}
+          style={{ width: CORNER_BADGE_PX, height: CORNER_BADGE_PX, top: -7, right: -5 }}
+        >
+          {/* Ikonka = Hugeicons CleanIcon, sayt standarti stroke 1.5 (founder tanlovi,
+              2026-08-01: hugeicons.com'dan ko'rsatib berdi — qo'lda chizilgan supurgilar bekor). */}
+          <Icon icon={CleanIcon} className={cn("size-3 shrink-0", cleaning !== "clean" && "cal-sweep")} />
+        </span>
+      )}
+      {(booking.guestCount ?? 0) > 1 && !rect.clippedStart && (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute flex items-center justify-center rounded-full bg-foreground text-[0.625rem] leading-none font-semibold text-background tabular-nums"
+          style={{ width: CORNER_BADGE_PX, height: CORNER_BADGE_PX, top: -7, left: -5 }}
+        >
+          {booking.guestCount}
+        </span>
+      )}
     </motion.button>
   )
 }

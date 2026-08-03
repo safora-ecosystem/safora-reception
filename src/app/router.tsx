@@ -11,9 +11,12 @@ import { HousekeepingPage } from "@/routes/housekeeping-page"
 import { HelpPage } from "@/routes/help-page"
 import { SettingsPage } from "@/routes/settings-page"
 import { ChatPage } from "@/routes/chat-page"
+import { MyShiftsPage } from "@/routes/my-shifts-page"
 import { SkeletonPage } from "@/components/shared/skeletons"
+import { AppErrorPage } from "@/components/shared/app-error-page"
 import { staffLogout } from "@/lib/api"
 import { isAuthed } from "@/lib/auth"
+import { disableWebPush } from "@/lib/push"
 
 const rootRoute = createRootRoute()
 
@@ -92,10 +95,17 @@ const helpRoute = createRoute({
   component: HelpPage,
 })
 
+const myShiftsRoute = createRoute({
+  getParentRoute: () => appLayoutRoute,
+  path: "/my-shifts",
+  component: MyShiftsPage,
+})
+
 const logoutRoute = createRoute({
   getParentRoute: () => appLayoutRoute,
   path: "/logout",
   beforeLoad: async () => {
+    await disableWebPush().catch(() => {})
     await staffLogout()
     throw redirect({ to: "/login" })
   },
@@ -115,6 +125,7 @@ const routeTree = rootRoute.addChildren([
     housekeepingRoute,
     settingsRoute,
     helpRoute,
+    myShiftsRoute,
     logoutRoute,
   ]),
 ])
@@ -125,6 +136,7 @@ export const router = createRouter({
   defaultPendingComponent: SkeletonPage,
   defaultPendingMs: 180,
   defaultPendingMinMs: 300,
+  defaultErrorComponent: AppErrorPage,
 })
 
 declare module "@tanstack/react-router" {

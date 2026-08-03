@@ -1,18 +1,14 @@
 import { useEffect, useState } from "react"
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion"
 import { useQuery } from "@tanstack/react-query"
-import { api } from "@/lib/api"
+import { ShiftCloseDialog, ShiftOpenDialog } from "@/components/shift/shift-dialogs"
+import { api, getCurrentShift, shiftKeys, type ShiftSession } from "@/lib/api"
+import { getSession } from "@/lib/auth"
 import { cn } from "@/lib/utils"
 import { clockOf, dayLabel } from "@/lib/format"
-import { useT, type TKey } from "@/lib/i18n"
+import { useT } from "@/lib/i18n"
+import { usePermissions } from "@/lib/permissions"
 import { VersionTag } from "./version-tag"
-
-function shiftKey(now: Date): TKey {
-  const hour = now.getHours()
-  if (hour >= 6 && hour < 14) return "shift.morning"
-  if (hour >= 14 && hour < 22) return "shift.day"
-  return "shift.night"
-}
 
 function RollingTime({ time, className }: { time: string; className?: string }) {
   const reduce = useReducedMotion()
@@ -53,9 +49,24 @@ function RollingTime({ time, className }: { time: string; className?: string }) 
   )
 }
 
+function durationOf(openedAt: string, now: Date): string {
+  const mins = Math.max(0, Math.floor((now.getTime() - new Date(openedAt).getTime()) / 60_000))
+  return `${Math.floor(mins / 60)}s ${mins % 60}d`
+}
+
+// Sidebar'ning qoraygan fokus kartasi: soat + sana + HAQIQIY smena holati (ilgari bu yerda
+// soatdan chiqarilgan "yolg'on" smena yorlig'i turardi). Jonli NAQD summa ATAYLAB ko'rsatilmaydi
+// (SHIFT-DESIGN 9): sidebar mehmonlarga ham ko'rinadi va blind count'ni o'ldirardi.
+// Uch qator, boshqa emas: [soat · sana] / [holat · aloqa nuqtasi + versiya] / [bitta amal].
 export function ShiftCard() {
   const t = useT()
+  const { can } = usePermissions()
+  const me = getSession()?.user
   const [now, setNow] = useState(() => new Date())
+  const [openDialog, setOpenDialog] = useState(false)
+  // Yopish dialogi QO'LGA OLINGAN sessiya bilan ishlaydi: muvaffaqiyatda kesh yangilanib
+  // jonli `session` null bo'ladi — jonli shartga bog'lansak natija ekrani o'zi yopilib ketardi.
+  const [closeTarget, setCloseTarget] = useState<ShiftSession | null>(null)
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 1000)
     return () => clearInterval(id)
@@ -71,23 +82,87 @@ export function ShiftCard() {
       ? { dot: "bg-destructive", label: t("shift.offline") }
       : { dot: "bg-neutral-400", label: t("shift.checking") }
 
+  // Gate va boshqa iste'molchilar bilan BITTA kesh kaliti — bitta so'rov, hamma joyda bir holat.
+  const canSession = can("payments.record")
+  const shiftQ = useQuery({
+    queryKey: shiftKeys.current,
+    queryFn: getCurrentShift,
+    refetchInterval: 60_000,
+    retry: false,
+    enabled: canSession,
+  })
+  const session = shiftQ.data?.session ?? null
+  const mine = session != null && session.user.id === me?.id
+
+  const stateText =
+    shiftQ.data == null
+      ? null
+      : session == null
+        ? t("shiftSession.notStarted")
+        : mine
+          ? `${t("shiftSession.ownedByMe")} · ${durationOf(session.openedAt, now)}`
+          : `${t("shiftSession.ownedBy", { name: session.user.name })} · ${durationOf(session.openedAt, now)}`
+
   return (
-    <div className="surface-dark relative overflow-hidden rounded-[15px] px-4 py-3.5 text-on-fill">
-      <span
-        className={cn("absolute top-3 right-3 size-2 rounded-full ring-2 ring-white/15", conn.dot)}
-        title={conn.label}
-        aria-label={conn.label}
-      />
-      <RollingTime
-        time={clockOf(now)}
-        className="text-2xl leading-none font-semibold tracking-tight"
-      />
-      <p className="mt-1.5 text-xs text-on-fill-55">{dayLabel(now)}</p>
-      {}
-      <p className="mt-1.5 flex items-baseline justify-between gap-2 text-xs text-on-fill-55">
-        <span>{t(shiftKey(now))}</span>
-        <VersionTag className="shrink-0 text-on-fill-40" />
-      </p>
+    <div className="surface-dark relative overflow-hidden rounded-card px-3.5 py-3 text-on-fill">
+      {/* Soat + sana BITTA baseline qatorda. Ilgari sana o'z qatorida turardi va karta to'rt
+          qavat bo'lib sidebar etagini cho'zardi — vaqt bilan sana baribir bitta fakt, ular
+          yonma-yon o'qiladi (katta raqam + jim izoh). */}
+      {/* Baseline EMAS, `items-center`: 11px sana 24px soatning tayanch chizig'iga qo'yilganda
+          raqamlar bloki yonida past osilib turardi — sana soatning optik markaziga tenglashadi. */}
+      <div className="flex items-center justify-between gap-2">
+        <RollingTime
+          time={clockOf(now)}
+          className="shrink-0 text-2xl leading-none font-semibold tracking-tight"
+        />
+        <span className="min-w-0 truncate text-[11px] leading-none text-on-fill-55">
+          {dayLabel(now)}
+        </span>
+      </div>
+      {/* Ikkinchi qator: smena holati (chapda) + DIAGNOSTIKA klasteri (o'ngda) — aloqa nuqtasi
+          va versiya. Nuqta burchakdan shu yerga ko'chdi: ikkalasi ham "tizim holati", birga
+          turgani o'qishni osonlashtiradi va yuqori o'ng burchakni sanaga bo'shatadi.
+          Holat matni bo'lmasa ham (yuklanmoqda / ruxsat yo'q) qator o'z balandligini
+          saqlaydi — ma'lumot kelganda karta SAKRAMAYDI. */}
+      <div className="mt-2 flex items-center justify-between gap-2 text-[11px] leading-none text-on-fill-55">
+        <span className="min-w-0 truncate tabular-nums">{stateText}</span>
+        <span className="flex shrink-0 items-center gap-1.5">
+          <span
+            className={cn("size-1.5 rounded-full", conn.dot)}
+            title={conn.label}
+            aria-label={conn.label}
+          />
+          <VersionTag className="text-on-fill-40" />
+        </span>
+      </div>
+      {/* Bitta tugma — bitta amal (founder, 2026-08-01): harajatlar topbar'dagi
+          "Harajatlar" tugmasiga ko'chdi. */}
+      {canSession && shiftQ.data != null && (session == null || mine) && (
+        <button
+          type="button"
+          onClick={() => (session == null ? setOpenDialog(true) : setCloseTarget(session))}
+          // To'ldirish 10% dan 16% ga: qorong'i kartada 10% zo'rg'a sezilardi va tugma
+          // "bosiladigan" ko'rinmasdi — matn shunchaki kartaning ustida turardi. 16% da u
+          // sirt bo'ladi, lekin karta ohangini bosmaydi (asosiy amal baribir pastdagi
+          // brend tugmasi, bu esa ikkilamchi).
+          className="mt-2.5 h-8 w-full rounded-control bg-white/16 text-xs font-medium text-on-fill ring-1 ring-white/12 ring-inset outline-none transition-colors hover:bg-white/22 hover:ring-white/18 focus-visible:ring-2 focus-visible:ring-white/40 active:bg-white/26"
+        >
+          {session == null ? t("shiftSession.start") : t("shiftSession.finish")}
+        </button>
+      )}
+
+      {/* Shartli render ATAYLAB: har ochilish yangi mount = toza qadam holati va yangi
+          idempotentlik kaliti (eventId). Doim mount qilinsa eski holat/kalit qolib ketardi. */}
+      {openDialog && (
+        <ShiftOpenDialog open onOpenChange={setOpenDialog} current={shiftQ.data} />
+      )}
+      {closeTarget && (
+        <ShiftCloseDialog
+          open
+          onOpenChange={(o) => !o && setCloseTarget(null)}
+          session={closeTarget}
+        />
+      )}
     </div>
   )
 }

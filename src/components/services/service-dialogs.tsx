@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
+import { MoneyInput } from "@/components/shared/money-input"
 import {
   ApiError,
   createServiceRequest,
@@ -20,7 +21,7 @@ import {
   type ServiceRequest,
   type ServiceType,
 } from "@/lib/api"
-import { currencyUnit } from "@/lib/format"
+import { money } from "@/lib/format"
 import { useT } from "@/lib/i18n"
 import { cn } from "@/lib/utils"
 import { CREATABLE_TYPES, TYPE_META } from "./service-meta"
@@ -71,15 +72,14 @@ export function AmountDialog({
               {t("stay.roomNo", { number: request.room.number })}
             </p>
             <label className="flex flex-col gap-1.5">
-              <span className="text-sm text-neutral-600">
-                {t("services.amountField", { currency: currencyUnit() })}
-              </span>
-              <Input
+              {}
+              <span className="text-sm text-neutral-600">{t("services.amountLabel")}</span>
+              <MoneyInput
                 value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                inputMode="numeric"
-                placeholder={Number(request.amount) > 0 ? String(Number(request.amount)) : "0"}
-                className="h-11 tabular-nums"
+                onChange={setAmount}
+                ariaLabel={t("services.amountLabel")}
+                placeholder={Number(request.amount) > 0 ? money(Number(request.amount), { unit: false }) : "0"}
+                size="lg"
                 autoFocus
               />
               <span className="text-xs text-neutral-400">{t("services.amountHint")}</span>

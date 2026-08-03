@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { toast } from "sonner"
 import { useQuery } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react"
@@ -15,6 +16,7 @@ import {
 } from "@/components/calendar"
 import { useApiCalendarData, useMockCalendarData } from "@/lib/calendar-data"
 import { getHotelBranding } from "@/lib/api"
+import { InvoiceDialog } from "@/components/invoice/invoice-dialog"
 import { ErrorState } from "@/components/shared/error-state"
 import { SkeletonCalendar } from "@/components/shared/skeletons"
 import { Button } from "@/components/ui/button"
@@ -76,6 +78,7 @@ export function CalendarPage() {
   const { query, setQuery } = useTopbarSearch()
   const [view, setView] = useState<ViewKey>("hafta")
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
+  const [invoiceFor, setInvoiceFor] = useState<string | null>(null)
 
   useEffect(() => () => setQuery(""), [setQuery])
 
@@ -128,7 +131,9 @@ export function CalendarPage() {
     if (!ci && !co) return undefined
     return { ...(ci ? { checkInTime: ci } : {}), ...(co ? { checkOutTime: co } : {}) }
   }, [hotel?.policy?.checkInTime, hotel?.policy?.checkOutTime])
-  const cleaningMinutes = hotel?.policy?.cleaningMinutes ?? 30
+  const onMoveConflict = useCallback(() => {
+    toast.error(t("calendarToast.moveConflict"))
+  }, [t])
 
   return (
     <div ref={hostRef} className="relative h-full min-h-0">
@@ -268,7 +273,6 @@ export function CalendarPage() {
               rowHeight={metrics.rowHeight}
               headerHeight={metrics.headerHeight}
               labels={labels}
-              cleaningMinutes={cleaningMinutes}
               matchIds={matchIds}
               onCreateBooking={data.createBooking}
               onCheckIn={data.checkIn}
@@ -276,6 +280,9 @@ export function CalendarPage() {
               onCancel={data.cancel}
               onEditBooking={data.editBooking}
               onMoveBooking={canEdit ? data.moveBooking : undefined}
+              onMoveConflict={onMoveConflict}
+              onSplitBooking={canEdit ? data.splitBooking : undefined}
+              onInvoice={(b) => setInvoiceFor(b.id)}
               onRemoveBlock={data.removeBlock}
               onSelectBooking={(b) => data.selectGuestsFor(b?.id ?? null)}
               guests={data.guests}
@@ -295,6 +302,14 @@ export function CalendarPage() {
           )}
         </div>
       </div>
+
+      {}
+      <InvoiceDialog
+        bookingId={invoiceFor}
+        hotel={hotel}
+        canIssue={false}
+        onClose={() => setInvoiceFor(null)}
+      />
     </div>
   )
 }

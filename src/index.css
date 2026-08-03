@@ -139,7 +139,11 @@
   
   --radius-control: 0.75rem;
   --radius-card: 1.25rem;
-  --radius-panel: 1.25rem;
+  
+  --radius-panel: 1.5rem;
+
+  
+  --radius-inset: 0.625rem;
 }
 
 :root {
@@ -191,19 +195,22 @@
 
   
   
-  --cal-in-surface: #9be3ba; 
-  --cal-in-foreground: #04653a; 
-  --cal-in-border: #4cbf87;
-  --cal-booked-surface: #a8d0fa; 
-  --cal-booked-foreground: #134f96; 
-  --cal-booked-border: #5aa3f0;
-  --cal-out-surface: #e0dcd3; 
-  --cal-out-foreground: #5c564b; 
-  --cal-out-border: #bdb7aa;
+  --cal-in-surface: #d1f9d8; 
+  --cal-in-foreground: #006f2d; 
+  --cal-in-border: #92d8a0;
+  --cal-booked-surface: #d5eeff; 
+  --cal-booked-foreground: #0859ac; 
+  --cal-booked-border: #8ebff3;
+  --cal-out-surface: #eae5dd; 
+  --cal-out-foreground: #61584a; 
+  --cal-out-border: #c5bdb0;
   
-  --cal-block-surface: #d5dae2;
-  --cal-block-foreground: #414a58; 
-  --cal-block-border: #93a0b3;
+  --cal-block-surface: #dee5ef;
+  --cal-block-foreground: #f5f5f4;
+  --cal-block-border: #a2afc1;
+  
+  --cal-block-stripe: #eab308;
+  --cal-block-stripe-alt: #292524;
 
   --brand-today: var(--color-brand-50);
   --border: var(--color-neutral-200);
@@ -230,39 +237,41 @@
 
 
 :root[data-theme="dark"] {
-  --color-white: #181410;
+  --color-white: #121110;
 
   
-  --color-brand-50: #22130d;
-  --color-brand-100: #331a12;
-  --color-brand-200: #492519;
+  --color-brand-50: #1f130d;
+  --color-brand-100: #311a12;
+  --color-brand-200: #482519;
+  
+  --color-brand-800: #ffa271;
 
   
-  --color-neutral-50: #1d1814;
-  --color-neutral-100: #29231e;
-  --color-neutral-200: #38312b;
-  --color-neutral-300: #4c453e;
-  --color-neutral-400: #8f8880;
-  --color-neutral-500: #aba39b;
-  --color-neutral-600: #bcb5ae;
-  --color-neutral-700: #ccc4be;
-  --color-neutral-800: #dad4ce;
-  --color-neutral-900: #e6e1dc;
-  --color-neutral-950: #f3efec;
+  --color-neutral-50: #1e1b18;
+  --color-neutral-100: #272320;
+  --color-neutral-200: #332f2a;
+  --color-neutral-300: #454039;
+  --color-neutral-400: #948c84;
+  --color-neutral-500: #afa79f;
+  --color-neutral-600: #c0b9b2;
+  --color-neutral-700: #d0cac4;
+  --color-neutral-800: #dfdad5;
+  --color-neutral-900: #edeae6;
+  --color-neutral-950: #f8f6f4;
 
   
-  --surface-page: #0d0b08;
-  --surface-shell: #181410;
-  --surface-0: #1d1814;
-  --surface-1: #181410;
-  --card: #231e19;
-  --popover: #2e2822;
+  --surface-page: #0a0908;
+  --surface-shell: #121110;
+  --surface-0: #1e1b18;
+  --surface-1: #121110;
+  --card: #232019;
+  --popover: #2b2724;
 
   --hero: var(--color-brand-700);
   --hero-foreground: #ffffff;
 
-  --border: #413a34;
-  --input: #4c453e;
+  --border: #3e3833;
+  --input: #4a443d;
   --accent: #432517;
   --accent-foreground: #ecb896;
 
@@ -274,20 +283,23 @@
   --destructive-surface-foreground: #f69f9e;
 
   
-  --cal-in-surface: #16583e;
-  --cal-in-foreground: #9be3bc;
-  --cal-in-border: #23805a;
-  --cal-booked-surface: #193d67;
-  --cal-booked-foreground: #a5cffa;
-  --cal-booked-border: #2d66a6;
-  --cal-out-surface: #2f2b26;
-  --cal-out-foreground: #bbb3ad;
-  --cal-out-border: #47413a;
-  --cal-block-surface: #28303c;
-  --cal-block-foreground: #acb8c9;
-  --cal-block-border: #3d4757;
+  --cal-in-surface: #1b4428;
+  --cal-in-foreground: #9ce5af;
+  --cal-in-border: #307045;
+  --cal-booked-surface: #1f3c5b;
+  --cal-booked-foreground: #a8d6ff;
+  --cal-booked-border: #386392;
+  --cal-out-surface: #312d27;
+  --cal-out-foreground: #c5bcb1;
+  --cal-out-border: #524c44;
+  --cal-block-surface: #2a313a;
+  --cal-block-foreground: #f0ede9;
+  --cal-block-border: #455160;
+  
+  --cal-block-stripe: #c98a12;
+  --cal-block-stripe-alt: #1c1917;
 
-  --brand-today: #26140d;
+  --brand-today: #241309;
 
   --shadow-card: 0 1px 2px oklch(0 0 0 / 0.5);
   --shadow-xs: 0 1px 2px oklch(0 0 0 / 0.55);
@@ -340,10 +352,29 @@
   }
   
   .surface-dark {
-    background-color: #1c1917;
+    background-color: #191512;
+    
     background-image:
-      radial-gradient(90% 120% at 0% 0%, oklch(0.72 0.17 45 / 0.20), transparent 55%),
-      radial-gradient(90% 120% at 100% 100%, oklch(0.55 0.15 40 / 0.14), transparent 50%);
+      radial-gradient(120% 140% at 0% 0%, oklch(0.72 0.17 45 / 0.26), transparent 58%),
+      radial-gradient(100% 130% at 100% 100%, oklch(0.55 0.15 40 / 0.18), transparent 55%),
+      linear-gradient(to bottom, oklch(1 0 0 / 0.05), transparent 42%);
+    box-shadow:
+      inset 0 1px 0 oklch(1 0 0 / 0.12),
+      inset 0 0 0 1px oklch(1 0 0 / 0.05),
+      0 1px 2px oklch(0 0 0 / 0.2),
+      0 10px 24px -12px oklch(0 0 0 / 0.35);
+  }
+  
+  :root[data-theme="dark"] .surface-dark {
+    background-color: #221c18;
+    background-image:
+      radial-gradient(120% 140% at 0% 0%, oklch(0.72 0.17 45 / 0.2), transparent 58%),
+      radial-gradient(100% 130% at 100% 100%, oklch(0.55 0.15 40 / 0.12), transparent 55%),
+      linear-gradient(to bottom, oklch(1 0 0 / 0.04), transparent 45%);
+    box-shadow:
+      inset 0 1px 0 oklch(1 0 0 / 0.1),
+      inset 0 0 0 1px oklch(1 0 0 / 0.07),
+      0 10px 24px -14px oklch(0 0 0 / 0.7);
   }
 
   
@@ -359,15 +390,44 @@
   }
 
   
+  
+  .cal-split-path {
+    animation: cal-split-march 2.4s linear infinite;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .cal-split-path {
+      animation: none;
+    }
+  }
+
   .bar-blocked {
-    background-color: var(--cal-block-surface);
+    
+    background-color: var(--cal-block-stripe-alt);
     background-image: repeating-linear-gradient(
       45deg,
-      var(--cal-block-border),
-      var(--cal-block-border) 2px,
-      transparent 2px,
-      transparent 8px
+      var(--cal-block-stripe) 0 6px,
+      var(--cal-block-stripe-alt) 6px 12px
     );
+  }
+
+  
+  .bar-blocked-label {
+    border-radius: 5px;
+    padding-inline: 0.3125rem;
+    background-color: color-mix(in oklab, var(--cal-block-stripe-alt) 55%, transparent);
+    backdrop-filter: blur(5px) saturate(0.85);
+    -webkit-backdrop-filter: blur(5px) saturate(0.85);
+  }
+
+  
+  .cal-sweep {
+    transform-origin: 85% 15%;
+    animation: cal-sweep 1.1s ease-in-out infinite;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .cal-sweep {
+      animation: none;
+    }
   }
 
   
@@ -397,6 +457,16 @@
 @keyframes skeleton-shimmer {
   100% {
     transform: translateX(100%);
+  }
+}
+
+@keyframes cal-sweep {
+  0%,
+  100% {
+    transform: rotate(-14deg);
+  }
+  50% {
+    transform: rotate(14deg);
   }
 }
 

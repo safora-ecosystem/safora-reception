@@ -8,6 +8,8 @@ const MAX_RETRIES = 2
 const RETRY_BASE_MS = 400
 const RETRYABLE_STATUS = new Set([502, 503, 504])
 
+export const SHIFT_REQUIRED_EVENT = "safora:shift-required"
+
 export class ApiError extends Error {
   readonly status: number
   readonly body: unknown
@@ -197,7 +199,16 @@ export async function api<T>(path: string, options: ApiOptions = {}): Promise<T>
   }
 
   const payload = await res.json().catch(() => null)
-  if (!res.ok) throw new ApiError(res.status, payload)
+  if (!res.ok) {
+    // Server smena darvozasi (zero-trust): faol g'aladon sessiyasisiz reception hech narsani
+    // o'zgartira olmaydi. Kim so'rov yuborganidan qat'i nazar shu yerdan bitta signal chiqadi —
+    // ShiftGate uni eshitib gate'ni darrov qaytaradi (import bog'lamasi yo'q: kutubxona
+    // qatlami UI qatlamiga bog'lanib qolmasin).
+    if (res.status === 409 && (payload as { code?: string } | null)?.code === "SHIFT_REQUIRED") {
+      window.dispatchEvent(new Event(SHIFT_REQUIRED_EVENT))
+    }
+    throw new ApiError(res.status, payload)
+  }
   return payload as T
 }
 
@@ -265,9 +276,15 @@ export type GuestInput = {
   docNumber?: string
 }
 
-/** To'lov usuli. MVP'da amalda faqat `cash`; `adjustment` — eski `PATCH paidAmount` yo'lidan
-    tushgan qo'lda tuzatish (manfiy bo'lishi mumkin). */
+/** To'lov usuli. `adjustment` — eski `PATCH paidAmount` yo'lidan tushgan qo'lda tuzatish
+    (manfiy bo'lishi mumkin), formada tanlanmaydi. Qolgan uchtasi resepshn tanlaydi: mehmonxonalar
+    naqd va karta (POS) bilan ishlaydi, usulni to'g'ri yozish kassa (smena) hisobining o'zagi —
+    karta puli g'aladonga jismonan tushmaydi. */
 export type PaymentMethod = "cash" | "card" | "transfer" | "adjustment"
+
+/** Formada tanlanadigan usullar (backend `RECORDABLE_METHODS` bilan mos). */
+export const RECORDABLE_METHODS = ["cash", "card", "transfer"] as const
+export type RecordableMethod = (typeof RECORDABLE_METHODS)[number]
 
 /** To'lov LEDGERI qatori — append-only: o'chirilmaydi, xato yozuv storno (`voided*`) bilan
     bekor qilinadi va ro'yxatda ko'rinib qoladi. `bookings.paidAmount` = shu qatorlarning
@@ -303,8 +320,18 @@ export type Booking = {
   checkedOutAt?: string | null
   createdAt?: string
   room: { id: string; number: string }
+  /**
+   * BO'LINGAN yashash zanjirining kaliti. Mehmon yashash o'rtasida boshqa xonaga ko'chsa
+   * (`POST /bookings/:id/split`) ikkala qism ham SHU id ni oladi. Qismlar mustaqil bron bo'lib
+   * qoladi — zanjir faqat "bu bitta mehmonning bitta yashashi" faktini saqlaydi: kalendar
+   * shundan uzuq chiziqli izni chizadi, hisob-faktura esa qismlarni bitta hujjatga yig'adi.
+   */
+  linkId?: string | null
   /** Resepshn eslatmasi (smenalar orasida ma'lumot uzatish). */
   note?: string | null
+  /** Tashqi kanal broni raqami (OTA). Hisob-fakturada "Bron №" sifatida chiqadi — mehmon
+      qog'ozdagi raqam bilan o'z tasdig'ini solishtira olsin. */
+  externalRef?: string | null
   /** Kim TO'LAYDI. `null` = mehmonning o'zi; to'ldirilgan bo'lsa hisob kompaniyaga yoziladi
       va resepshn undan pul olmaydi (ro'yxat javobida ham keladi — bar shuni ko'rsatadi). */
   organization?: { id: string; name: string; shortName: string | null; status: OrganizationStatus } | null
@@ -346,6 +373,7 @@ export type BulkBookingRoom = {
   roomId: string
   totalAmount: number
   paidAmount?: number
+  eventId?: string
   guestName?: string
   guestPhone?: string
   guestDocType?: GuestDocType
@@ -364,6 +392,7 @@ export type CreateBookingsBody = {
   checkOutDate: string
   organizationId?: string
   orgRef?: string
+  method?: RecordableMethod
   rooms: BulkBookingRoom[]
 }
 
@@ -425,8 +454,8 @@ export type UpdateBookingBody = {
   checkInDate?: string
   checkOutDate?: string
   totalAmount?: number
-  /** To'langan summa; server `paidAmount ≤ totalAmount` shartini majburlaydi. */
-  paidAmount?: number
+  // paidAmount OLIB TASHLANGAN: to'langan pul faqat ledger endpointlari orqali o'zgaradi.
+  // PATCH-paidAmount serverda legacy 'adjustment'ga aylanadi — bu panel uni ishlatmaydi.
   /** Bo'sh satr = eslatmani tozalash (`undefined` = tegilmadi). */
   note?: string
   /** To'lovchi tomonni almashtirish. `null` = korporativ hisobdan uzish (mehmon o'zi to'laydi).
@@ -437,6 +466,56 @@ export type UpdateBookingBody = {
 
 export const updateBooking = (id: string, body: UpdateBookingBody) =>
   api<Booking>(`/bookings/${id}`, { method: "PATCH", body })
+
+// ── Bo'lish (mehmon o'rtada boshqa xonaga ko'chadi) ──────────────────────────
+//
+// `PATCH { roomId }` dan FARQI: u butun yashashni ko'chiradi va o'tgan kechalar qayerda
+// o'tgani tarixdan o'chadi. Bo'lishda birinchi qism o'z xonasida o'z kunlari bilan qoladi,
+// faqat ikkinchisi yangi xonaga tushadi. Server buni BITTA tranzaksiyada bajaradi: xona band
+// bo'lsa 409 qaytadi va hech narsa o'zgarmaydi.
+
+export type SplitBookingBody = {
+  /** Ko'chish kuni: birinchi qism shu kuni tugaydi (exclusive), ikkinchisi shu kuni boshlanadi.
+      Yashash ichida QAT'IY bo'lishi shart (kirish < bo'linish < chiqish). */
+  splitDate: string
+  /** Mehmon ko'chadigan xona — joriysidan boshqa. */
+  roomId: string
+  /** Ikkinchi qism summasi; berilmasa server kechalar bo'yicha proporsional taqsimlaydi. */
+  totalAmount?: number
+}
+
+/** Ikkala qism ham qaytadi — panel kalendarni kutmasdan natijani ko'rsata oladi. */
+export const splitBooking = (id: string, body: SplitBookingBody) =>
+  api<{ first: Booking; second: Booking }>(`/bookings/${id}/split`, { method: "POST", body })
+
+// ── Hisob-faktura ────────────────────────────────────────────────────────────
+//
+// Hujjat serverda SAQLANADI, chunki undagi RAQAM mehmon qo'lidagi qog'ozda qoladi: u hujjatni
+// ish joyiga topshiradi va qayta so'raganda aynan o'sha raqam chiqishi kerak. Shu sabab
+// `issueInvoice` IDEMPOTENT — ikkinchi chaqiruv yangi raqam ajratmaydi.
+
+export type Invoice = {
+  id: string
+  /** Mehmonxona ichida ketma-ket raqam (global emas). */
+  number: number
+  issuedAt: string
+  issuedBy: { id: string; name: string } | null
+  /** Hujjat BERILGAN LAHZADAGI summalar (butun zanjir bo'yicha) — keyingi tahrir eski
+      qog'ozni yolg'onga aylantirmasin. Decimal → string/number bo'lib kelishi mumkin. */
+  totalAmount: number | string
+  paidAmount: number | string
+}
+
+/** Hujjat + u qamragan bronlar (bo'lingan yashashda bir nechta, kirish sanasi bo'yicha). */
+export type InvoiceView = { invoice: Invoice | null; bookings: Booking[] }
+
+/** Berilgan hujjat (bo'lsa) — yangi raqam ajratmaydi. */
+export const getInvoice = (bookingId: string) => api<InvoiceView>(`/bookings/${bookingId}/invoice`)
+
+/** Hujjatni beradi yoki mavjudini qaytaradi (idempotent). */
+export const issueInvoice = (bookingId: string) =>
+  api<InvoiceView & { invoice: Invoice }>(`/bookings/${bookingId}/invoice`, { method: "POST" })
+
 // PATCH bodyless — api() content-type qo'ymaydi (Fastify bo'sh-body gotcha).
 export const checkInBooking = (id: string) => api<Booking>(`/bookings/${id}/check-in`, { method: "PATCH" })
 export const checkOutBooking = (id: string) => api<Booking>(`/bookings/${id}/check-out`, { method: "PATCH" })
@@ -446,14 +525,133 @@ export const cancelBooking = (id: string) => api<Booking>(`/bookings/${id}/cance
 // `payments.record` ruxsati bilan. Yozuvlar o'chirilmaydi — faqat storno (sabab majburiy);
 // resepshn O'Z yozuvini 15 daqiqa ichida storno qila oladi, keyin menejer/rahbar kerak.
 
-export const recordBookingPayment = (bookingId: string, body: { amount: number; note?: string }) =>
-  api<Booking>(`/bookings/${bookingId}/payments`, { method: "POST", body })
+/** `eventId` — idempotentlik kaliti: forma OCHILGANDA bir marta yaratiladi
+    (`crypto.randomUUID()`), har qayta urinishda O'SHA qiymat yuboriladi va faqat
+    muvaffaqiyatdan keyin yangilanadi. Server bir xil kalitni ikkinchi marta ko'rsa yangi
+    ledger qatori yozmaydi — ikki bosish/qayta yuborish dubl to'lov bermaydi. */
+export const recordBookingPayment = (
+  bookingId: string,
+  body: { amount: number; method: RecordableMethod; note?: string; eventId: string },
+) => api<Booking>(`/bookings/${bookingId}/payments`, { method: "POST", body })
 
-export const voidBookingPayment = (bookingId: string, paymentId: string, reason: string) =>
+/** NAQD qator stornosida `cashReturned` MAJBURIY savol: pul mehmonga jismonan qaytdimi (true)
+    yoki xato yozuv — pul kassada qoldi/kirmagan (false)? Server taxmin qilmaydi (aks holda 400
+    CASH_RETURN_UNSPECIFIED) — noto'g'ri default smena kassa farqini jimgina buzadi.
+    Karta/o'tkazmada e'tiborga olinmaydi. */
+export const voidBookingPayment = (
+  bookingId: string,
+  paymentId: string,
+  body: { reason: string; cashReturned?: boolean },
+) =>
   api<Booking>(`/bookings/${bookingId}/payments/${paymentId}/void`, {
     method: "POST",
-    body: { reason },
+    body,
   })
+
+// ── Smena (g'aladon) sessiyasi ───────────────────────────────────────────────
+// SHIFT-DESIGN.md: hisob birligi JISMONIY G'ALADON — mehmonxonada bir vaqtda bitta ochiq
+// sessiya; egasi javobgar, pul kim qo'lidan o'tgani `payments.receivedBy`da. Server smenani
+// hech qachon o'zi yopmaydi. Naqd guard (SHIFT_REQUIRED) server tomonda — panel qulaylik qatlami.
+
+export type ShiftSessionStatus = "open" | "closed"
+/** self = egasi sanab yopdi; handover = keyingi kassir qabul qilib oldi; forced = menejer. */
+export type ShiftCloseReason = "self" | "handover" | "forced"
+export type CashMovementKind = "deposit" | "withdrawal" | "refund"
+
+export type ShiftSession = {
+  id: string
+  status: ShiftSessionStatus
+  user: { id: string; name: string; role: string }
+  openedAt: string
+  closedAt: string | null
+  closeReason: ShiftCloseReason | null
+  closedBy: { id: string; name: string } | null
+  /** 0=norma, 1=24h, 2=48h, 3=72h — "ochiq qolib ketdi" zinasi (faqat xabar). */
+  escalationLevel: number
+  openingCash: number
+  countedCash: number | null
+  expectedCash: number | null
+  /** counted − expected; null = hali yopilmagan yoki sanalmagan (forced). */
+  variance: number | null
+  note: string | null
+  shiftId: string | null
+}
+
+export type ShiftTotals = {
+  byMethod: Record<string, { amount: number; count: number }>
+  voidedCount: number
+  movementNet: number
+  movementCount: number
+}
+
+/** `session` — mehmonxonaning FAOL sessiyasi (meniki bo'lmasligi ham mumkin — g'aladon modeli). */
+export type ShiftCurrent = {
+  session: ShiftSession | null
+  totals: ShiftTotals | null
+  lastClosed: ShiftSession | null
+}
+
+/** Query kalitlari bitta fabrikada (chat naqshi) — invalidateQueries({queryKey: shiftKeys.all}) hammasini supuradi. */
+export const shiftKeys = {
+  all: ["shift-session"] as const,
+  current: ["shift-session", "current"] as const,
+  list: (cursor?: string) => ["shift-session", "list", cursor ?? ""] as const,
+  report: (id: string) => ["shift-session", "report", id] as const,
+}
+
+export const getCurrentShift = () => api<ShiftCurrent>("/shift-sessions/current")
+
+/** `expectTakeover` — faol sessiya boshqa xodimniki bo'lsa: mening sanog'im uni handover bilan
+    yopadi va yangisini ochadi (bitta atomik amal — qog'oz topshiruvining o'zi). */
+export const openShiftSession = (body: {
+  openingCash: number
+  note?: string
+  prevNoteAck?: boolean
+  expectTakeover?: boolean
+}) => api<ShiftCurrent>("/shift-sessions/open", { method: "POST", body })
+
+/** Blind count: kutilgan summa so'rovda YO'Q — server javobda ochadi (expected/variance).
+    `confirmedOutlier` — 409 COUNT_OUTLIER'dan keyingi bir martalik tasdiq (9.3). */
+export const closeShiftSession = (
+  id: string,
+  body: { countedCash: number; note?: string; confirmedOutlier?: boolean },
+) => api<ShiftSession>(`/shift-sessions/${id}/close`, { method: "POST", body })
+
+export const recordCashMovement = (
+  id: string,
+  body: { kind: CashMovementKind; amount: number; reason: string; bookingId?: string; eventId: string },
+) => api<{ sessionId: string; totals: ShiftTotals }>(`/shift-sessions/${id}/movements`, { method: "POST", body })
+
+export const listShiftSessions = (cursor?: string) => {
+  const qs = new URLSearchParams()
+  if (cursor) qs.set("cursor", cursor)
+  const q = qs.toString()
+  return api<{ items: ShiftSession[]; nextCursor: string | null }>(`/shift-sessions${q ? `?${q}` : ""}`)
+}
+
+export type ShiftReport = {
+  session: ShiftSession
+  cash: {
+    byMethod: Record<string, { amount: number; count: number }>
+    byHands: Array<{ user: { id: string; name: string } | null; total: number; count: number }>
+    voided: { count: number; amount: number }
+    postCloseVoids: { count: number; amount: number }
+    voidedHere: { count: number; amount: number }
+    movements: Array<{
+      id: string
+      kind: CashMovementKind
+      amount: number
+      reason: string
+      bookingId: string | null
+      createdAt: string
+      createdBy: { id: string; name: string } | null
+    }>
+  }
+  health: Array<{ action: string; label: string; count: number; severity: string }>
+  flags: string[]
+}
+
+export const getShiftReport = (id: string) => api<ShiftReport>(`/shift-sessions/${id}/report`)
 
 // ── Tashkilotlar (korporativ mijozlar) ───────────────────────────────────────
 //
@@ -744,12 +942,33 @@ export const registerPushToken = (token: string) =>
 export const removePushToken = (token: string) =>
   api<{ ok: true }>("/push/token", { method: "DELETE", body: { token } })
 
+/** Hisob-faktura shapkasiga chiqadigan rekvizitlar.
+
+    `address`/`phone` — ADMIN yuritadi (mehmonxona kartochkasi). `inn`/`vatRate` — mehmonxona
+    egasi kiritadi (owner/manager paneli). Resepshn hammasini faqat O'QIYDI: hujjat shapkasi
+    buxgalteriya qarori, front-desk uni o'zgartirmaydi.
+
+    Har biri `null` bo'la oladi va hujjat to'ldirilmagan qatorni UMUMAN chizmaydi — bo'sh
+    "STIR: —" satri buxgalterga hech narsa bermaydi. */
+export type HotelRequisites = {
+  address: string | null
+  phone: string | null
+  /** STIR — soliq to'lovchi raqami. */
+  inn: string | null
+  /** QQS stavkasi FOIZda (12 = 12%). `null` = QQS to'lovchisi emas → hujjatda QQS bloki yo'q. */
+  vatRate: number | null
+  /** ISO 4217 (amalda "UZS"). */
+  currency: string
+}
+
 export type HotelBranding = {
   name: string
   logoUrl: string | null
   longLogoUrl: string | null
   /** Mehmonxona qoidalari; ixtiyoriy (backend bosqichma-bosqich to'ldiradi). */
   policy?: HotelPolicy | null
+  /** Hujjat rekvizitlari; ixtiyoriy (eski javobda bo'lmasligi mumkin). */
+  requisites?: HotelRequisites | null
 }
 
 export const getHotelBranding = () => api<HotelBranding>("/hotel")

@@ -48,7 +48,6 @@ function NavRow({ item, active }: { item: NavItem; active: boolean }) {
       <Icon
         icon={item.icon}
         className={cn("size-[1.125rem] shrink-0", active ? "text-primary" : "text-neutral-500")}
-        strokeWidth={1.75}
       />
       <span className="truncate">{t(item.labelKey)}</span>
       {item.badge && (

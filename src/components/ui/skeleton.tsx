@@ -1,9 +1,11 @@
+import type { ComponentProps } from "react"
 import { cn } from "@/lib/utils"
 
-export function Skeleton({ className, ...props }: React.ComponentProps<"div">) {
+export function Skeleton({ className, ...props }: ComponentProps<"div">) {
   return (
     <div
-      aria-hidden
+      data-slot="skeleton"
+      aria-hidden="true"
       className={cn("skeleton-shimmer rounded-lg bg-neutral-100", className)}
       {...props}
     />

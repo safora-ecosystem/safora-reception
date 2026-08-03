@@ -198,86 +198,12 @@ export function barRectFromDays(
 }
 
 
-const SLANT_RATIO = 0.3
-const SLANT_MAX = 11
-
 export const BAR_RADIUS = 8
 
-export function barSlant(height: number, width: number): number {
-  return Math.max(0, Math.round(Math.min(height * SLANT_RATIO, SLANT_MAX, width / 3)))
-}
-
-interface Pt {
-  x: number
-  y: number
-}
-
-function towards(v: Pt, to: Pt, d: number): Pt {
-  const dx = to.x - v.x
-  const dy = to.y - v.y
-  const len = Math.hypot(dx, dy) || 1
-  const t = Math.min(d, len / 2) / len
-  return { x: v.x + dx * t, y: v.y + dy * t }
-}
-
-const fmt = (n: number) => Math.round(n * 100) / 100
-
-function roundedPolygonPath(pts: Pt[], radii: number[]): string {
-  const n = pts.length
-  const out: string[] = []
-  for (let i = 0; i < n; i++) {
-    const v = pts[i]
-    const r = radii[i]
-    if (r <= 0) {
-      out.push(`${i === 0 ? "M" : "L"} ${fmt(v.x)} ${fmt(v.y)}`)
-      continue
-    }
-    const a = towards(v, pts[(i + n - 1) % n], r)
-    const b = towards(v, pts[(i + 1) % n], r)
-    out.push(`${i === 0 ? "M" : "L"} ${fmt(a.x)} ${fmt(a.y)}`)
-    out.push(`Q ${fmt(v.x)} ${fmt(v.y)} ${fmt(b.x)} ${fmt(b.y)}`)
-  }
-  return `path("${out.join(" ")} Z")`
-}
-
-/**
- * Bar/ghost shakli — qiya uchli parallelogram, TO'RT tepasi ham yumaloq.
- *
- * Ilgari bu `polygon()` + `border-radius` juftligi edi va aynan shu sabab notekis chiqardi:
- * `border-radius` TO'RTBURCHAK burchaklariga qo'llanadi, polygon tepalarining esa faqat ikkitasi
- * (yuqori-o'ng, quyi-chap) o'sha burchakda yotadi — qolgan ikkitasi o'tkir qolib, bar "kesilgan
- * romb"dek ko'rinardi. `path()` da yumaloqlik shaklning O'ZIGA qurilgan: to'rt tepa ham bir xil
- * yumshoq, lekin qiyalik (turnover chokini ko'rsatuvchi belgi) saqlanadi.
- *
- * Koordinatalar element BORDER-BOX'ida (px) — shu bois kontur va fill qatlamlari uchun ALOHIDA
- * chaqiriladi (o'lchamlari `strokeWidth`cha farq qiladi).
- *
- * Oynadan kesilgan uch TEKIS va o'tkir qoladi: u diapazon chegarasi, kirish/chiqish emas.
- */
-export function barShapePath(
-  width: number,
-  height: number,
-  slant: number,
-  radius: number,
-  clippedStart: boolean,
-  clippedEnd: boolean,
-): string {
-  const w = Math.max(width, 0)
-  const h = Math.max(height, 0)
-  const l = clippedStart ? 0 : slant
-  const r = clippedEnd ? 0 : slant
-  const rad = Math.max(radius, 0)
-  const startRad = clippedStart ? 0 : rad
-  const endRad = clippedEnd ? 0 : rad
-  return roundedPolygonPath(
-    [
-      { x: l, y: 0 }, // yuqori-chap (qiyalikdan keyin)
-      { x: w, y: 0 }, // yuqori-o'ng
-      { x: w - r, y: h }, // quyi-o'ng
-      { x: 0, y: h }, // quyi-chap
-    ],
-    [startRad, endRad, endRad, startRad],
-  )
+export function barCornerRadius(radius: number, clippedStart: boolean, clippedEnd: boolean): string {
+  const s = clippedStart ? 0 : Math.max(radius, 0)
+  const e = clippedEnd ? 0 : Math.max(radius, 0)
+  return `${s}px ${e}px ${e}px ${s}px`
 }
 
 /**
@@ -301,24 +227,11 @@ export function paintSelectionShape(
   el.style.width = `${width}px`
   el.style.top = `${top}px`
   el.style.height = `${height}px`
-  const slant = barSlant(height, width)
-  el.style.clipPath = barShapePath(width, height, slant, BAR_RADIUS, clippedStart, clippedEnd)
-  el.style.borderRadius = ""
+  el.style.borderRadius = barCornerRadius(BAR_RADIUS, clippedStart, clippedEnd)
   const fill = el.firstElementChild
   if (fill instanceof HTMLElement) {
-    // Ichki qatlam har tomondan 2px kichik. Qiyalik ham shu nisbatda kichrayadi — aks holda ichki
-    // qiya qirra tashqisiga parallel chiqmay, kontur qalinligi uchlarda o'zgarib ketardi.
-    const iw = Math.max(width - 4, 0)
-    const ih = Math.max(height - 4, 0)
-    fill.style.clipPath = barShapePath(
-      iw,
-      ih,
-      height > 0 ? (slant * ih) / height : slant,
-      BAR_RADIUS - 2,
-      clippedStart,
-      clippedEnd,
-    )
-    fill.style.borderRadius = ""
+    // Ichki radius konsentrik: tashqi radius − kontur qalinligi (overlay'da `p-[2px]`).
+    fill.style.borderRadius = barCornerRadius(BAR_RADIUS - 2, clippedStart, clippedEnd)
   }
   el.dataset.conflict = conflict ? "true" : "false"
 }

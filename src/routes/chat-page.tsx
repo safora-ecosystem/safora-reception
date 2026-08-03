@@ -991,7 +991,7 @@ function ThreadShell({
           }}
           placeholder={t("chat.inputPlaceholder")}
           rows={1}
-          className="max-h-36 min-h-10 flex-1 resize-none rounded-[1.25rem] border-transparent bg-neutral-100 px-4 py-2.5 shadow-none focus-visible:border-transparent focus-visible:ring-2 focus-visible:ring-ring/25"
+          className="max-h-36 min-h-10 flex-1 resize-none rounded-card border-transparent bg-neutral-100 px-4 py-2.5 shadow-none focus-visible:border-transparent focus-visible:ring-2 focus-visible:ring-ring/25"
         />
         <Button
           size="icon"
@@ -1317,7 +1317,7 @@ function GroupListTeaser({ onOpen }: { onOpen: () => void }) {
         className="flex w-full items-center gap-3 rounded-control bg-accent px-3 py-2.5 text-left"
       >
         <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
-          <Icon icon={UserGroupIcon} className="size-5" strokeWidth={1.75} />
+          <Icon icon={UserGroupIcon} className="size-5" />
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline justify-between gap-2">

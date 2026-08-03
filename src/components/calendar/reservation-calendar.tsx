@@ -14,13 +14,14 @@ import { motion, useReducedMotion } from "framer-motion"
 import { cn } from "@/lib/utils"
 import { CalendarBar } from "./calendar-bar"
 import { CalendarBarTooltip } from "./calendar-bar-tooltip"
-import { CalendarCleaningTail, type CleaningTailRect } from "./calendar-cleaning-tail"
 import { CalendarCreateDialog } from "./calendar-create-dialog"
 import { CalendarDetailModal } from "./calendar-detail-modal"
 import { CalendarGridLayer } from "./calendar-grid-layer"
 import { CalendarGroupRow } from "./calendar-group-row"
 import { CalendarHeader } from "./calendar-header"
 import { CalendarRail } from "./calendar-rail"
+import { CalendarSplitDialog } from "./calendar-split-dialog"
+import { connectorPath, useTraceConnectors } from "./split-trace"
 import {
   addDays,
   busyRoomsIn,
@@ -74,7 +75,6 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
       headerHeight = 104,
       groupByFloor = true,
       overscan = 10,
-      cleaningMinutes = 30,
       matchIds,
       onSelectBooking,
       onCreateBooking,
@@ -83,6 +83,9 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
       onCancel,
       onEditBooking,
       onMoveBooking,
+      onMoveConflict,
+      onSplitBooking,
+      onInvoice,
       guests = null,
       guestsLoading = false,
       onAddGuest,
@@ -111,7 +114,7 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
     const checkInFrac = useMemo(() => dayFraction(labels.checkInTime), [labels.checkInTime])
     const checkOutFrac = useMemo(() => dayFraction(labels.checkOutTime), [labels.checkOutTime])
 
-    const groupHeight = Math.round(rowHeight * 1.1)
+    const groupHeight = Math.round(rowHeight * 0.62)
 
     const originDay = epochDay(range.start)
     const bodyWidth = range.days * dayWidth
@@ -181,9 +184,8 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
       return m
     }, [rooms, bookings, originDay, range.days])
 
-    const cleaningTails = useMemo(() => {
-      const map = new Map<string, CleaningTailRect>()
-      const width = (cleaningMinutes / 1440) * dayWidth
+    const cleaningBadges = useMemo(() => {
+      const map = new Map<string, "dirty" | "in_progress" | "clean">()
       const latest = new Map<string, CalendarBooking>()
       for (const b of bookings) {
         if (b.status !== "checked_out" || !b.checkedOutAt) continue
@@ -196,21 +198,30 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
         const b = latest.get(room.id)
         if (!b?.checkedOutAt) continue
         if (hk === "clean" && new Date(b.checkedOutAt).toLocaleDateString("en-CA") !== today) continue
-        const col = epochDay(b.end) - originDay
-        if (col < 0 || col >= range.days) continue
-        map.set(room.id, { left: Math.round((col + checkOutFrac) * dayWidth), width, status: hk })
+        map.set(b.id, hk)
       }
       return map
-    }, [rooms, bookings, cleaningMinutes, dayWidth, originDay, range.days, checkOutFrac, today])
+    }, [rooms, bookings, today])
 
     const [selectedId, setSelectedId] = useState<string | null>(null)
     const selectedBooking = useMemo(
       () => (selectedId ? (bookings.find((b) => b.id === selectedId) ?? null) : null),
       [bookings, selectedId],
     )
+
     const [createDraft, setCreateDraft] = useState<CalendarDraft | null>(null)
+    const [splitFor, setSplitFor] = useState<CalendarBooking | null>(null)
 
     const { state: tooltipState, handlers: tooltip } = useCalendarTooltip()
+
+    const activeLinkId = tooltipState?.booking.linkId ?? selectedBooking?.linkId ?? null
+    const activeLinkAnchorId = tooltipState?.booking.id ?? selectedBooking?.id ?? null
+    const linkedIds = useMemo(() => {
+      if (!activeLinkId) return null
+      const ids = new Set<string>()
+      for (const b of bookings) if (b.linkId === activeLinkId && b.id !== activeLinkAnchorId) ids.add(b.id)
+      return ids.size > 0 ? ids : null
+    }, [activeLinkId, activeLinkAnchorId, bookings])
 
     const scrollRef = useRef<HTMLDivElement>(null)
     const overlayRef = useRef<HTMLDivElement>(null)
@@ -326,7 +337,24 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
     const drag = useCalendarDrag(dragConfig)
 
     const canMove = onMoveBooking != null
+    const groupRates = useMemo(() => {
+      const m = new Map<string, number>()
+      for (const [key, g] of groupStats) m.set(key, g.rate)
+      return m
+    }, [groupStats])
+
     const laneTops = useMemo(() => laneOffsets(lanes, rowHeight, groupHeight), [lanes, rowHeight, groupHeight])
+    const traceConnectors = useTraceConnectors(
+      bookings,
+      lanes,
+      laneTops,
+      rowHeight,
+      originDay,
+      dayWidth,
+      bodyWidth,
+      checkInFrac,
+      checkOutFrac,
+    )
     const moveConfig = useMemo(
       () => ({
         scrollRef,
@@ -347,8 +375,9 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
         onCommit: (id: string, next: CalendarDraft) => {
           void onMoveBooking?.(id, next)
         },
+        onReject: onMoveConflict,
       }),
-      [originDay, range.days, dayWidth, rowHeight, railWidth, headerHeight, groupHeight, today, lanes, laneTops, bookings, checkInFrac, checkOutFrac, onMoveBooking],
+      [originDay, range.days, dayWidth, rowHeight, railWidth, headerHeight, groupHeight, today, lanes, laneTops, bookings, checkInFrac, checkOutFrac, onMoveBooking, onMoveConflict],
     )
     const moveDrag = useCalendarMove(moveConfig)
 
@@ -441,6 +470,8 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
                   virtualItems={virtualItems}
                   offsetTop={headerHeight}
                   onToggleGroup={toggleGroup}
+                  groupRates={groupRates}
+                  railWidth={railWidth}
                 />
               </motion.div>
 
@@ -459,6 +490,71 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
                   colLo={colWin.lo}
                   colHi={colWin.hi}
                 />
+
+                {/* Bo'lish bog'lovchilari — A ning o'ng chetidan B ning chap chetiga tushadigan
+                    burchagi yumaloq UZUQ chiziq. Quti EMAS: eski xonada to'rtburchak iz
+                    qoldirish o'sha kunlarni band ko'rsatardi.
+
+                    Qatlam ATAYLAB shu yerda — grid'dan keyin, satrlardan OLDIN va `z-0` bilan:
+                    shunda chiziq yo'ldagi bron bar'lari (z-10) ostidan ham, qavat sarlavha
+                    satrlari (z-auto, DOM'da keyin) ostidan ham o'tadi. Pozitsiyalangan
+                    elementlar orasida musbat z-index doim yutadi, shuning uchun bu qatlamga
+                    z BERILMAYDI. */}
+                {traceConnectors.length > 0 && (
+                  <svg
+                    aria-hidden
+                    className="pointer-events-none absolute top-0 left-0 z-0 overflow-visible"
+                    width={bodyWidth}
+                    height={totalHeight}
+                    fill="none"
+                  >
+                    {traceConnectors.map((c) => {
+                      const d = connectorPath(c)
+                      // Bir necha bo'lingan yashash bo'lsa chiziqlar kesishadi. Tanlangan
+                      // zanjir to'liq kuchda qoladi, qolganlari xiralashadi — ko'z bitta
+                      // hikoyaga qaraydi, o'ntasiga emas. Tanlov yo'q bo'lsa hammasi teng.
+                      const active = activeLinkId == null || c.linkId === activeLinkId
+                      return (
+                        <g key={c.id} opacity={active ? 1 : 0.28}>
+                          {/* HALO — panel sirti rangida, nuqtalar ostida. Grid chiziqlari va
+                              "bugun" tinti ustidan o'tganda nuqtalar ular bilan qorishib
+                              ketmasin: halo ularni kesib, izni toza ushlaydi. Rangni
+                              yorqinlashtirmasdan o'qilishni beradi. */}
+                          <path
+                            d={d}
+                            stroke="var(--color-white)"
+                            strokeOpacity={0.85}
+                            strokeWidth={6.5}
+                            strokeLinecap="round"
+                          />
+                          {/* NUQTALAR — `0.5 5` + yumaloq uch: chiziqcha emas, aylana nuqta. */}
+                          <path
+                            className="cal-split-path"
+                            d={d}
+                            stroke="var(--color-brand-400)"
+                            strokeWidth={3.5}
+                            strokeDasharray="0.5 6"
+                            strokeLinecap="round"
+                          />
+                          {/* ULANISH TUGUNLARI — iz qayerdan chiqib qayerga kirganini aniq
+                              belgilaydi. Aynan bar CHETIDA turadi: tashqi yarmi ko'rinadi,
+                              ichki yarmi bar ostida qoladi, natijada nuqta bar'ga "ilashgan"
+                              bo'lib o'qiladi. Halo (panel rangidagi kattaroq aylana) uni grid
+                              chizig'idan ajratadi. */}
+                          {[
+                            { x: c.ax, y: c.ay },
+                            { x: c.bx, y: c.by },
+                          ].map((n, i) => (
+                            <g key={i}>
+                              <circle cx={n.x} cy={n.y} r={5.5} fill="var(--color-white)" fillOpacity={0.85} />
+                              <circle cx={n.x} cy={n.y} r={3.5} fill="var(--color-brand-400)" />
+                            </g>
+                          ))}
+                        </g>
+                      )
+                    })}
+                  </svg>
+                )}
                 {virtualItems.map((vi) => {
                   const lane = lanes[vi.index]
                   if (!lane) return null
@@ -473,7 +569,6 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
                         height={vi.size}
                         dayWidth={dayWidth}
                         avail={stats?.avail ?? null}
-                        rate={stats?.rate ?? 0}
                         colLo={colWin.lo}
                         colHi={colWin.hi}
                         bodyWidth={bodyWidth}
@@ -481,7 +576,6 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
                     )
                   }
                   const bars = bookingIndex.get(lane.room.id)
-                  const tail = cleaningTails.get(lane.room.id)
                   return (
                     <Fragment key={lane.id}>
                       {/* Drag-to-create catcher — bars ostida (z-5), bo'sh joyda pointerdown'ni tutadi. */}
@@ -494,10 +588,6 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
                         onPointerCancel={drag.cancel}
                         onPointerLeave={drag.hoverEnd}
                       />
-                      {/* Tozalash belgisi — bar'lar OSTIDA (z-6 < z-10), culling oynasida bo'lsa. */}
-                      {tail && tail.left < xHi && tail.left + Math.max(tail.width, 18) > xLo && (
-                        <CalendarCleaningTail rect={tail} rowTop={rowTop} rowHeight={rowHeight} />
-                      )}
                       {/* Bar'lar gorizontal oynadan tashqarida bo'lsa umuman chizilmaydi. Kesish
                           KESISHMA bo'yicha (chap chekka emas) — oyna ichiga cho'zilgan uzun bron
                           o'z boshi ortda qolsa ham ko'rinadi. */}
@@ -521,11 +611,12 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
                             rowHeight={rowHeight}
                             visual={statusConfig[pb.booking.status]}
                             labels={labels}
-                            today={today}
                             selected={selectedId === pb.booking.id}
+                            linked={linkedIds?.has(pb.booking.id) ?? false}
                             onSelect={handleSelect}
                             movable={canMove && pb.booking.status === "booked"}
                             dimmed={matchIds != null && !matchIds.has(pb.booking.id)}
+                            cleaning={cleaningBadges.get(pb.booking.id) ?? null}
                             move={moveDrag}
                             tooltip={tooltip}
                             enterDelay={enterDelay}
@@ -536,17 +627,26 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
                   )
                 })}
 
-                {/* Drag/ghost tanlash overlay'i — ref bilan mutatsiya (render'dan tashqari).
-                    CalendarBar bilan AYNAN bir tuzilish: tashqi qatlam = brand kontur, ichkarisi =
-                    yumshoq brand tint fill → "yaratilajak bron" o'zi yaratadigan bar shaklida
-                    ko'rinadi (qiya uchlar ham). Shakl/pozitsiyani paintSelectionShape o'rnatadi;
-                    data-conflict ikkala qatlamni ham qizilga almashtiradi (band katak). */}
+                {/* Drag/ghost overlay'i — ref bilan mutatsiya (render'dan tashqari), IKKI rejimda
+                    ishlaydi. CREATE (yangi bron tanlash): brand kontur + yumshoq brand fill —
+                    class'lardagi default ranglar. MOVE (bron ko'chirish): use-calendar-move
+                    paint'i shu class'lar USTIDAN inline style yozadi — booked rang + mehmon ismi
+                    ([data-ghost-label]) + ko'tarilgan soya, ya'ni ghost bar'ning o'zi bo'lib
+                    "qo'lda" yuradi (founder, 2026-08-01); create paint'i inline'larni tozalaydi.
+                    Shakl/pozitsiyani paintSelectionShape o'rnatadi; data-conflict ikkala
+                    qatlamni ham qizilga almashtiradi (band katak). */}
                 <div
                   ref={overlayRef}
                   data-conflict="false"
                   className="group pointer-events-none absolute z-[15] hidden bg-brand-500 p-[2px] data-[conflict=true]:bg-destructive"
                 >
-                  <span className="block size-full bg-brand-100 group-data-[conflict=true]:bg-destructive-surface" />
+                  <span className="flex size-full items-center overflow-hidden bg-brand-100 group-data-[conflict=true]:bg-destructive-surface">
+                    <span
+                      data-ghost-label
+                      className="min-w-0 truncate text-[0.8125rem] leading-none font-medium"
+                      style={{ paddingLeft: 8, paddingRight: 8 }}
+                    />
+                  </span>
                 </div>
               </div>
             </div>
@@ -581,6 +681,27 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
           onRemoveBlock={onRemoveBlock}
           onDuplicate={onDuplicate}
           onOpenChat={onOpenChat}
+          onSplit={
+            onSplitBooking
+              ? (b) => {
+                  closeSelected()
+                  setSplitFor(b)
+                }
+              : undefined
+          }
+          onInvoice={onInvoice}
+        />
+
+        <CalendarSplitDialog
+          booking={splitFor}
+          rooms={rooms}
+          bookings={bookings}
+          labels={labels}
+          today={today}
+          onClose={() => setSplitFor(null)}
+          onSubmit={async (input) => {
+            if (splitFor) await onSplitBooking?.(splitFor.id, input)
+          }}
         />
 
         <CalendarCreateDialog

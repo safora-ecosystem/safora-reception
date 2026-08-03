@@ -56,8 +56,13 @@ function CalendarHeaderImpl({
             className="hairline-b relative flex items-center"
             style={{ width: seg.span * dayWidth }}
           >
+            {/* Fon ATAYLAB yo'q. Ilgari bu yorliq `bg-white` edi va sticky bo'lgani uchun tasma
+                bo'ylab suzuvchi OQ TO'RTBURCHAK bo'lib yurardi: u ostidagi hairline'ni ham,
+                ustun washlarini ham kesib o'tardi (yorliq emas, render nuqsonidek ko'rinardi).
+                Fon kerak emas — har yorliq O'Z segmentiga sticky-clamp qilingan, ya'ni qo'shni
+                oyning yorlig'i bilan hech qachon ustma-ust tushmaydi. */}
             <span
-              className="sticky z-10 whitespace-nowrap bg-white py-0.5 pr-3 pl-2 text-[0.6875rem] font-semibold text-neutral-500 capitalize"
+              className="sticky z-10 whitespace-nowrap py-0.5 pr-3 pl-2 text-[0.6875rem] font-semibold text-neutral-500 capitalize"
               style={{ left: railWidth }}
             >
               {labels.months[seg.month]} {seg.year}
@@ -80,7 +85,7 @@ function CalendarHeaderImpl({
               key={c}
               className={cn(
                 "absolute inset-y-0 flex flex-col items-center justify-center",
-                compact ? "gap-0.5" : "gap-1",
+                compact ? "gap-0.5" : "gap-1.5",
               )}
               style={{ left: c * dayWidth, width: dayWidth }}
             >

@@ -1,11 +1,16 @@
-import { useEffect, useRef } from "react"
-import { BellIcon, BubbleChatIcon, Search01Icon } from "@hugeicons/core-free-icons"
+import { useEffect, useRef, useState } from "react"
+import { BellIcon, BellOffIcon, BubbleChatIcon, Search01Icon } from "@hugeicons/core-free-icons"
 import { Button } from "@/components/ui/button"
 import { Icon } from "@/components/ui/icon"
 import { Input } from "@/components/ui/input"
-import { Link } from "@tanstack/react-router"
-import { BellOff, CalendarClock, ChevronDown, LogOut, TriangleAlert, UserRound } from "lucide-react"
+import { Link, useNavigate } from "@tanstack/react-router"
+import { CalendarClock, ChevronDown, LogOut, TriangleAlert, UserRound, Wallet } from "lucide-react"
+import { useQuery } from "@tanstack/react-query"
+import { ExpenseDialog, ShiftCloseDialog } from "@/components/shift/shift-dialogs"
+import { getCurrentShift, shiftKeys } from "@/lib/api"
+import { usePermissions } from "@/lib/permissions"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,6 +38,22 @@ export function Topbar() {
   const chatBadge = useChatBadge()
   const notices = useNotices()
   const inputRef = useRef<HTMLInputElement>(null)
+  const navigate = useNavigate()
+
+  const shiftQ = useQuery({
+    queryKey: shiftKeys.current,
+    queryFn: getCurrentShift,
+    refetchInterval: 60_000,
+    retry: false,
+  })
+  const activeSession = shiftQ.data?.session ?? null
+  const mySession = activeSession != null && activeSession.user.id === user?.id ? activeSession : null
+  const { can } = usePermissions()
+  const canExpense = can("payments.record")
+  const [expenseOpen, setExpenseOpen] = useState(false)
+  const [logoutAsk, setLogoutAsk] = useState(false)
+  const [closeBeforeLogout, setCloseBeforeLogout] = useState<typeof mySession>(null)
+  const closedDoneRef = useRef(false)
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -54,7 +75,6 @@ export function Topbar() {
         <Icon
           icon={Search01Icon}
           className="pointer-events-none absolute top-1/2 left-4 size-[1.125rem] -translate-y-1/2 text-neutral-400"
-          strokeWidth={1.75}
         />
         <Input
           ref={inputRef}
@@ -74,7 +94,15 @@ export function Topbar() {
       <div className="min-w-0 flex-1" aria-hidden />
 
       {}
-      {actions ? <div className="hidden shrink-0 items-center gap-2 sm:flex">{actions}</div> : null}
+      <div className="hidden shrink-0 items-center gap-2 sm:flex">
+        {canExpense && activeSession != null && (
+          <Button variant="outline" size="xl" onClick={() => setExpenseOpen(true)}>
+            <Wallet strokeWidth={1.75} />
+            {t("shiftSession.expenseButton")}
+          </Button>
+        )}
+        {actions}
+      </div>
 
       <div className="flex shrink-0 items-center gap-2">
         {}
@@ -86,7 +114,7 @@ export function Topbar() {
           className="relative bg-white"
         >
           <Link to="/chat">
-            <Icon icon={BubbleChatIcon} className="size-[1.125rem] text-neutral-500" strokeWidth={1.75} />
+            <Icon icon={BubbleChatIcon} className="size-[1.125rem] text-neutral-500" />
             {chatBadge && (
               <span className="absolute -top-1 -right-1 flex h-[1.125rem] min-w-[1.125rem] items-center justify-center rounded-full bg-primary px-1 text-[0.625rem] font-semibold text-primary-foreground ring-2 ring-white tabular-nums">
                 {chatBadge}
@@ -103,7 +131,7 @@ export function Topbar() {
               className="relative bg-white"
             >
               {}
-              <Icon icon={BellIcon} className="size-[1.125rem] text-neutral-500" strokeWidth={1.75} />
+              <Icon icon={BellIcon} className="size-[1.125rem] text-neutral-500" />
               {notices.length > 0 && (
                 <span className="absolute top-2 right-2 size-1.5 rounded-full bg-primary ring-2 ring-white" />
               )}
@@ -114,7 +142,7 @@ export function Topbar() {
             <DropdownMenuSeparator />
             {notices.length === 0 ? (
               <div className="flex flex-col items-center gap-2 px-4 py-6 text-center">
-                <BellOff className="size-5 text-neutral-300" strokeWidth={1.75} />
+                <Icon icon={BellOffIcon} className="size-5 text-neutral-300" />
                 <p className="text-sm text-neutral-500">{t("topbar.notifEmpty")}</p>
               </div>
             ) : (
@@ -187,15 +215,79 @@ export function Topbar() {
                 {t("topbar.profileSettings")}
               </Link>
             </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem variant="destructive" asChild>
-              <Link to="/logout">
-                <LogOut strokeWidth={1.75} />
-                {t("topbar.signOut")}
+            <DropdownMenuItem asChild>
+              <Link to="/my-shifts">
+                <Wallet strokeWidth={1.75} />
+                {t("shiftSession.myShiftsTitle")}
               </Link>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              variant="destructive"
+              onSelect={(e) => {
+                // O'z ochiq smenasi bo'lsa to'g'ridan chiqmaymiz — avval savol.
+                if (mySession) {
+                  e.preventDefault()
+                  setLogoutAsk(true)
+                } else {
+                  void navigate({ to: "/logout" })
+                }
+              }}
+            >
+              <LogOut strokeWidth={1.75} />
+              {t("topbar.signOut")}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+
+        {/* Logout-savol: [Yakunlab chiqish — asosiy] [Ochiq qoldirib chiqish] [Bekor]. */}
+        {logoutAsk && mySession && (
+          <Dialog open onOpenChange={(o) => !o && setLogoutAsk(false)}>
+            <DialogContent className="max-w-sm">
+              <DialogTitle>{t("shiftSession.logoutOpenTitle")}</DialogTitle>
+              <DialogDescription>{t("shiftSession.logoutOpenHint")}</DialogDescription>
+              <div className="flex flex-col gap-2">
+                <Button
+                  size="xl"
+                  onClick={() => {
+                    setLogoutAsk(false)
+                    setCloseBeforeLogout(mySession)
+                  }}
+                >
+                  {t("shiftSession.logoutCloseFirst")}
+                </Button>
+                <Button variant="outline" onClick={() => void navigate({ to: "/logout" })}>
+                  {t("shiftSession.logoutLeaveOpen")}
+                </Button>
+                <Button variant="ghost" onClick={() => setLogoutAsk(false)}>
+                  {t("common.cancel")}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
+        {expenseOpen && activeSession != null && (
+          <ExpenseDialog open onOpenChange={setExpenseOpen} sessionId={activeSession.id} />
+        )}
+        {closeBeforeLogout && (
+          <ShiftCloseDialog
+            open
+            autoLogout={false}
+            session={closeBeforeLogout}
+            onOpenChange={(o) => {
+              if (!o) {
+                setCloseBeforeLogout(null)
+                // Natija ko'rilib dialog yopilgach chiqamiz; yopilмай bekor qilingan
+                // bo'lsa joyida qolamiz.
+                if (closedDoneRef.current) void navigate({ to: "/logout" })
+                closedDoneRef.current = false
+              }
+            }}
+            onClosed={() => {
+              closedDoneRef.current = true
+            }}
+          />
+        )}
       </div>
     </header>
   )

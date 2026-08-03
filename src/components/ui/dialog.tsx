@@ -3,6 +3,7 @@ import { Dialog as DialogPrimitive } from "radix-ui"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { OVERLAY_SCRIM, OVERLAY_SURFACE } from "@/components/ui/overlay-surface"
 import { XIcon } from "lucide-react"
 
 function Dialog({
@@ -37,7 +38,8 @@ function DialogOverlay({
     <DialogPrimitive.Overlay
       data-slot="dialog-overlay"
       className={cn(
-        "fixed inset-0 isolate z-50 bg-black/10 duration-100 supports-backdrop-filter:backdrop-blur-xs data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
+        OVERLAY_SCRIM,
+        "fixed inset-0 isolate z-50 duration-100 supports-backdrop-filter:backdrop-blur-sm data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
         className
       )}
       {...props}
@@ -46,8 +48,8 @@ function DialogOverlay({
 }
 
 const CONTENT_VARIANT = {
-  default:
-    "fixed top-1/2 left-1/2 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl p-4 ring-1 ring-foreground/10 sm:max-w-sm data-open:zoom-in-95 data-closed:zoom-out-95",
+  default: `${OVERLAY_SURFACE} fixed top-1/2 left-1/2 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-card p-4 sm:max-w-sm data-open:zoom-in-95 data-closed:zoom-out-95`,
+  // Faqat fade — to'liq ekranda zoom o'nlab piksel siljish bo'lib, "sakragandek" ko'rinardi.
   fullscreen: "fixed inset-0 flex h-dvh w-screen flex-col overflow-hidden",
 } as const
 
@@ -68,7 +70,7 @@ function DialogContent({
         data-slot="dialog-content"
         data-variant={variant}
         className={cn(
-          "z-50 bg-popover text-sm text-popover-foreground duration-100 outline-none data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
+          "z-50 text-sm text-popover-foreground duration-100 outline-none data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
           CONTENT_VARIANT[variant],
           className
         )}
@@ -115,7 +117,9 @@ function DialogFooter({
     <div
       data-slot="dialog-footer"
       className={cn(
-        "-mx-4 -mb-4 flex flex-col-reverse gap-2 rounded-b-xl border-t bg-muted/50 p-4 sm:flex-row sm:justify-end",
+        // Radius dialog qobig'i bilan BIR XIL bo'lishi shart (`card` = 1.25rem) — aks holda
+        // futer burchagi qobiqning yoyidan chiqib, qirra uzilgandek ko'rinadi.
+        "-mx-4 -mb-4 flex flex-col-reverse gap-2 rounded-b-card border-t bg-muted/50 p-4 sm:flex-row sm:justify-end",
         className
       )}
       {...props}
