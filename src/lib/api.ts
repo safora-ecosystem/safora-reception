@@ -1146,24 +1146,46 @@ export const reactGroupMessage = (messageId: string, emoji: string | null) =>
     body: emoji ? { emoji } : {},
   })
 
-// ── Profil rasmi — POST/DELETE /users/me/avatar ─────────────────────────────
-// Yo'lda `:id` yo'q: xodim FAQAT o'z rasmini almashtiradi. Rasm serverda 256² WebP'ga siqiladi
-// (8MB surat ≈ 5–15 KB) va cdn.safora.uz dan beriladi. Oyiga 3 marta — kvota serverda.
+// ── Housekeeping yozishmasi (GET/POST /chat/housekeeping) ────────────────────
+//
+// Jamoa guruhidan AJRATILGAN xona: alohida jadval, a'zolik esa ruhsat kaliti emas, ROL ro'yxati
+// (`owner`, `manager`, `reception`, `housekeeper` — backendda `HK_CHAT_ROLES`). Sabab: tozalash
+// xodimiga `can()` har ruhsat kalitiga `false` qaytaradi, ya'ni kalitga bog'lansa u o'z chatidan
+// quvilardi. Panel tomonda ham shuning uchun `can(...)` bilan yashirilmaydi — rol yetarli.
+//
+// Guruh chatidan farqi: `replyTo` ham, reaksiya ham YO'Q (mobil ilova ularni ko'rsatmaydi).
+
+export type HkChatMessage = {
+  id: string
+  senderId: string
+  senderName: string
+  senderAvatarUrl: string | null
+  text: string
+  createdAt: string
+}
+
+/** Javob eskidan yangiga. `before` — eski sahifani yuklash uchun `messages[0].id`. */
+export const listHkMessages = (before?: string) =>
+  api<{ messages: HkChatMessage[] }>(
+    `/chat/housekeeping/messages${before ? `?before=${before}` : ""}`,
+  )
+export const sendHkMessage = (text: string) =>
+  api<HkChatMessage>("/chat/housekeeping/messages", { method: "POST", body: { text } })
+export const markHkRead = () => api<{ ok: boolean }>("/chat/housekeeping/read", { method: "POST" })
+export const getHkUnread = () => api<{ unread: number }>("/chat/housekeeping/unread")
+
 
 export type AvatarResult = {
   avatarUrl: string | null
-  /** Shu oynada nechta almashtirish qoldi. */
   remaining: number
   resetsAt: string | null
 }
 
-/** 8MB — serverdagi chegara bilan bir xil; klientda tekshirish shunchaki tezroq javob beradi. */
 export const AVATAR_MAX_BYTES = 8 * 1024 * 1024
 
 export const uploadMyAvatar = (file: File) => {
   const form = new FormData()
   form.append("file", file)
-  // 60s: sekin mobil internetda 8MB standart 15s ga sig'maydi va yuklash "timeout" bo'lardi.
   return api<AvatarResult>("/users/me/avatar", { method: "POST", body: form, timeoutMs: 60_000 })
 }
 

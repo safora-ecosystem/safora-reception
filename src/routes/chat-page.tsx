@@ -13,30 +13,40 @@ import {
   X,
 } from "lucide-react"
 import { toast } from "sonner"
-import { UserGroupIcon, UserMultiple02Icon, UserStar01Icon } from "@hugeicons/core-free-icons"
+import {
+  CleanIcon,
+  UserGroupIcon,
+  UserMultiple02Icon,
+  UserStar01Icon,
+} from "@hugeicons/core-free-icons"
 import { getSession } from "@/lib/auth"
 import {
   archiveConversation,
   archiveTeamThread,
   chatRtSubscribe,
   getGroupUnread,
+  getHkUnread,
   listChatMessages,
   listConversations,
   listGroupMessages,
+  listHkMessages,
   listTeamMessages,
   listTeamThreads,
   markChatRead,
   markGroupRead,
+  markHkRead,
   markTeamRead,
   reactGroupMessage,
   reactGuestMessage,
   reactTeamMessage,
   sendChatMessage,
   sendGroupMessage,
+  sendHkMessage,
   sendTeamMessage,
   type ChatConversation,
   type ChatMessage,
   type GroupMessage,
+  type HkChatMessage,
   type ReactionView,
   type TeamMessage,
   type TeamThread,
@@ -47,9 +57,12 @@ import {
   aggregateReactions,
   appendLiveMessage,
   appendGroupMessage,
+  appendHkMessage,
   conversationsKey,
   groupMessagesKey,
   groupUnreadKey,
+  hkMessagesKey,
+  hkUnreadKey,
   messagesKey,
   teamMessagesKey,
   teamThreadsKey,
@@ -111,6 +124,8 @@ function minutesBetween(a: string, b: string): number {
 }
 
 type Tab = "guests" | "team" | "group"
+/** "Guruhlar" tabidagi xonalar. `hk` — tozalash xodimlari bilan alohida yozishma. */
+type GroupRoom = "team" | "hk"
 
 export function ChatPage() {
   const t = useT()
@@ -123,6 +138,8 @@ export function ChatPage() {
   const [tab, setTab] = useState<Tab>(canGuest ? "guests" : "team")
   const [guestSel, setGuestSel] = useState<string | null>(null)
   const [teamSel, setTeamSel] = useState<string | null>(null)
+  // "Guruhlar" tabida ikki xona bor: umumiy jamoa guruhi va housekeeping yozishmasi.
+  const [groupSel, setGroupSel] = useState<GroupRoom>("team")
   // Tor ekranda ro'yxat va yozishmalar almashib turadi; md+ da ikkalasi yonma-yon.
   const [mobileOpen, setMobileOpen] = useState(false)
   const [showArchive, setShowArchive] = useState(false)
@@ -260,7 +277,13 @@ export function ChatPage() {
                 retry) → bo'sh/ro'yxat. Fon yangilanishi yiqilsa eski ro'yxat turadi (data bor →
                 xato yutilmaydi). Yuborish/reaksiya xatolari toast bo'lib qolaveradi. */}
             {tab === "group" ? (
-              <GroupListTeaser onOpen={() => setMobileOpen(true)} />
+              <GroupRoomList
+                selected={groupSel}
+                onSelect={(room) => {
+                  setGroupSel(room)
+                  setMobileOpen(true)
+                }}
+              />
             ) : tab === "guests" ? (
               conversations.isPending ? (
                 <SkeletonList rows={6} className="p-2" />
@@ -381,7 +404,11 @@ export function ChatPage() {
           )}
         >
           {tab === "group" ? (
-            <GroupThread onBack={() => setMobileOpen(false)} />
+            groupSel === "hk" ? (
+              <HkThread onBack={() => setMobileOpen(false)} />
+            ) : (
+              <GroupThread onBack={() => setMobileOpen(false)} />
+            )
           ) : tab === "guests" ? (
             selectedConv ? (
               <GuestThread conv={selectedConv} onBack={() => setMobileOpen(false)} />
@@ -737,6 +764,77 @@ function GroupThread({ onBack }: { onBack: () => void }) {
         setDraft("")
         setReplyTo(null)
         send.mutate({ text, replyToId: replyTo?.id })
+      }}
+      pending={send.isPending}
+    />
+  )
+}
+
+
+function HkThread({ onBack }: { onBack: () => void }) {
+  const t = useT()
+  const qc = useQueryClient()
+  const meId = getSession()?.user.id ?? ""
+  const [draft, setDraft] = useState("")
+
+  const messages = useQuery({ queryKey: hkMessagesKey, queryFn: () => listHkMessages() })
+  const list = messages.data?.messages ?? []
+  const last = list.length ? list[list.length - 1]! : null
+
+  useEffect(() => {
+    if (!last || last.senderId === meId) return
+    void markHkRead()
+      .then(() => qc.invalidateQueries({ queryKey: hkUnreadKey }))
+      .catch(() => {})
+  }, [last, meId, qc])
+  useEffect(() => {
+    void markHkRead()
+      .then(() => qc.invalidateQueries({ queryKey: hkUnreadKey }))
+      .catch(() => {})
+  }, [qc])
+
+  const send = useMutation({
+    mutationFn: (input: { text: string }) => sendHkMessage(input.text),
+    onSuccess: (msg) => appendHkMessage(qc, msg),
+    onError: (_err, input) => {
+      toast.error(tr("chat.sendFailed"))
+      setDraft((d) => (d ? d : input.text))
+    },
+  })
+
+  const items: ThreadItem[] = list.map((m: HkChatMessage) => ({
+    id: m.id,
+    mine: m.senderId === meId,
+    author: m.senderId === meId ? "Siz" : m.senderName,
+    text: m.text,
+    at: m.createdAt,
+    reply: null,
+    reactions: [],
+  }))
+
+  return (
+    <ThreadShell
+      threadKey="hk"
+      title={t("chat.hkGroup")}
+      subtitle={t("chat.hkGroupHint")}
+      onBack={onBack}
+      loading={messages.isLoading}
+      error={messages.data === undefined && messages.isError ? messages.error : null}
+      onRetry={() => messages.refetch()}
+      emptyText={t("chat.emptyHk")}
+      items={items}
+      showAuthors
+      replyTo={null}
+      onReply={() => {}}
+      onCancelReply={() => {}}
+      onReact={() => {}}
+      draft={draft}
+      onDraft={setDraft}
+      onSend={() => {
+        const text = draft.trim()
+        if (!text) return
+        setDraft("")
+        send.mutate({ text })
       }}
       pending={send.isPending}
     />
@@ -1298,40 +1396,90 @@ function EmptyPane({ text }: { text: string }) {
   )
 }
 
-// ── "Guruhlar" teaser ────────────────────────────────────────────────────────
-// Hali qurilmagan bo'limning reklama ko'rgazmasi — modal-karta EMAS, haqiqiy guruh
-// suhbati ko'rinishida (founder g'oyasi 2026-07-27): jamoa ish haqida yozishmoqda,
-// oxirgi xabarni Safora jamoasi qoldirgan — "tez kunda qo'shamiz 😊". Reklama
-// lentaning o'zida yashaydi. Kontent statik, composer o'chirilgan — halol "tez orada".
+// ── "Guruhlar" ro'yxati ──────────────────────────────────────────────────────
 
-/** Guruh tabining chap paneli — bitta umumiy xona qatori (jonli unread bilan). */
-function GroupListTeaser({ onOpen }: { onOpen: () => void }) {
+/** Guruh tabining chap paneli — ikki doimiy xona (jonli unread bilan). */
+function GroupRoomList({
+  selected,
+  onSelect,
+}: {
+  selected: GroupRoom
+  onSelect: (room: GroupRoom) => void
+}) {
   const t = useT()
-  const unreadQ = useQuery({ queryKey: groupUnreadKey, queryFn: getGroupUnread, staleTime: 15_000 })
-  const unread = unreadQ.data?.unread ?? 0
+  const groupUnread = useQuery({
+    queryKey: groupUnreadKey,
+    queryFn: getGroupUnread,
+    staleTime: 15_000,
+  })
+  // `retry: false` — ruhsat/rol yo'q bo'lsa (403) qator jimgina nolda qoladi, xato chiqmaydi.
+  const hkUnread = useQuery({
+    queryKey: hkUnreadKey,
+    queryFn: getHkUnread,
+    staleTime: 15_000,
+    retry: false,
+  })
   return (
-    <div className="p-2">
-      <button
-        type="button"
-        onClick={onOpen}
-        className="flex w-full items-center gap-3 rounded-control bg-accent px-3 py-2.5 text-left"
-      >
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
-          <Icon icon={UserGroupIcon} className="size-5" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-baseline justify-between gap-2">
-            <p className="truncate text-sm font-medium text-neutral-900">{t("chat.teamGroup")}</p>
-            {unread > 0 && (
-              <span className="inline-flex h-5 min-w-[1.25rem] shrink-0 items-center justify-center rounded-full bg-primary px-1.5 text-[0.6875rem] font-medium tabular-nums text-primary-foreground">
-                {unread}
-              </span>
-            )}
-          </div>
-          <p className="mt-0.5 truncate text-xs text-neutral-500">{t("chat.teamGroupHint")}</p>
-        </div>
-      </button>
+    <div className="flex flex-col gap-1 p-2">
+      <GroupRoomRow
+        icon={UserGroupIcon}
+        title={t("chat.teamGroup")}
+        subtitle={t("chat.teamGroupHint")}
+        unread={groupUnread.data?.unread ?? 0}
+        active={selected === "team"}
+        onClick={() => onSelect("team")}
+      />
+      <GroupRoomRow
+        icon={CleanIcon}
+        title={t("chat.hkGroup")}
+        subtitle={t("chat.hkGroupHint")}
+        unread={hkUnread.data?.unread ?? 0}
+        active={selected === "hk"}
+        onClick={() => onSelect("hk")}
+      />
     </div>
+  )
+}
+
+function GroupRoomRow({
+  icon,
+  title,
+  subtitle,
+  unread,
+  active,
+  onClick,
+}: {
+  icon: IconData
+  title: string
+  subtitle: string
+  unread: number
+  active: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "flex w-full items-center gap-3 rounded-control px-3 py-2.5 text-left transition-colors",
+        active ? "bg-accent" : "hover:bg-neutral-100",
+      )}
+    >
+      <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
+        <Icon icon={icon} className="size-5" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-baseline justify-between gap-2">
+          <p className="truncate text-sm font-medium text-neutral-900">{title}</p>
+          {unread > 0 && (
+            <span className="inline-flex h-5 min-w-[1.25rem] shrink-0 items-center justify-center rounded-full bg-primary px-1.5 text-[0.6875rem] font-medium tabular-nums text-primary-foreground">
+              {unread}
+            </span>
+          )}
+        </div>
+        <p className="mt-0.5 truncate text-xs text-neutral-500">{subtitle}</p>
+      </div>
+    </button>
   )
 }
 

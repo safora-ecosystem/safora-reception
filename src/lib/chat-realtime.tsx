@@ -13,10 +13,12 @@ import {
   ApiError,
   chatRtConnect,
   getGroupUnread,
+  getHkUnread,
   getTeamUnread,
   listConversations,
   type ChatMessage,
   type GroupMessage,
+  type HkChatMessage,
   type ReactionView,
   type Room,
   type TeamMessage,
@@ -34,6 +36,8 @@ export const teamMessagesKey = (userId: string) => ["chat", "team-messages", use
 export const teamUnreadKey = ["chat", "team-unread"] as const
 export const groupMessagesKey = ["chat", "group-messages"] as const
 export const groupUnreadKey = ["chat", "group-unread"] as const
+export const hkMessagesKey = ["chat", "hk-messages"] as const
+export const hkUnreadKey = ["chat", "hk-unread"] as const
 
 type MessagePage = { items: ChatMessage[]; nextCursor: string | null }
 
@@ -97,6 +101,14 @@ export function appendLiveMessage(qc: QueryClient, bookingId: string, message: C
 
 export function appendGroupMessage(qc: QueryClient, message: GroupMessage): void {
   qc.setQueryData<{ messages: GroupMessage[] }>(groupMessagesKey, (old) => {
+    if (!old) return old
+    if (old.messages.some((m) => m.id === message.id)) return old
+    return { messages: [...old.messages, message] }
+  })
+}
+
+export function appendHkMessage(qc: QueryClient, message: HkChatMessage): void {
+  qc.setQueryData<{ messages: HkChatMessage[] }>(hkMessagesKey, (old) => {
     if (!old) return old
     if (old.messages.some((m) => m.id === message.id)) return old
     return { messages: [...old.messages, message] }
@@ -192,6 +204,18 @@ function handleServerPublication(qc: QueryClient, raw: unknown): void {
     if (gm.senderId !== meId) {
       playMessageChime()
       showDesktopNotification(t("chat.groupFrom", { name: gm.senderName }), gm.text)
+    }
+    return
+  }
+
+  if (data.type === "hk-chat-message" && data.message) {
+    const hm = data.message as unknown as HkChatMessage
+    const meId = getSession()?.user.id
+    appendHkMessage(qc, hm)
+    void qc.invalidateQueries({ queryKey: hkUnreadKey })
+    if (hm.senderId !== meId) {
+      playMessageChime()
+      showDesktopNotification(t("chat.hkFrom", { name: hm.senderName }), hm.text)
     }
     return
   }
@@ -385,10 +409,18 @@ export function useChatBadge(): string | undefined {
     refetchInterval: 30_000,
     retry: false,
   })
+  const hk = useQuery({
+    queryKey: hkUnreadKey,
+    queryFn: getHkUnread,
+    staleTime: 15_000,
+    refetchInterval: 30_000,
+    retry: false,
+  })
   const total =
     (conv.data?.items.reduce((sum, c) => sum + (c.archived ? 0 : c.unread), 0) ?? 0) +
     (team.data?.unread ?? 0) +
-    (group.data?.unread ?? 0)
+    (group.data?.unread ?? 0) +
+    (hk.data?.unread ?? 0)
   if (total <= 0) return undefined
   return total > 99 ? "99+" : String(total)
 }
