@@ -6,6 +6,7 @@ import { getHotelBranding } from "@/lib/api"
 import { useChatBadge } from "@/lib/chat-realtime"
 import { useT } from "@/lib/i18n"
 import { usePermissions } from "@/lib/permissions"
+import { useScrollEdges } from "@/lib/use-scroll-edges"
 import { cn } from "@/lib/utils"
 import { navItems, systemNavItems, type NavItem } from "./nav"
 import { ShiftCard } from "./shift-card"
@@ -81,6 +82,8 @@ function NavRow({ item, active }: { item: NavItem; active: boolean }) {
 }
 
 export function Sidebar() {
+  const t = useT()
+  const nav = useScrollEdges<HTMLDivElement>()
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const { can } = usePermissions()
   const visible = (item: NavItem) => !item.permission || can(item.permission)
@@ -93,24 +96,40 @@ export function Sidebar() {
   return (
     <aside className="flex w-60 shrink-0 flex-col overflow-hidden rounded-panel border border-border bg-white">
       {}
-      <div className="shrink-0 px-4 pt-6 pb-4">
-        <BrandLogo />
-      </div>
+      <div className="relative min-h-0 flex-1">
+        <div ref={nav.ref} className="h-full overflow-y-auto px-3 pt-26">
+          {}
+          <nav className="flex flex-col gap-0.5">
+            {navItems.filter(visible).map((item) => (
+              <NavRow key={item.to} item={badgeFor(item)} active={isActive(item.to)} />
+            ))}
+          </nav>
 
-      {}
-      <div className="min-h-0 flex-1 overflow-y-auto px-3">
+          <nav className="hairline-t mt-2 flex flex-col gap-0.5 pt-2">
+            {systemNavItems.filter(visible).map((item) => (
+              <NavRow key={item.to} item={item} active={isActive(item.to)} />
+            ))}
+          </nav>
+        </div>
+
         {}
-        <nav className="flex flex-col gap-0.5 pt-1">
-          {navItems.filter(visible).map((item) => (
-            <NavRow key={item.to} item={badgeFor(item)} active={isActive(item.to)} />
-          ))}
-        </nav>
+        <div className="logo-veil pointer-events-none absolute inset-x-0 top-0 z-10 px-4 pt-6 pb-5">
+          <Link
+            to="/"
+            aria-label={t("nav.stats")}
+            className="pointer-events-auto block rounded-control"
+          >
+            <BrandLogo />
+          </Link>
+        </div>
 
-        <nav className="hairline-t mt-2 flex flex-col gap-0.5 pt-2">
-          {systemNavItems.filter(visible).map((item) => (
-            <NavRow key={item.to} item={item} active={isActive(item.to)} />
-          ))}
-        </nav>
+        <div
+          aria-hidden
+          className={cn(
+            "scroll-edge-b pointer-events-none absolute inset-x-0 bottom-0 h-9 transition-opacity duration-200",
+            nav.bottom ? "opacity-100" : "opacity-0",
+          )}
+        />
       </div>
 
       {}

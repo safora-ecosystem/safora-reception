@@ -413,6 +413,29 @@
   .divide-hairline > * + * { border-top: 1px solid var(--border); }
 
   
+  .scroll-edge-b {
+    background: linear-gradient(to top, var(--surface-1) 20%, transparent);
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+    -webkit-mask-image: linear-gradient(to top, #000 40%, transparent);
+    mask-image: linear-gradient(to top, #000 40%, transparent);
+  }
+
+  
+  .logo-veil {
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+    background: linear-gradient(
+      to bottom,
+      var(--surface-1) 58%,
+      color-mix(in oklab, var(--surface-1) 55%, transparent) 80%,
+      transparent
+    );
+    -webkit-mask-image: linear-gradient(to bottom, #000 64%, transparent);
+    mask-image: linear-gradient(to bottom, #000 64%, transparent);
+  }
+
+  
   .sheen-brand {
     background-image: radial-gradient(115% 115% at 100% 0%, oklch(1 0 0 / 0.16), transparent 55%);
   }
