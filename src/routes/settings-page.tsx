@@ -73,6 +73,7 @@ export function SettingsPage() {
         <div className="flex flex-col gap-4">
           <Section title={t("settings.profile.title")} hint={t("settings.profile.hint")}>
             <AvatarUploader
+              id={user?.id}
               name={user?.name ?? t("settings.profile.staffFallback")}
               avatarUrl={avatarUrl}
               onChange={setAvatarUrl}

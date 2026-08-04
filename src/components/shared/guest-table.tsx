@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router"
+import { PersonAvatar } from "@/components/shared/person-avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -69,9 +70,11 @@ export function GuestTable({
             >
               <td className="px-4 py-3">
                 <div className="flex items-center gap-3">
-                  <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-sm font-semibold text-neutral-600">
-                    {guest.fullName.charAt(0).toUpperCase()}
-                  </span>
+                  <PersonAvatar
+                    className="size-9 shrink-0"
+                    id={guest.key}
+                    name={guest.fullName}
+                  />
                   <div className="min-w-0">
                     <p className="truncate font-medium text-neutral-900">{guest.fullName}</p>
                     <p className="truncate text-xs text-neutral-500 tabular-nums">
@@ -130,9 +133,7 @@ export function GuestDialog({
           <>
             <DialogHeader>
               <DialogTitle className="flex items-center gap-3">
-                <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-base font-semibold text-neutral-600">
-                  {guest.fullName.charAt(0).toUpperCase()}
-                </span>
+                <PersonAvatar className="size-10 shrink-0" id={guest.key} name={guest.fullName} />
                 <span className="min-w-0">
                   <span className="block truncate">{guest.fullName}</span>
                   <span className="block text-xs font-normal text-neutral-500 tabular-nums">

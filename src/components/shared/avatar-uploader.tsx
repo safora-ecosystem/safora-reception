@@ -1,5 +1,6 @@
 import { useRef, useState } from "react"
 import { toast } from "sonner"
+import { PersonAvatar } from "@/components/shared/person-avatar"
 import { Button } from "@/components/ui/button"
 import {
   AVATAR_MAX_BYTES,
@@ -16,10 +17,12 @@ const ACCEPT = "image/jpeg,image/png,image/webp"
 
 export function AvatarUploader({
   name,
+  id,
   avatarUrl,
   onChange,
 }: {
   name: string
+  id?: string | null
   avatarUrl: string | null | undefined
   onChange: (url: string | null) => void
 }) {
@@ -27,7 +30,6 @@ export function AvatarUploader({
   const inputRef = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
   const [remaining, setRemaining] = useState<number | null>(null)
-  const initial = (name || "?").trim().charAt(0).toUpperCase()
 
   function applyResult(res: AvatarResult) {
     updateAvatar(res.avatarUrl)
@@ -82,9 +84,7 @@ export function AvatarUploader({
             onError={(e) => (e.currentTarget.style.display = "none")}
           />
         ) : (
-          <div className="grid size-12 place-items-center rounded-full bg-accent text-lg font-semibold text-accent-foreground">
-            {initial}
-          </div>
+          <PersonAvatar className="size-12" id={id} name={name} />
         )}
       </div>
 

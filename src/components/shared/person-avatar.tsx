@@ -1,4 +1,5 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { cn } from "@/lib/utils"
 
 
 export function initials(name: string): string {
@@ -24,18 +25,24 @@ export function PersonAvatar({
   avatarUrl,
   id,
   size,
+  shape = "circle",
   className,
 }: {
   name: string
   avatarUrl?: string | null
   id?: string | null
   size?: "default" | "sm" | "lg"
+  shape?: "circle" | "squircle"
   className?: string
 }) {
+  const radius = shape === "squircle" ? "rounded-[28%]" : "rounded-full"
   return (
-    <Avatar size={size} className={className}>
-      {avatarUrl && <AvatarImage src={avatarUrl} alt={name} />}
-      <AvatarFallback className="identity-fill" data-identity={identityTone(id || name)}>
+    <Avatar size={size} className={cn(radius, className)}>
+      {avatarUrl && <AvatarImage className={radius} src={avatarUrl} alt={name} />}
+      <AvatarFallback
+        className={cn(radius, "identity-fill")}
+        data-identity={identityTone(id || name)}
+      >
         {initials(name)}
       </AvatarFallback>
     </Avatar>
