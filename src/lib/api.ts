@@ -235,6 +235,21 @@ export function apiErrorText(err: unknown, fallback = t("errors.generic")): stri
 
 export type BookingStatus = "booked" | "checked_in" | "checked_out" | "cancelled"
 
+/** Qo'shimcha xarajat (ovqat, xizmat) — `payments` kabi append-only, storno bilan. */
+export type BookingCharge = {
+  id: string
+  kind: "kitchen" | "service"
+  /** Hujjatda chiqadigan matn — backendda MUHRLANGAN, panel uni qayta yasamaydi. */
+  title: string
+  amount: number | string
+  taxable: boolean
+  createdBy: { id: string; name: string } | null
+  voidedAt: string | null
+  voidedBy: { id: string; name: string } | null
+  voidReason: string | null
+  createdAt: string
+}
+
 /** Tozalash holati — backend `housekeeping_status` enum'i bilan bir xil. Resepshn va
     housekeeping mobil ilovasi AYNAN shu maydonni o'qiydi, ikkinchi haqiqat manbai yo'q. */
 export type HousekeepingStatus = "clean" | "dirty" | "in_progress"
@@ -341,6 +356,8 @@ export type Booking = {
   guests?: BookingGuest[]
   /** To'lov ledgeri — FAQAT detal javobida (`GET /bookings/:id` va mutatsiya javoblari). */
   payments?: BookingPayment[]
+  /** Qo'shimcha xarajatlar. Bekor qilinganlari HAM keladi — folio'da ular ko'rinib turadi. */
+  charges?: BookingCharge[]
   _count?: { guests: number }
 }
 

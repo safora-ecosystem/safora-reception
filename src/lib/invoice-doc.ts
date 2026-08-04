@@ -266,13 +266,59 @@ function paymentRows(b: Booking): FolioRow[] {
 }
 
 /**
+ * QO'SHIMCHA XARAJATLAR (ovqat, xizmat) — `booking_charges` DEBET ledgeridan.
+ *
+ * `paymentRows` ning ko'zgusi va ATAYIN shunday: hujjat ikkala ledgerni bir xil o'qiydi —
+ * qator, keyin (bo'lsa) storno qatori. Qator hech qachon O'CHIRILMAYDI: mehmon "kartadan
+ * ikki marta yechilibdi" degan savolni qog'ozdan topa olishi kerak (fayl sarlavhasi).
+ *
+ * `taxable` faqat storno qilinmagan qatorda `true` — shu bilan QQS ajratimi o'z-o'zidan
+ * to'g'ri chiqadi: bekor qilingan ovqat soliqqa tortiladigan xarajatga kirmaydi. `taxable`
+ * faqat "Hisoblandi" ustunini yig'gani uchun (`buildFolio`), storno qatorini alohida
+ * ayirish shart emas.
+ */
+function chargeRows(b: Booking): FolioRow[] {
+  const out: FolioRow[] = []
+  for (const c of b.charges ?? []) {
+    const amount = round2(amountOf(c.amount))
+    if (amount <= 0) continue
+
+    out.push({
+      date: localDay(c.createdAt),
+      text: c.title,
+      charge: amount,
+      credit: 0,
+      kind: "service",
+      taxable: c.voidedAt == null,
+    })
+
+    if (c.voidedAt) {
+      const back = c.voidReason ? `${c.title} — storno · ${c.voidReason}` : `${c.title} — storno`
+      out.push({
+        date: localDay(c.voidedAt),
+        text: back,
+        charge: 0,
+        credit: amount,
+        kind: "refund",
+        taxable: false,
+      })
+    }
+  }
+  return out
+}
+
+/**
  * Hujjatning RAQAMLARI — HTML ham, Excel ham SHUNDAN chiqadi. Bitta joyda hisoblanadi,
  * shuning uchun qog'ozdagi "Jami" bilan varaqdagi "Jami" hech qachon farq qila olmaydi.
  */
 export function buildFolio(doc: InvoiceDoc): Folio {
   const sorted = [...doc.bookings].sort((a, b) => a.checkInDate.localeCompare(b.checkInDate))
 
-  const rows = [...sorted.flatMap(stayRows), ...sorted.flatMap(paymentRows)].sort(
+  const rows = [
+    ...sorted.flatMap(stayRows),
+    ...sorted.flatMap(chargeRows),
+    ...sorted.flatMap(paymentRows),
+  ].sort(
     // Sana bo'yicha, bir kun ichida esa tur bo'yicha: xarajat oldin, to'lov keyin. `sort`
     // barqaror — teng kalitlar generatsiya tartibida qoladi (to'lovlar xronologik).
     (a, b) => a.date.localeCompare(b.date) || KIND_ORDER[a.kind] - KIND_ORDER[b.kind],
