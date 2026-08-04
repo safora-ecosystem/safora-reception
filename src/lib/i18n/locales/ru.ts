@@ -121,6 +121,7 @@ export const ru: Dictionary<"ru"> = {
     resultHint: "Смена завершена. Передайте отчёт вместе с кассой.",
     resultDownload: "Скачать отчёт",
     resultPrint: "Печать",
+    resultDocument: "Документ смены",
     resultExit: "Выйти",
     loggingOut: "Выход…",
     reportTitle: "Отчёт смены",

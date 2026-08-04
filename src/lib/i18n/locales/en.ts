@@ -121,6 +121,7 @@ export const en: Dictionary<"en"> = {
     resultHint: "Shift ended. Hand the report over together with the drawer.",
     resultDownload: "Download report",
     resultPrint: "Print",
+    resultDocument: "Shift document",
     resultExit: "Sign out",
     loggingOut: "Signing out…",
     reportTitle: "Shift report",

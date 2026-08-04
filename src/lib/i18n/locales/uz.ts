@@ -121,6 +121,7 @@ export const uz = {
     resultHint: "Smena yakunlandi. Hisobotni kassa bilan birga topshiring.",
     resultDownload: "Hisobotni yuklab olish",
     resultPrint: "Chop etish",
+    resultDocument: "Smena hujjati",
     resultExit: "Chiqish",
     loggingOut: "Chiqilmoqda…",
     reportTitle: "Smena hisoboti",

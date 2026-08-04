@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/compone
 import { Skeleton } from "@/components/ui/skeleton"
 import { Textarea } from "@/components/ui/textarea"
 import { MoneyInput } from "@/components/shared/money-input"
+import { ShiftDocDialog } from "@/components/shift/shift-doc-dialog"
 import {
   ApiError,
   SHIFT_REQUIRED_EVENT,
@@ -18,7 +19,6 @@ import {
   shiftKeys,
   type CashMovementKind,
   type ShiftCurrent,
-  type ShiftReport,
   type ShiftSession,
 } from "@/lib/api"
 import { getSession } from "@/lib/auth"
@@ -26,7 +26,7 @@ import { money } from "@/lib/format"
 import { useT } from "@/lib/i18n"
 import { usePermissions } from "@/lib/permissions"
 import { quoteOfTheDay } from "@/lib/motivation"
-import { methodLabel, methodsTotal, sortedMethods, visibleFlags } from "@/lib/shift-report"
+import { methodLabel, methodsTotal, sortedMethods } from "@/lib/shift-report"
 import {
   holdShiftGate,
   lastKnownShiftOpen,
@@ -492,94 +492,6 @@ function MoneyRow({ label, value, strong }: { label: string; value: string; stro
   )
 }
 
-/** Foydalanuvchi kiritgan matn HTML'ga chiqishdan oldin. MAJBURIY: `printReport` hisobotni
-    `srcdoc` bilan chizadi — bu SHU ORIGIN. Eslatma/sabab matnini oldingi smena xodimi yozadi,
-    ya'ni escaping'siz `<img onerror=...>` keyingi odamning paneli kontekstida ishga tushardi
-    (localStorage'da token bor). */
-const esc = (v: string): string =>
-  v.replace(/[&<>"']/g, (c) =>
-    c === "&" ? "&amp;" : c === "<" ? "&lt;" : c === ">" ? "&gt;" : c === '"' ? "&quot;" : "&#39;",
-  )
-
-/** Yakunlangan smena hisoboti — yuklab olish/chop etish uchun sodda, o'z-o'ziga yetarli HTML.
-    Chaqiruvchi t() beradi — hisobot panel tilida chiqadi. */
-function buildReportHtml(
-  t: ReturnType<typeof useT>,
-  r: ShiftReport,
-): string {
-  const s = r.session
-  const fmt = (n: number | null) => (n == null ? "—" : `${n.toLocaleString("uz-UZ")} so'm`)
-  const dt = (iso: string | null) => (iso ? new Date(iso).toLocaleString() : "—")
-  const flagText: Record<string, string> = {
-    FORCE_CLOSED: t("shiftSession.flagForceClosed"),
-    TAKEN_OVER: t("shiftSession.flagTakenOver"),
-    POST_CLOSE_VOID: t("shiftSession.flagPostCloseVoid"),
-    ESCALATED: t("shiftSession.flagEscalated"),
-  }
-  const row = (label: string, value: string) =>
-    `<tr><td style="padding:4px 12px 4px 0;color:#777">${label}</td><td style="padding:4px 0;font-weight:600;text-align:right">${value}</td></tr>`
-
-  return `<!doctype html><html><head><meta charset="utf-8"><title>${t("shiftSession.reportTitle")}</title></head>
-<body style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:520px;margin:24px auto;padding:0 16px;color:#1a1a1a">
-  <h1 style="font-size:18px;margin:0">${t("shiftSession.reportTitle")}</h1>
-  <p style="margin:4px 0 16px;color:#777;font-size:13px">${esc(s.user.name)} · ${dt(s.openedAt)} — ${dt(s.closedAt)}</p>
-  ${
-    Object.keys(r.cash.byMethod).length
-      ? `<h2 style="font-size:13px;color:#777;margin:0 0 4px">${t("shiftSession.reportByMethod")}</h2>
-  <table style="width:100%;border-collapse:collapse;font-size:14px">${sortedMethods(r.cash.byMethod)
-    .map(([m, v]) => row(`${esc(methodLabel(t, m))} ×${v.count}`, fmt(v.amount)))
-    .join("")}
-    <tr><td colspan="2" style="border-top:1px solid #e5e5e5;padding:0"></td></tr>
-    ${row(t("shiftSession.reportTotal"), fmt(methodsTotal(r.cash.byMethod)))}</table>`
-      : `<p style="font-size:14px;color:#777;margin:0">${t("shiftSession.closeNoPayments")}</p>`
-  }
-  ${
-    r.cash.movements.length
-      ? `<h2 style="font-size:13px;color:#777;margin:16px 0 4px">${t("shiftSession.reportMovements")}</h2>
-  <table style="width:100%;border-collapse:collapse;font-size:14px">${r.cash.movements
-    .map((m) => row(esc(m.reason), `${m.kind === "deposit" ? "+" : "−"}${fmt(m.amount)}`))
-    .join("")}</table>`
-      : ""
-  }
-  ${
-    visibleFlags(r.flags).length
-      ? `<h2 style="font-size:13px;color:#777;margin:16px 0 4px">·</h2><ul style="font-size:13px;padding-left:18px;margin:0">${visibleFlags(
-          r.flags,
-        )
-          .map((f) => `<li>${flagText[f] ?? f}</li>`)
-          .join("")}</ul>`
-      : ""
-  }
-  ${s.note ? `<h2 style="font-size:13px;color:#777;margin:16px 0 4px">${t("shiftSession.noteLabel")}</h2><p style="font-size:14px;margin:0">${esc(s.note)}</p>` : ""}
-</body></html>`
-}
-
-function downloadReport(html: string, closedAt: string | null): void {
-  const blob = new Blob([html], { type: "text/html;charset=utf-8" })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement("a")
-  a.href = url
-  a.download = `smena-hisoboti-${(closedAt ?? new Date().toISOString()).slice(0, 10)}.html`
-  a.click()
-  URL.revokeObjectURL(url)
-}
-
-/** Chop etish — yashirin iframe orqali (yangi oyna popup-blokerga ilinadi). */
-function printReport(html: string): void {
-  const frame = document.createElement("iframe")
-  frame.style.position = "fixed"
-  frame.style.right = "100%"
-  frame.style.width = "0"
-  frame.style.height = "0"
-  frame.onload = () => {
-    frame.contentWindow?.focus()
-    frame.contentWindow?.print()
-    setTimeout(() => frame.remove(), 60_000)
-  }
-  document.body.appendChild(frame)
-  frame.srcdoc = html
-}
-
 export function ShiftCloseDialog({
   open,
   onOpenChange,
@@ -642,13 +554,14 @@ export function ShiftCloseDialog({
     },
   })
 
-  // Hisobot — natija bosqichida fonda tortiladi: yuklab olish/chop etish darrov tayyor bo'lsin.
+  // Hisobot — natija bosqichida fonda tortiladi: hujjat tugmasi darrov faol bo'lsin.
   const reportQ = useQuery({
     queryKey: shiftKeys.report(session.id),
     queryFn: () => getShiftReport(session.id),
     enabled: state.step === "result",
     retry: false,
   })
+  const [docOpen, setDocOpen] = useState(false)
 
   const finishAndMaybeLogout = () => {
     onOpenChange(false)
@@ -759,31 +672,26 @@ export function ShiftCloseDialog({
               </dl>
             )}
 
-            {/* Hisobot — xohlasa qog'ozda/faylda oladi; xohlamasa to'g'ridan chiqadi. */}
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                className="flex-1"
-                disabled={reportQ.data == null}
-                onClick={() => reportQ.data && downloadReport(buildReportHtml(t, reportQ.data), state.session.closedAt)}
-              >
-                {t("shiftSession.resultDownload")}
-              </Button>
-              <Button
-                variant="outline"
-                className="flex-1"
-                disabled={reportQ.data == null}
-                onClick={() => reportQ.data && printReport(buildReportHtml(t, reportQ.data))}
-              >
-                {t("shiftSession.resultPrint")}
-              </Button>
-            </div>
+            {/* HUJJAT — mehmonxona varag'i (xonalar setkasi, kassa jurnali, imzolar).
+                Yuklab olish/chop etish o'sha oynada, kalitlari bilan: bu yerda ikkita
+                tugma turgan edi va ikkalasi ham qisqartirilgan varaqni berardi. */}
+            <Button variant="outline" disabled={reportQ.data == null} onClick={() => setDocOpen(true)}>
+              {t("shiftSession.resultDocument")}
+            </Button>
             <Button size="xl" onClick={finishAndMaybeLogout}>
               {t("shiftSession.resultExit")}
             </Button>
           </div>
         )}
       </DialogContent>
+
+      {/* Hujjat yakunlash oynasining USTIDA ochiladi — xodim varaqni ko'rib, chop etib,
+          keyin "Chiqish" ga qaytadi. Yakunlash oqimi uzilmaydi. */}
+      <ShiftDocDialog
+        sessionId={state.step === "result" ? state.session.id : null}
+        open={docOpen}
+        onOpenChange={setDocOpen}
+      />
     </Dialog>
   )
 }

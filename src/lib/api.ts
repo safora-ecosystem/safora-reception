@@ -640,11 +640,82 @@ export type ShiftReport = {
       createdBy: { id: string; name: string } | null
     }>
   }
+  sheet: ShiftSheet
   health: Array<{ action: string; label: string; count: number; severity: string }>
   flags: string[]
 }
 
+export type ShiftSheet = {
+  rooms: Array<{
+    roomNumber: string
+    guestName: string | null
+    checkInDate: string | null
+    checkInTime: string | null
+    checkOutDate: string | null
+    nights: number | null
+    people: number | null
+    price: number | null
+    charged: number | null
+    paid: number | null
+    debtPaid: number | null
+    debt: number | null
+    company: string | null
+  }>
+  events: Array<{
+    id: string
+    at: string
+    atText: string
+    kind: "check_in" | "check_out" | "payment" | "expense"
+    roomNumber: string
+    guestName: string
+    checkInDate: string | null
+    checkInTime: string | null
+    checkOutDate: string | null
+    amount: number
+    method: string | null
+    reason: string | null
+    approvedBy: string | null
+  }>
+  totals: {
+    roomsTotal: number
+    roomsOccupied: number
+    roomsFree: number
+    occupancyPct: number
+    people: number
+    checkIns: number
+    checkOuts: number
+    price: number
+    charged: number
+    paid: number
+    debtPaid: number
+    debt: number
+    cash: number
+    card: number
+    transfer: number
+    income: number
+    expense: number
+  }
+}
+
 export const getShiftReport = (id: string) => api<ShiftReport>(`/shift-sessions/${id}/report`)
+
+/** Smena xronologiyasi — hujjatning "Tizim jurnali" bo'limi. ALOHIDA so'rov: jurnal
+    standart holatda CHIZILMAYDI (qo'shimcha varaq yeydi), ya'ni kalit yoqilmaguncha uni
+    tortib olishning hojati yo'q. `activity.view` ruxsatini talab qiladi. */
+export type ShiftTimelineItem = {
+  id: string
+  action: string
+  label: string
+  severity: string
+  actorName: string | null
+  entityType: string | null
+  entityId: string | null
+  at: string
+  data?: unknown
+}
+
+export const getShiftTimeline = (id: string) =>
+  api<{ sessionId: string; items: ShiftTimelineItem[] }>(`/shift-sessions/${id}/timeline`)
 
 // ── Tashkilotlar (korporativ mijozlar) ───────────────────────────────────────
 //
