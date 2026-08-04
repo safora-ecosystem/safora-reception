@@ -212,6 +212,24 @@
   --cal-block-stripe: #eab308;
   --cal-block-stripe-alt: #292524;
 
+
+  
+  --identity-1-from: #fc96bf; 
+  --identity-1-to: #cb5162;
+  --identity-2-from: #df9eee; 
+  --identity-2-to: #ba569d;
+  --identity-3-from: #bcaefc; 
+  --identity-3-to: #9f61c2;
+  --identity-4-from: #9bbafb; 
+  --identity-4-to: #796fd8;
+  --identity-5-from: #6ec5fc; 
+  --identity-5-to: #407fdb;
+  --identity-6-from: #2bd3db; 
+  --identity-6-to: #1a8eab;
+  --identity-7-from: #4bd5b1; 
+  --identity-7-to: #1a928f;
+  --identity-8-from: #8ccf7e; 
+  --identity-8-to: #199765;
   --brand-today: var(--color-brand-50);
   --border: var(--color-neutral-200);
   --input: var(--color-neutral-200);
@@ -299,6 +317,24 @@
   --cal-block-stripe: #c98a12;
   --cal-block-stripe-alt: #1c1917;
 
+
+  
+  --identity-1-from: #e98db2;
+  --identity-1-to: #bd4d5b;
+  --identity-2-from: #d094dd;
+  --identity-2-to: #ad5092;
+  --identity-3-from: #b09ff4;
+  --identity-3-to: #945ab4;
+  --identity-4-from: #89acfa;
+  --identity-4-to: #7068c8;
+  --identity-5-from: #5cb8f1;
+  --identity-5-to: #3c76cb;
+  --identity-6-from: #2ac4cc;
+  --identity-6-to: #16849f;
+  --identity-7-from: #4bc6a5;
+  --identity-7-to: #178885;
+  --identity-8-from: #84c177;
+  --identity-8-to: #178d5e;
   --brand-today: #241309;
 
   --shadow-card: 0 1px 2px oklch(0 0 0 / 0.5);
@@ -323,6 +359,36 @@
   }
   .text-on-fill-40 {
     color: rgb(255 255 255 / 0.4);
+  }
+
+  
+  .identity-fill[data-identity] {
+    background-color: transparent;
+    color: #fff;
+  }
+  .identity-fill[data-identity="1"] {
+    background-image: linear-gradient(165deg, var(--identity-1-from), var(--identity-1-to));
+  }
+  .identity-fill[data-identity="2"] {
+    background-image: linear-gradient(165deg, var(--identity-2-from), var(--identity-2-to));
+  }
+  .identity-fill[data-identity="3"] {
+    background-image: linear-gradient(165deg, var(--identity-3-from), var(--identity-3-to));
+  }
+  .identity-fill[data-identity="4"] {
+    background-image: linear-gradient(165deg, var(--identity-4-from), var(--identity-4-to));
+  }
+  .identity-fill[data-identity="5"] {
+    background-image: linear-gradient(165deg, var(--identity-5-from), var(--identity-5-to));
+  }
+  .identity-fill[data-identity="6"] {
+    background-image: linear-gradient(165deg, var(--identity-6-from), var(--identity-6-to));
+  }
+  .identity-fill[data-identity="7"] {
+    background-image: linear-gradient(165deg, var(--identity-7-from), var(--identity-7-to));
+  }
+  .identity-fill[data-identity="8"] {
+    background-image: linear-gradient(165deg, var(--identity-8-from), var(--identity-8-to));
   }
 
   

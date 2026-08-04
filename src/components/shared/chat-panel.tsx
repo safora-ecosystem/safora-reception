@@ -5,15 +5,10 @@ import { listConversations } from "@/lib/api"
 import { conversationsKey } from "@/lib/chat-realtime"
 import { ErrorState } from "@/components/shared/error-state"
 import { SkeletonList } from "@/components/shared/skeletons"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { PersonAvatar } from "@/components/shared/person-avatar"
 import { useT } from "@/lib/i18n"
 import { Button } from "@/components/ui/button"
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-
-function initials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean).slice(0, 2)
-  return parts.map((w) => w[0]!.toUpperCase()).join("") || "?"
-}
 
 export function ChatPanel() {
   const t = useT()
@@ -65,9 +60,7 @@ export function ChatPanel() {
                   to="/chat"
                   className="flex items-center gap-3 px-5 py-2.5 transition-colors hover:bg-neutral-50"
                 >
-                  <Avatar size="sm">
-                    <AvatarFallback>{initials(c.guestName)}</AvatarFallback>
-                  </Avatar>
+                  <PersonAvatar size="sm" id={c.bookingId} name={c.guestName} />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium text-neutral-900">{c.guestName}</p>
                     <p className="truncate text-xs text-neutral-500">

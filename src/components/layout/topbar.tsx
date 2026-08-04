@@ -9,7 +9,7 @@ import { useQuery } from "@tanstack/react-query"
 import { ExpenseDialog, ShiftCloseDialog } from "@/components/shift/shift-dialogs"
 import { getCurrentShift, shiftKeys } from "@/lib/api"
 import { usePermissions } from "@/lib/permissions"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { PersonAvatar } from "@/components/shared/person-avatar"
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
 import {
   DropdownMenu,
@@ -30,7 +30,6 @@ import { useTopbarSearch } from "@/lib/topbar-search"
 export function Topbar() {
   const t = useT()
   const user = getSession()?.user
-  const initial = (user?.name ?? "?").trim().charAt(0).toUpperCase()
 
   const { actions } = usePageHeader()
 
@@ -189,12 +188,14 @@ export function Topbar() {
             esa hamisha o'ng yuqorida — odam uni aynan shu yerda qidiradi. */}
         <DropdownMenu>
           <DropdownMenuTrigger className="flex items-center gap-2.5 rounded-panel px-1 py-1 outline-none transition-colors hover:bg-neutral-100 focus-visible:ring-3 focus-visible:ring-ring/40 data-[state=open]:bg-neutral-100">
-            <Avatar size="lg">
-              {/* Radix rasm yuklanmaguncha (yoki umuman bo'lmasa) fallback'ni ushlab turadi —
-                  ya'ni bosh harf hech qachon "sakrab" almashmaydi. */}
-              {user?.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.name} />}
-              <AvatarFallback>{initial}</AvatarFallback>
-            </Avatar>
+            {/* Radix rasm yuklanmaguncha (yoki umuman bo'lmasa) fallback'ni ushlab turadi —
+                ya'ni bosh harf hech qachon "sakrab" almashmaydi. */}
+            <PersonAvatar
+              size="lg"
+              id={user?.id}
+              name={user?.name ?? t("topbar.staff")}
+              avatarUrl={user?.avatarUrl}
+            />
             <div className="hidden leading-tight text-left lg:block">
               <p className="text-[0.9375rem] font-medium text-neutral-900">{user?.name ?? t("topbar.staff")}</p>
               <p className="text-sm text-neutral-500">{user ? t(ROLE_KEY[user.role]) : ""}</p>

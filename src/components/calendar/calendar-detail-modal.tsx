@@ -28,7 +28,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { uz } from "date-fns/locale";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { PersonAvatar } from "@/components/shared/person-avatar";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -158,11 +158,6 @@ function fmtMoment(
   const hh = String(d.getHours()).padStart(2, "0");
   const mm = String(d.getMinutes()).padStart(2, "0");
   return `${labels.formatDay(iso)} · ${hh}:${mm}`;
-}
-
-function initials(name: string): string {
-  const parts = name.trim().split(/\s+/).slice(0, 2);
-  return parts.map((p) => p[0]?.toUpperCase() ?? "").join("") || "?";
 }
 
 function paymentRatio(p: CalendarPayment): number {
@@ -507,11 +502,7 @@ function DetailBody({
     <div className="flex min-h-0 flex-1 flex-col">
       {/* ── Sarlavha — "Yangi bron" sarlavhasi bilan bir xil o'lchov va tartib ────── */}
       <header className="hairline-b flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3 sm:px-6">
-        <Avatar className="size-10 shrink-0">
-          <AvatarFallback className="bg-brand-100 text-sm font-semibold text-brand-800">
-            {initials(b.label)}
-          </AvatarFallback>
-        </Avatar>
+        <PersonAvatar size="lg" className="shrink-0" id={b.id} name={b.label} />
 
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
@@ -1408,16 +1399,7 @@ function GuestRow({
 
   return (
     <div className="group flex items-center gap-2.5 rounded-control px-2 py-1.5 transition-colors hover:bg-neutral-50">
-      <span
-        className={cn(
-          "flex size-7 shrink-0 items-center justify-center rounded-full text-[0.6875rem] font-semibold",
-          g.isPrimary
-            ? "bg-brand-100 text-brand-800"
-            : "bg-neutral-100 text-neutral-500",
-        )}
-      >
-        {initials(g.fullName)}
-      </span>
+      <PersonAvatar size="sm" className="shrink-0" id={g.id} name={g.fullName} />
 
       <div className="min-w-0 flex-1">
         <p className="flex items-center gap-1.5 truncate text-sm font-medium text-neutral-900">
