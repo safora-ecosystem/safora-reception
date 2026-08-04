@@ -2,6 +2,7 @@ import { useRef, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { FileSpreadsheet, Printer, ReceiptText } from "lucide-react"
 import { toast } from "sonner"
+import { DocPreview } from "@/components/shared/doc-preview"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -35,7 +36,7 @@ interface InvoiceDialogProps {
 export function InvoiceDialog({ bookingId, hotel, onClose, canIssue = true }: InvoiceDialogProps) {
   return (
     <Dialog open={bookingId != null} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="flex max-h-[92vh] flex-col sm:max-w-3xl">
+      <DialogContent className="flex h-[94vh] flex-col sm:max-w-5xl">
         {bookingId && (
           <InvoiceBody
             key={bookingId}
@@ -147,16 +148,13 @@ function InvoiceBody({ bookingId, hotel, onClose, canIssue }: InvoiceDialogProps
         </p>
       )}
 
-      {/* Ko'rinish = chop etiladigan nusxaning O'ZI. `sandbox` yo'q: srcdoc bizning HTML'imiz
-          va chop etish uchun iframe skript-siz ham ishlaydi, lekin `allow-modals` bo'lmasa
-          `print()` bloklanardi. */}
-      <iframe
-        ref={frameRef}
+      {/* Ko'rinish = chop etiladigan nusxaning O'ZI. `DocPreview` uni ramkaga butunlay
+          sig'diradi (scrollsiz), "100%" tugmasi esa asl o'lchamga qaytaradi. */}
+      <DocPreview
+        html={invoiceHtml(doc)}
         title={t("calendar.invoiceTitle")}
-        srcDoc={invoiceHtml(doc)}
-        sandbox="allow-same-origin allow-modals"
-        className="min-h-0 w-full flex-1 rounded-card border border-neutral-200 bg-white"
-        style={{ minHeight: "22rem" }}
+        frameRef={frameRef}
+        minHeight="26rem"
       />
 
       <DialogFooter className="gap-2">
