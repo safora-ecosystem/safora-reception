@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useSearch } from "@tanstack/react-router"
 import {
   Archive,
   ArchiveRestore,
@@ -135,13 +136,27 @@ export function ChatPage() {
   const canTeam = can("chat.team")
   const { status } = useChat()
 
-  const [tab, setTab] = useState<Tab>(canGuest ? "guests" : "team")
-  const [guestSel, setGuestSel] = useState<string | null>(null)
-  const [teamSel, setTeamSel] = useState<string | null>(null)
+  // Chuqur havola: `/chat?tab=team&user=<id>` yoki `?booking=<id>`. Boshqaruv panelidagi
+  // "Jamoa" qatori shu manzilga olib keladi — suhbat AYNAN o'sha odamda ochiladi.
+  // Boshlang'ich holat URL dan olinadi (effekt bilan emas): aks holda sahifa avval birinchi
+  // suhbatni ochib, keyin kerakligiga sakrardi — bir kadrlik "miltillash".
+  const search = useSearch({ strict: false }) as {
+    tab?: Tab
+    user?: string
+    booking?: string
+  }
+  const initialTab: Tab =
+    search.tab ??
+    (search.user ? "team" : search.booking ? "guests" : canGuest ? "guests" : "team")
+
+  const [tab, setTab] = useState<Tab>(initialTab)
+  const [guestSel, setGuestSel] = useState<string | null>(search.booking ?? null)
+  const [teamSel, setTeamSel] = useState<string | null>(search.user ?? null)
   // "Guruhlar" tabida ikki xona bor: umumiy jamoa guruhi va housekeeping yozishmasi.
   const [groupSel, setGroupSel] = useState<GroupRoom>("team")
   // Tor ekranda ro'yxat va yozishmalar almashib turadi; md+ da ikkalasi yonma-yon.
-  const [mobileOpen, setMobileOpen] = useState(false)
+  // Havola bilan kelingan bo'lsa telefonda ham darhol yozishma ochiladi.
+  const [mobileOpen, setMobileOpen] = useState(Boolean(search.user || search.booking))
   const [showArchive, setShowArchive] = useState(false)
   const qc = useQueryClient()
 
@@ -219,6 +234,32 @@ export function ChatPage() {
   useEffect(() => {
     if (!teamSel && activeTeam.length > 0) setTeamSel(activeTeam[0]!.user.id)
   }, [teamSel, activeTeam])
+
+  // Sahifa OCHIQ turganda havola yana o'zgarishi mumkin (masalan yon paneldan boshqa
+  // odam bosildi) — shuning uchun URL ni kuzatamiz. Deps faqat qidiruv qiymatlari:
+  // ro'yxat yangilanganda qayta ishga tushib, xodim ochgan suhbatni almashtirmaydi.
+  const linkTab = search.tab
+  const linkUser = search.user
+  const linkBooking = search.booking
+  useEffect(() => {
+    if (linkUser) {
+      setTab("team")
+      setTeamSel(linkUser)
+      setMobileOpen(true)
+      void markTeamRead(linkUser)
+        .then(() => {
+          void qc.invalidateQueries({ queryKey: teamThreadsKey })
+          void qc.invalidateQueries({ queryKey: teamUnreadKey })
+        })
+        .catch(() => {})
+    } else if (linkBooking) {
+      setTab("guests")
+      setGuestSel(linkBooking)
+      setMobileOpen(true)
+    } else if (linkTab) {
+      setTab(linkTab)
+    }
+  }, [linkTab, linkUser, linkBooking, qc])
 
   const selectedConv = convItems.find((c) => c.bookingId === guestSel) ?? null
   const selectedMate = teamItems.find((t) => t.user.id === teamSel) ?? null

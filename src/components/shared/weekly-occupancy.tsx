@@ -1,4 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { ListCard } from "@/components/shared/list-card"
 import { ColumnChart, percent, type ColumnDatum } from "@/components/shared/charts"
 import { useT } from "@/lib/i18n"
 
@@ -18,27 +18,32 @@ export function WeeklyOccupancy({ days: week, todayIndex }: WeeklyOccupancyProps
     emphasis: i === todayIndex,
   }))
 
-  return (
-    <Card>
-      {}
-      <CardHeader>
-        <CardTitle className="min-w-0">{t("occupancy.title")}</CardTitle>
-      </CardHeader>
+  const peak = week.reduce<DayOccupancy | null>(
+    (best, day) => (best === null || day.value > best.value ? day : best),
+    null,
+  )
+  const meta =
+    peak && peak.value > 0 ? t("occupancy.peak", { day: peak.full, pct: peak.value }) : undefined
 
-      <CardContent className="flex flex-1 flex-col">
-        {}
-        <ColumnChart
-          className="h-56 xl:h-auto xl:min-h-52 xl:flex-1"
-          data={data}
-          series={series}
-          maxValue={100}
-          format={percent}
-          tickFormat={(n) => `${n}%`}
-          showEmphasisValue
-          labelEvery={1}
-          ariaLabel={t("occupancy.aria")}
-        />
-      </CardContent>
-    </Card>
+  return (
+    <ListCard
+      title={t("occupancy.title")}
+      meta={meta}
+      scroll={false}
+      bodyClassName="flex flex-col px-4 pt-3 pb-4"
+    >
+      {}
+      <ColumnChart
+        className="h-56 xl:h-auto xl:min-h-52 xl:flex-1"
+        data={data}
+        series={series}
+        maxValue={100}
+        format={percent}
+        tickFormat={(n) => `${n}%`}
+        showEmphasisValue
+        labelEvery={1}
+        ariaLabel={t("occupancy.aria")}
+      />
+    </ListCard>
   )
 }

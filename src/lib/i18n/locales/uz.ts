@@ -276,6 +276,7 @@ export const uz = {
     title: "Haftalik bandlik",
     series: "Bandlik",
     aria: "Haftalik xonalar bandligi diagrammasi",
+    peak: "Eng gavjum — {day} ({pct}%)",
   },
 
   settings: {

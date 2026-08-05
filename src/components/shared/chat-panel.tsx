@@ -56,8 +56,10 @@ export function ChatPanel() {
           <ul className="divide-hairline">
             {items.map((c) => (
               <li key={c.bookingId}>
+                {}
                 <Link
                   to="/chat"
+                  search={{ tab: "guests", booking: c.bookingId }}
                   className="flex items-center gap-3 px-5 py-2.5 transition-colors hover:bg-neutral-50"
                 >
                   <PersonAvatar size="sm" id={c.bookingId} name={c.guestName} />

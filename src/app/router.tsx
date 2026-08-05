@@ -53,9 +53,25 @@ const roomsRoute = createRoute({
   component: RoomsPage,
 })
 
+export type ChatSearch = {
+  tab?: "guests" | "team" | "group"
+  user?: string
+  booking?: string
+}
+
+const str = (v: unknown): string | undefined =>
+  typeof v === "string" && v.length > 0 ? v : undefined
+
 const guestsRoute = createRoute({
   getParentRoute: () => appLayoutRoute,
   path: "/guests",
+  validateSearch: (search: Record<string, unknown>): { q?: string; filter?: string } => ({
+    q: str(search.q),
+    filter:
+      search.filter === "in_house" || search.filter === "arriving" || search.filter === "all"
+        ? search.filter
+        : undefined,
+  }),
   component: GuestsPage,
 })
 
@@ -68,12 +84,26 @@ const guestsArchiveRoute = createRoute({
 const requestsRoute = createRoute({
   getParentRoute: () => appLayoutRoute,
   path: "/requests",
+  validateSearch: (search: Record<string, unknown>): { filter?: string } => ({
+    filter:
+      search.filter === "open" || search.filter === "overdue" || search.filter === "all"
+        ? search.filter
+        : undefined,
+  }),
   component: RequestsPage,
 })
 
 const chatRoute = createRoute({
   getParentRoute: () => appLayoutRoute,
   path: "/chat",
+  validateSearch: (search: Record<string, unknown>): ChatSearch => ({
+    tab:
+      search.tab === "guests" || search.tab === "team" || search.tab === "group"
+        ? search.tab
+        : undefined,
+    user: str(search.user),
+    booking: str(search.booking),
+  }),
   component: ChatPage,
 })
 

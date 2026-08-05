@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { Link } from "@tanstack/react-router"
+import { Link, useSearch } from "@tanstack/react-router"
 import { Archive, Search, UserRound } from "lucide-react"
 import { PageLayout } from "@/components/layout/page-layout"
 import { RangeToggle } from "@/components/shared/charts"
@@ -28,8 +28,9 @@ export function GuestsPage() {
     { value: "arriving", label: t("guestStatus.waiting") },
   ]
   const guestsQ = useQuery({ queryKey: ["guests", "active"], queryFn: () => listGuests("active") })
-  const [filter, setFilter] = useState<Filter>("all")
-  const [term, setTerm] = useState("")
+  const search = useSearch({ strict: false }) as { q?: string; filter?: Filter }
+  const [filter, setFilter] = useState<Filter>(search.filter ?? "all")
+  const [term, setTerm] = useState(search.q ?? "")
   const [selected, setSelected] = useState<DirectoryGuest | null>(null)
 
   const all = useMemo(() => guestsQ.data ?? [], [guestsQ.data])

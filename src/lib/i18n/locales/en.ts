@@ -276,6 +276,7 @@ export const en: Dictionary<"en"> = {
     title: "Weekly occupancy",
     series: "Occupancy",
     aria: "Weekly room occupancy chart",
+    peak: "Busiest — {day} ({pct}%)",
   },
 
   settings: {
