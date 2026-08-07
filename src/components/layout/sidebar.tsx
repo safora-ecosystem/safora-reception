@@ -105,7 +105,7 @@ export function Sidebar() {
             ))}
           </nav>
 
-          <nav className="hairline-t mt-2 flex flex-col gap-0.5 pt-2">
+          <nav className="flex flex-col gap-0.5">
             {systemNavItems.filter(visible).map((item) => (
               <NavRow key={item.to} item={item} active={isActive(item.to)} />
             ))}
