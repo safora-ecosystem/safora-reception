@@ -678,6 +678,8 @@ export const uz = {
 
   calendar: {
     title: "Kalendar",
+    roomlessWaiting:
+      "{count} ta bron xona kutmoqda (bot yoki kanal orqali kelgan) — xona tayinlanmaguncha kalendarda ko'rinmaydi.",
     day: "Kun",
     week: "Hafta",
     month: "Oy",

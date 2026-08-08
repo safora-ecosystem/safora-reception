@@ -68,6 +68,7 @@ export interface CalendarData {
   rooms: CalendarRoom[]
   bookings: CalendarBooking[]
   organizations: CalendarOrganization[]
+  roomlessCount: number
   isLoading: boolean
   error: unknown
   retry: () => Promise<unknown> | void
@@ -344,6 +345,7 @@ export function useMockCalendarData(roomCount = 24): CalendarData {
     bookings,
     // Mock rejimida shartnomali mijoz yo'q — korporativ rejim ko'rinmaydi.
     organizations: [],
+    roomlessCount: 0,
     isLoading: false,
     error: null,
     retry: noop,
@@ -404,7 +406,10 @@ function mapBooking(b: Booking): CalendarBooking {
   const total = b.totalAmount != null ? Number(b.totalAmount) : undefined
   return {
     id: b.id,
-    roomId: b.room.id,
+    // `!` xavfsiz: chaqiruvchi xonasiz bronlarni filtrlaydi (ular gridda chizilmaydi,
+    // soni `roomlessCount` bilan sahifaga chiqadi) — 2026-08-08 dagi birinchi bot broni
+    // shu yerda butun kalendarni yiqitgan edi.
+    roomId: b.room!.id,
     start: b.checkInDate.slice(0, 10),
     end: b.checkOutDate.slice(0, 10),
     status: b.status,
@@ -610,11 +615,22 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
     for (const b of bookingsQ.rows) {
       if (seen.has(b.id)) continue // bo'lak chegarasidagi (yoki bo'lakni qamrab o'tgan) bron takrorlanadi
       seen.add(b.id)
+      // Bot/kanal broni xona tayinlanguncha xonasiz keladi — gridda chizib bo'lmaydi
+      // (qaysi qatorga?), lekin YO'QOTIB ham bo'lmaydi: soni bannerda ko'rinadi.
+      if (!b.room) continue
       out.push(mapBooking(b))
     }
     for (const bl of blocksQ.data ?? []) out.push(mapBlock(bl))
     return out
   }, [bookingsQ.rows, blocksQ.data])
+
+  const roomlessCount = useMemo(() => {
+    const seen = new Set<string>()
+    for (const b of bookingsQ.rows) {
+      if (!b.room && b.status !== "cancelled" && b.status !== "checked_out") seen.add(b.id)
+    }
+    return seen.size
+  }, [bookingsQ.rows])
 
   const invalidate = useCallback(() => {
     void qc.invalidateQueries({ queryKey: ["bookings"] })
@@ -793,7 +809,8 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
                 label: t("calendarToast.undo"),
                 onClick: () => {
                   apiUpdateBooking(id, {
-                    roomId: prev.room.id,
+                    // `!` xavfsiz: move faqat griddagi (xonali) bar ustida ishlaydi.
+                    roomId: prev.room!.id,
                     checkInDate: prev.checkInDate.slice(0, 10),
                     checkOutDate: prev.checkOutDate.slice(0, 10),
                   })
@@ -1026,6 +1043,7 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
     rooms,
     bookings,
     organizations,
+    roomlessCount,
     isLoading: enabled && (roomsQ.isLoading || bookingsQ.isLoading),
     error,
     retry,

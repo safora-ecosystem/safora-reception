@@ -323,7 +323,9 @@ export type Booking = {
   checkedInAt?: string | null
   checkedOutAt?: string | null
   createdAt?: string
-  room: { id: string; number: string }
+  /** NULL bo'lishi mumkin: bot/kanal broni TIPni sotadi, xonani resepshn keyin tayinlaydi.
+      Server ataylab shunday qaytaradi — panel xonasiz bronni ham ko'tarishi shart. */
+  room: { id: string; number: string } | null
   /**
    * BO'LINGAN yashash zanjirining kaliti. Mehmon yashash o'rtasida boshqa xonaga ko'chsa
    * (`POST /bookings/:id/split`) ikkala qism ham SHU id ni oladi. Qismlar mustaqil bron bo'lib

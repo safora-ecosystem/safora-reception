@@ -731,6 +731,8 @@ export const ru: Dictionary<"ru"> = {
 
   calendar: {
     title: "Календарь",
+    roomlessWaiting:
+      "Броней в ожидании номера: {count} (из бота или канала) — до назначения номера они не видны в календаре.",
     day: "День",
     week: "Неделя",
     month: "Месяц",

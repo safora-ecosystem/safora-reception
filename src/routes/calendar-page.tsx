@@ -304,6 +304,16 @@ export function CalendarPage() {
         </header>
 
         {}
+        {data.roomlessCount > 0 && (
+          <div
+            role="status"
+            className="mx-4 mb-2 rounded-lg border border-amber-300/70 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200"
+          >
+            {t("calendar.roomlessWaiting", { count: data.roomlessCount })}
+          </div>
+        )}
+
+        {}
         <div
           className="min-h-0 flex-1"
           aria-busy={!mockMode && data.isLoading ? true : undefined}

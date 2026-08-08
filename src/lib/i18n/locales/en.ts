@@ -680,6 +680,8 @@ export const en: Dictionary<"en"> = {
 
   calendar: {
     title: "Calendar",
+    roomlessWaiting:
+      "{count} booking(s) awaiting room assignment (from bot or channel) — hidden from the calendar until a room is assigned.",
     day: "Day",
     week: "Week",
     month: "Month",
