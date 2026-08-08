@@ -158,7 +158,7 @@ export function CreateRequestDialog({
   const [note, setNote] = useState("")
 
   const bookingForRoom = (bookingsQ.data ?? []).find(
-    (b) => b.room.id === roomId && b.status === "checked_in",
+    (b) => b.room?.id === roomId && b.status === "checked_in",
   )
 
   const create = useMutation({

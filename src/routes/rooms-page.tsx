@@ -87,8 +87,8 @@ export function RoomsPage() {
     const blocks = blocksQ.data ?? []
 
     return rooms.map((room) => {
-      const stay = bookings.find((b) => b.room.id === room.id && b.status === "checked_in")
-      const arrival = bookings.find((b) => b.room.id === room.id && b.status === "booked")
+      const stay = bookings.find((b) => b.room?.id === room.id && b.status === "checked_in")
+      const arrival = bookings.find((b) => b.room?.id === room.id && b.status === "booked")
       const block = blocks.find((x) => x.room.id === room.id && covers(x.startDate, x.endDate, today)) ?? null
 
       const state: RoomState = stay ? "occupied" : block ? "blocked" : arrival ? "arriving" : "free"

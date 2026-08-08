@@ -43,11 +43,12 @@ function weeklyOccupancy(bookings: Booking[], totalRooms: number): { days: DayOc
       bookings
         .filter(
           (b) =>
+            b.room != null &&
             b.status !== "cancelled" &&
             bookingDate(b.checkInDate) <= iso &&
             bookingDate(b.checkOutDate) > iso,
         )
-        .map((b) => b.room.id),
+        .map((b) => b.room!.id),
     )
     const value = totalRooms > 0 ? Math.round((occupiedRooms.size / totalRooms) * 100) : 0
     return { ...weekday, value }
@@ -74,7 +75,7 @@ export function StatistikaPage() {
   const allBookings = bookings.data ?? []
 
   const occupiedNow = new Set(
-    allBookings.filter((b) => b.status === "checked_in").map((b) => b.room.id),
+    allBookings.filter((b) => b.status === "checked_in" && b.room != null).map((b) => b.room!.id),
   ).size
   const occupancyPct = totalRooms > 0 ? Math.round((occupiedNow / totalRooms) * 100) : 0
 
@@ -234,7 +235,7 @@ export function StatistikaPage() {
                               <>
                                 {m.type === "in" ? t("stay.checkIn") : t("stay.checkOut")}
                                 {" · "}
-                                {t("stay.roomNo", { number: m.booking.room.number })}
+                                {t("stay.roomNo", { number: m.booking.room?.number ?? "—" })}
                                 {" · "}
                                 {/* Kechikkan holat AMBER: ro'yxatdagi yagona rangli so'z,
                                     ya'ni ko'z uni qidirmasdan topadi (design.md — rang
