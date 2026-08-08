@@ -15,10 +15,10 @@ export function PageLayout({ title, actions, fill = false, children }: PageLayou
   return (
     <div
       className={cn(
-        fill ? "flex min-h-0 grow flex-col p-4" : "p-4 sm:p-5",
+        fill ? "flex grow flex-col p-4" : "p-4 sm:p-5",
       )}
     >
-      <div className={cn("mx-auto w-full max-w-[1760px]", fill && "flex min-h-0 grow flex-col")}>
+      <div className={cn("mx-auto w-full max-w-[1760px]", fill && "flex grow flex-col")}>
         {children}
       </div>
     </div>
