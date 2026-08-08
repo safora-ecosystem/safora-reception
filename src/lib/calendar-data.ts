@@ -375,7 +375,7 @@ function mapRoom(r: Room): CalendarRoom {
   return {
     id: r.id,
     label: r.number,
-    group: r.floor != null ? `${r.floor}-qavat` : undefined,
+    group: r.floor != null ? t("rooms.floorNo", { floor: r.floor }) : undefined,
     sublabel: r.type || undefined,
     order: Number.parseInt(r.number, 10) || undefined,
     rate: r.rate != null ? Number(r.rate) : undefined,

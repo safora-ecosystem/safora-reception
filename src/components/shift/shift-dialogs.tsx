@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Check, X } from "lucide-react"
+import { Cancel01Icon, Logout03Icon, Tick02Icon } from "@hugeicons/core-free-icons"
+import { Icon } from "@/components/ui/icon"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Textarea } from "@/components/ui/textarea"
@@ -82,12 +84,7 @@ function OpenForm({ current, onDone }: { current: ShiftCurrent; onDone?: () => v
           <p className="text-xs font-medium text-neutral-500">{t("shiftSession.prevNote")}</p>
           <p className="mt-1 text-sm leading-relaxed text-neutral-800">{prevNote}</p>
           <label className="mt-2 flex cursor-pointer items-center gap-2 text-xs font-medium text-neutral-700">
-            <input
-              type="checkbox"
-              checked={ack}
-              onChange={(e) => setAck(e.target.checked)}
-              className="accent-brand-600"
-            />
+            <Checkbox checked={ack} onCheckedChange={(v) => setAck(v === true)} />
             {t("shiftSession.prevNoteAck")}
           </label>
         </div>
@@ -97,7 +94,7 @@ function OpenForm({ current, onDone }: { current: ShiftCurrent; onDone?: () => v
         disabled={(prevNote != null && !ack) || openMut.isPending}
         onClick={() => openMut.mutate()}
       >
-        <Check /> {t("shiftSession.start")}
+        <Icon icon={Tick02Icon} /> {t("shiftSession.start")}
       </Button>
     </div>
   )
@@ -125,7 +122,13 @@ export function ShiftOpenDialog({
   )
 }
 
-function GateStartButton({ current }: { current: ShiftCurrent }) {
+function GateStartButton({
+  current,
+  secondary,
+}: {
+  current: ShiftCurrent
+  secondary?: React.ReactNode
+}) {
   const t = useT()
   const qc = useQueryClient()
   const prevNote = current.lastClosed?.note ?? null
@@ -148,23 +151,42 @@ function GateStartButton({ current }: { current: ShiftCurrent }) {
   return (
     <div className="flex flex-col gap-4">
       {prevNote && (
-        <div className="rounded-card bg-white/90 p-5 shadow-sm backdrop-blur-sm">
-          <p className="text-sm font-medium text-neutral-500">{t("shiftSession.prevNote")}</p>
-          <p className="mt-1.5 text-base leading-relaxed text-neutral-800">{prevNote}</p>
+        <div className={GATE_GLASS}>
+          <p className="text-sm font-medium text-on-fill-55">{t("shiftSession.prevNote")}</p>
+          <p className="mt-1.5 text-base leading-relaxed text-on-fill">{prevNote}</p>
         </div>
       )}
       {}
-      <Button
-        size="xl"
-        className="h-14 w-full text-base [&_svg]:size-5"
-        disabled={openMut.isPending}
-        onClick={() => openMut.mutate()}
-      >
-        <Check /> {t("shiftSession.start")}
-      </Button>
+      <div className="flex gap-3">
+        {secondary}
+        <Button
+          size="xl"
+          className="h-16 flex-1 text-lg [&_svg]:size-6"
+          disabled={openMut.isPending}
+          onClick={() => openMut.mutate()}
+        >
+          <Icon icon={Tick02Icon} /> {t("shiftSession.start")}
+        </Button>
+      </div>
     </div>
   )
 }
+
+function GateSignOutLink() {
+  const t = useT()
+  return (
+    <a
+      href="/logout"
+      className="inline-flex h-16 shrink-0 items-center justify-center gap-2 rounded-full px-6 text-base font-medium text-on-fill-70 ring-1 ring-[rgb(255_255_255/0.22)] backdrop-blur-md transition-colors hover:bg-[rgb(255_255_255/0.12)] hover:text-on-fill"
+    >
+      <Icon icon={Logout03Icon} strokeWidth={1.75} className="size-5" />
+      {t("topbar.signOut")}
+    </a>
+  )
+}
+
+const GATE_GLASS =
+  "rounded-card bg-black/35 p-6 ring-1 ring-[rgb(255_255_255/0.18)] backdrop-blur-md backdrop-saturate-150"
 
 function GateBackdrop() {
   return (
@@ -173,11 +195,16 @@ function GateBackdrop() {
         src="/shift-bg.jpg"
         alt=""
         aria-hidden
+        fetchPriority="high"
         className="absolute inset-0 h-full w-full object-cover"
       />
       <div
         aria-hidden
-        className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/10 to-black/40"
+        className="absolute inset-0 bg-gradient-to-b from-black/25 via-black/10 to-black/50"
+      />
+      <div
+        aria-hidden
+        className="absolute inset-0 bg-radial-[at_50%_50%] from-black/50 via-black/20 to-transparent to-75%"
       />
     </>
   )
@@ -205,41 +232,40 @@ export function ShiftGateScreen({
   const quote = quoteOfTheDay()
 
   return (
-    <div className="relative flex h-svh flex-col items-center justify-center gap-6 overflow-hidden bg-background p-6">
+    <div className="relative flex min-h-svh flex-col items-center justify-center overflow-hidden bg-black p-6">
       <GateBackdrop />
 
-      <div className="relative z-10 w-full max-w-md">
-        <h1 className="text-3xl font-semibold tracking-tight text-white drop-shadow-sm">
+      {}
+      <div className="relative z-10 flex w-full max-w-xl flex-col gap-4">
+        <h1 className="text-3xl font-semibold tracking-tight text-on-fill [text-shadow:0_2px_20px_rgb(0_0_0/0.45)] sm:text-4xl">
           {t(greetingKey(new Date()), { name: firstName })}
         </h1>
+
+        {}
+        <figure className={GATE_GLASS}>
+          <span aria-hidden className="block text-xl leading-none text-brand-500">
+            ✱
+          </span>
+          <blockquote className="mt-3 text-lg leading-relaxed font-semibold text-on-fill italic">
+            {quote.text}
+          </blockquote>
+          <figcaption className="mt-2.5 text-sm text-on-fill-55">— {quote.author}</figcaption>
+        </figure>
+
+        <div className="mt-7">
+          {pending || !current ? (
+            <div className="flex gap-3">
+              <GateSignOutLink />
+              <Skeleton
+                className="h-16 flex-1 rounded-full bg-[rgb(255_255_255/0.15)]"
+                aria-hidden
+              />
+            </div>
+          ) : (
+            <GateStartButton current={current} secondary={<GateSignOutLink />} />
+          )}
+        </div>
       </div>
-
-      {}
-      <figure className="relative z-10 w-full max-w-md rounded-card bg-white/90 p-5 shadow-sm backdrop-blur-sm">
-        <span aria-hidden className="block text-xl leading-none text-brand-500">
-          ✱
-        </span>
-        <blockquote className="mt-2.5 text-base leading-relaxed font-semibold text-neutral-800 italic">
-          {quote.text}
-        </blockquote>
-        <figcaption className="mt-2 text-sm text-neutral-400">— {quote.author}</figcaption>
-      </figure>
-
-      <div className="relative z-10 w-full max-w-md">
-        {pending || !current ? (
-          <Skeleton className="h-14 w-full rounded-full" aria-hidden />
-        ) : (
-          <GateStartButton current={current} />
-        )}
-      </div>
-
-      {}
-      <a
-        href="/logout"
-        className="relative z-10 text-sm font-medium text-white/70 transition-colors hover:text-white"
-      >
-        {t("topbar.signOut")}
-      </a>
     </div>
   )
 }
@@ -320,10 +346,10 @@ export function ExpenseDialog({
 
         <div className="flex justify-end gap-2">
           <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={mut.isPending}>
-            <X /> {t("common.cancel")}
+            <Icon icon={Cancel01Icon} /> {t("common.cancel")}
           </Button>
           <Button disabled={!valid || mut.isPending} onClick={() => mut.mutate()}>
-            <Check /> {t("common.confirm")}
+            <Icon icon={Tick02Icon} /> {t("common.confirm")}
           </Button>
         </div>
       </DialogContent>
@@ -347,10 +373,10 @@ function LogoutCountdownScreen() {
   }, [count])
 
   return (
-    <div className="relative flex h-svh flex-col items-center justify-center gap-4 overflow-hidden bg-background p-6">
+    <div className="relative flex h-svh flex-col items-center justify-center gap-4 overflow-hidden bg-black p-6">
       <GateBackdrop />
-      <p className="relative z-10 text-sm font-medium text-white/80">{t("shiftSession.loggingOut")}</p>
-      <p className="relative z-10 text-7xl font-semibold tracking-tight text-white tabular-nums drop-shadow-sm">
+      <p className="relative z-10 text-sm font-medium text-on-fill-70">{t("shiftSession.loggingOut")}</p>
+      <p className="relative z-10 text-7xl font-semibold tracking-tight text-on-fill tabular-nums [text-shadow:0_2px_20px_rgb(0_0_0/0.45)]">
         {Math.max(count, 1)}
       </p>
     </div>
@@ -469,7 +495,7 @@ export function ShiftNoteReminder() {
           {note}
         </p>
         <Button size="xl" className="h-12 w-full" onClick={confirm}>
-          <Check /> {t("shiftSession.prevNoteUnderstood")}
+          <Icon icon={Tick02Icon} /> {t("shiftSession.prevNoteUnderstood")}
         </Button>
       </DialogContent>
     </Dialog>
@@ -636,10 +662,10 @@ export function ShiftCloseDialog({
 
             <div className="flex justify-end gap-2">
               <Button variant="ghost" disabled={closeMut.isPending} onClick={() => onOpenChange(false)}>
-                <X /> {t("common.back")}
+                <Icon icon={Cancel01Icon} /> {t("common.back")}
               </Button>
               <Button disabled={closeMut.isPending} onClick={() => closeMut.mutate()}>
-                <Check /> {t("shiftSession.finish")}
+                <Icon icon={Tick02Icon} /> {t("shiftSession.finish")}
               </Button>
             </div>
           </div>

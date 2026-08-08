@@ -62,6 +62,20 @@ export interface CalendarRange {
   days: number
 }
 
+
+export type CalendarBarMoney = "glyph" | "total" | "remaining" | "hidden"
+
+export type CalendarDensity = "compact" | "default" | "roomy"
+
+export interface CalendarViewPrefs {
+  barMoney: CalendarBarMoney
+  density: CalendarDensity
+  guestBadge: boolean
+  cleaningBadge: boolean
+  weekendTint: boolean
+  animations: boolean
+}
+
 export interface StatusVisual {
   bar: string
   text?: string
@@ -79,6 +93,7 @@ export interface CalendarLabels {
   formatDay: (iso: string) => string
   nights: (n: number) => string
   money: (amount: number) => string
+  moneyShort: (amount: number) => string
   statusText: Record<CalendarStatus, string>
   blockKindText: Record<CalendarBlockKind, string>
   checkInTime: string
@@ -160,6 +175,7 @@ export interface CalendarLabels {
   blockHint: string
 
   companions: string
+  roomGuests: string
   addGuest: string
   removeGuest: string
   primaryGuest: string
@@ -186,6 +202,12 @@ export interface CalendarLabels {
   extendStay: string
   guestQr: string
   unblock: string
+
+  moveConfirmTitle: string
+  moveConfirmHint: string
+  moveConfirmAction: string
+  moveFrom: string
+  moveTo: string
 
   split: string
   splitTitle: string
@@ -248,6 +270,22 @@ export interface CalendarLabels {
   roomingRoomEmpty: string
   needOrganization: string
   needRoomingName: string
+
+  viewSettings: string
+  viewBarMoney: string
+  viewBarMoneyGlyph: string
+  viewBarMoneyTotal: string
+  viewBarMoneyRemaining: string
+  viewBarMoneyHidden: string
+  viewDensity: string
+  viewDensityCompact: string
+  viewDensityDefault: string
+  viewDensityRoomy: string
+  viewGuestBadge: string
+  viewCleaningBadge: string
+  viewWeekendTint: string
+  viewAnimations: string
+  viewReset: string
 
   debtOnCheckOut: (remaining: number) => string
   checkOutAnyway: string
@@ -369,7 +407,13 @@ export interface ReservationCalendarProps {
   headerHeight?: number
   groupByFloor?: boolean
   overscan?: number
+  barMoney?: CalendarBarMoney
+  showGuestCountBadge?: boolean
+  showCleaningBadge?: boolean
+  weekendTint?: boolean
+  entryAnimations?: boolean
   statusConfig?: Partial<StatusConfig>
+  splitTraces?: "hover" | "always"
   labels?: Partial<CalendarLabels>
   matchIds?: ReadonlySet<string> | null
 

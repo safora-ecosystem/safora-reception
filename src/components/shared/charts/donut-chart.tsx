@@ -1,7 +1,7 @@
-import { useState, type ReactNode } from "react"
+import { useId, useState, type ReactNode } from "react"
 import { useT } from "@/lib/i18n"
 import { cn } from "@/lib/utils"
-import { fullNumber, seriesColor } from "@/components/shared/charts/chart-tokens"
+import { arcTint, fullNumber, seriesColor } from "@/components/shared/charts/chart-tokens"
 
 
 export type DonutSlice = {
@@ -37,6 +37,7 @@ export function DonutChart({
 }: DonutChartProps) {
   const t = useT()
   const [active, setActive] = useState<string | null>(null)
+  const gid = useId()
 
   const total = slices.reduce((sum, s) => sum + s.value, 0)
   const radius = (SIZE - STROKE) / 2
@@ -66,6 +67,28 @@ export function DonutChart({
           role="img"
           aria-label={ariaLabel ?? t("charts.donut")}
         >
+          <defs>
+            {arcs.map(({ slice, color }) => {
+              const tint = arcTint(color)
+              return (
+                <linearGradient
+                  key={slice.key}
+                  id={`${gid}-${slice.key}`}
+                  gradientUnits="userSpaceOnUse"
+                  x1={0}
+                  y1={0}
+                  x2={0}
+                  // Ramp KO'RINADIGAN balandlikka cho'ziladi, SVG kvadratiga emas: yarim
+                  // donutning viewBox'i deyarli ikki barobar past, ya'ni 0→SIZE gradientning
+                  // faqat yuqori yarmi ko'rinardi va ohang to'liq donutdagidan sust chiqardi.
+                  y2={half ? SIZE / 2 + STROKE / 2 : SIZE}
+                >
+                  <stop offset="0%" stopColor={tint.light} />
+                  <stop offset="100%" stopColor={tint.base} />
+                </linearGradient>
+              )
+            })}
+          </defs>
           {/* Yo'lak — to'ldirilmagan qism. Uchi bo'laklar bilan BIR XIL kesimda: yo'lak
               yumaloq, bo'laklar tekis bo'lsa, to'la to'ldirilgan halqaning ikki chekkasida
               kulrang dumaloq quloqchalar chiqib qolardi va ular "qolgan ulush" bo'lib
@@ -80,12 +103,12 @@ export function DonutChart({
           {/* Bo'laklar burchak bo'yicha ajratilgan (`gap`) — orasidan yo'lak ko'rinib turadi.
               Ustidan qo'shimcha ajratkich CHIZIQ tortilmaydi: u yoyning yumaloq uchini kesib
               o'tib, halqa ustida oq qiyshiq iz qoldirardi. Ajratish — tirqish, chiziq emas. */}
-          {arcs.map(({ slice, from, to, color }) => (
+          {arcs.map(({ slice, from, to }) => (
             <path
               key={slice.key}
               d={arcPath(center, center, radius, from, to)}
               fill="none"
-              stroke={color}
+              stroke={`url(#${gid}-${slice.key})`}
               strokeWidth={active && active !== slice.key ? STROKE - 4 : STROKE}
               strokeLinecap={cap}
               className="cursor-default transition-[stroke-width] duration-150"

@@ -12,6 +12,7 @@ interface CalendarGridLayerProps {
   pastCol: number
   colLo: number
   colHi: number
+  weekendTint?: boolean
 }
 
 function CalendarGridLayerImpl({
@@ -23,10 +24,13 @@ function CalendarGridLayerImpl({
   pastCol,
   colLo,
   colHi,
+  weekendTint = true,
 }: CalendarGridLayerProps) {
   const weekendCols: number[] = []
-  for (let c = Math.max(0, colLo); c < Math.min(days, colHi); c++) {
-    if (isWeekendColumn(originDay, c)) weekendCols.push(c)
+  if (weekendTint) {
+    for (let c = Math.max(0, colLo); c < Math.min(days, colHi); c++) {
+      if (isWeekendColumn(originDay, c)) weekendCols.push(c)
+    }
   }
 
   const gridlines: CSSProperties = {

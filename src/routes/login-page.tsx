@@ -1,7 +1,9 @@
 import { useState, type FormEvent, type ReactNode } from 'react'
-import { useNavigate } from '@tanstack/react-router'
-import { ArrowRight, Eye, EyeOff, Lock, Mail } from 'lucide-react'
+import { Link, useNavigate } from '@tanstack/react-router'
+import { ArrowRight02Icon, Mail01Icon, SquareLock02Icon, ViewIcon, ViewOffSlashIcon } from '@hugeicons/core-free-icons'
+import { Icon } from '@/components/ui/icon'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { ApiError, staffLogin } from '@/lib/api'
 import { saveSession } from '@/lib/auth'
@@ -33,7 +35,7 @@ function LanguagePicker() {
 	const { locale, pending, setLocale } = useLocale()
 	return (
 		<div className='mt-6 flex justify-center'>
-			<div className='flex gap-0.5 rounded-control bg-neutral-100 p-1'>
+			<div className='flex gap-0.5 rounded-full bg-neutral-100 p-1'>
 				{LOCALES.map(code => (
 					<button
 						key={code}
@@ -42,7 +44,7 @@ function LanguagePicker() {
 						disabled={pending !== null}
 						onClick={() => void setLocale(code)}
 						className={cn(
-							'rounded-[0.5rem] px-3.5 py-1 text-[0.8125rem] font-medium transition-colors disabled:opacity-60',
+							'rounded-full px-3.5 py-1 text-[0.8125rem] font-medium transition-colors disabled:opacity-60',
 							locale === code
 								? 'bg-white text-neutral-900 shadow-xs'
 								: 'text-neutral-500 hover:text-neutral-800'
@@ -73,7 +75,7 @@ export function LoginPage() {
 		setSubmitting(true)
 		setError(null)
 		try {
-			const session = await staffLogin(staffHandle, password, turnstileToken)
+			const session = await staffLogin(staffHandle, password, turnstileToken, !temporary)
 			saveSession(session, temporary)
 			navigate({ to: '/' })
 		} catch (err) {
@@ -101,7 +103,7 @@ export function LoginPage() {
 				<form onSubmit={handleSubmit} className='mt-7 space-y-5'>
 					<Field label={t('auth.email')}>
 						<div className='relative'>
-							<Mail
+							<Icon icon={Mail01Icon}
 								className='pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-neutral-400'
 								strokeWidth={1.75}
 							/>
@@ -120,16 +122,16 @@ export function LoginPage() {
 					<Field
 						label={t('auth.password')}
 						aside={
-							<button
-								type='button'
+							<Link
+								to='/forgot-password'
 								className='text-xs font-medium text-primary transition-colors hover:text-brand-600'
 							>
 								{t('auth.forgot')}
-							</button>
+							</Link>
 						}
 					>
 						<div className='relative'>
-							<Lock
+							<Icon icon={SquareLock02Icon}
 								className='pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-neutral-400'
 								strokeWidth={1.75}
 							/>
@@ -151,9 +153,9 @@ export function LoginPage() {
 								className='absolute top-1/2 right-2.5 grid size-9 -translate-y-1/2 place-items-center rounded-lg text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-600'
 							>
 								{showPassword ? (
-									<EyeOff className='size-5' strokeWidth={1.75} />
+									<Icon icon={ViewOffSlashIcon} className='size-5' strokeWidth={1.75} />
 								) : (
-									<Eye className='size-5' strokeWidth={1.75} />
+									<Icon icon={ViewIcon} className='size-5' strokeWidth={1.75} />
 								)}
 							</button>
 						</div>
@@ -161,12 +163,10 @@ export function LoginPage() {
 
 					{}
 					<label className='flex w-fit cursor-pointer items-center gap-2.5 text-sm text-neutral-600 select-none'>
-						<input
-							type='checkbox'
+						<Checkbox
 							name='guest_session'
 							checked={temporary}
-							onChange={e => setTemporary(e.target.checked)}
-							className='size-4 cursor-pointer accent-brand-500'
+							onCheckedChange={v => setTemporary(v === true)}
 						/>
 						{t('auth.temporarySession')}
 					</label>
@@ -183,10 +183,10 @@ export function LoginPage() {
 					<Button
 						type='submit'
 						disabled={submitting || (turnstileEnabled && !turnstileToken)}
-						className='h-14 w-full rounded-lg text-base font-semibold'
+						className='h-14 w-full text-base font-semibold'
 					>
 						{submitting ? t('auth.signingIn') : t('auth.signIn')}
-						<ArrowRight className='size-5' strokeWidth={2} />
+						<Icon icon={ArrowRight02Icon} className='size-5' strokeWidth={2} />
 					</Button>
 				</form>
 			</div>

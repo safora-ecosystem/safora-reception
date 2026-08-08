@@ -1,3 +1,4 @@
+import { useT } from "@/lib/i18n"
 import { cn } from "@/lib/utils"
 import { ChartEmpty } from "@/components/shared/charts/chart-parts"
 import { CHART_PRIMARY, barFill, fullNumber } from "@/components/shared/charts/chart-tokens"
@@ -23,6 +24,7 @@ type BarListProps = {
 export function BarList({ items, maxValue, emptyLabel, className, limit }: BarListProps) {
   if (items.length === 0) return <ChartEmpty label={emptyLabel} className={className} />
 
+  const t = useT()
   const sorted = [...items].sort((a, b) => b.value - a.value)
   const rows =
     limit && sorted.length > limit
@@ -30,9 +32,9 @@ export function BarList({ items, maxValue, emptyLabel, className, limit }: BarLi
           ...sorted.slice(0, limit),
           {
             key: "__rest",
-            label: "Boshqalar",
+            label: t("charts.others"),
             value: sorted.slice(limit).reduce((sum, r) => sum + r.value, 0),
-            caption: `${sorted.length - limit} ta`,
+            caption: t("charts.othersCount", { count: sorted.length - limit }),
           } satisfies BarListItem,
         ]
       : sorted

@@ -1,32 +1,33 @@
 import { useMemo, useState } from "react";
 import {
-  Ban,
-  CalendarDays,
-  CalendarPlus,
-  Check,
-  Circle,
-  Copy,
-  DoorOpen,
-  LogIn,
-  LogOut,
-  MessageSquare,
-  Pencil,
-  Plus,
-  ReceiptText,
-  Scissors,
-  Star,
-  StickyNote,
-  Trash2,
-  Undo2,
-  User,
-  UserMinus,
-  UserPlus,
-  Users,
-  Wallet,
-  Wrench,
-  X,
-  type LucideIcon,
-} from "lucide-react";
+  ArrowRight02Icon,
+  ArrowTurnBackwardIcon,
+  Calendar03Icon,
+  CalendarAdd01Icon,
+  Cancel01Icon,
+  CancelCircleIcon,
+  CircleIcon,
+  Copy01Icon,
+  Delete02Icon,
+  Door01Icon,
+  Invoice01Icon,
+  Login03Icon,
+  Logout03Icon,
+  Message02Icon,
+  PencilEdit02Icon,
+  PlusSignIcon,
+  Scissor01Icon,
+  StarIcon,
+  StickyNote02Icon,
+  Tick02Icon,
+  User02Icon,
+  UserAdd01Icon,
+  UserMinus01Icon,
+  UserMultiple02Icon,
+  Wallet02Icon,
+  Wrench01Icon,
+} from "@hugeicons/core-free-icons";
+import { Icon, type IconData } from "@/components/ui/icon";
 import { uz } from "date-fns/locale";
 import { PersonAvatar } from "@/components/shared/person-avatar";
 import { Button } from "@/components/ui/button";
@@ -38,6 +39,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   PhoneInput,
   isPhoneComplete,
@@ -200,6 +202,52 @@ function TimelineRow({
   );
 }
 
+/**
+ * Markaziy ustun bo'limi — "Reddit ipi" ko'rinishida (founder, 2026-08-07): ikonka doiracha
+ * TUGUN, undan keyingi bo'limgacha vertikal chiziq tushadi. Chiziq bo'limlarni bitta o'qiladigan
+ * zanjirga bog'laydi — ko'z sarlavhadan sarlavhaga adashmay sirg'alib tushadi, tuzilmani yoshu
+ * qari bir qarashda anglaydi. TARIX ustuni allaqachon shu tilda (ActivityRow) — endi markaz ham
+ * o'sha tilda gapiradi, modal ichida ikki xil "ip" yo'q. O'ng reyd esa Section'da qoladi:
+ * u zanjir emas, panel.
+ */
+function ThreadSection({
+  icon,
+  title,
+  aside,
+  last,
+  children,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  /** Sarlavha o'ng chekkasidagi ikkilamchi matn (masalan mehmonlar soni). */
+  aside?: React.ReactNode;
+  /** Oxirgi bo'lim — chiziq davom etmaydi (ip "osilib" qolmasin). */
+  last?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="relative flex gap-3 pb-8 last:pb-0">
+      {!last && (
+        <span
+          aria-hidden
+          className="absolute top-8 bottom-0 left-3 w-px -translate-x-1/2 bg-border"
+        />
+      )}
+      <span className="relative z-10 flex size-6 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-neutral-500">
+        {icon}
+      </span>
+      <div className="flex min-w-0 flex-1 flex-col gap-3">
+        {/* leading-6 = 24px doiracha bilan bir o'qda — sarlavha tugunning "yorlig'i" bo'lib o'qiladi. */}
+        <h3 className="flex items-center gap-1.5 text-xs leading-6 font-semibold tracking-wide text-neutral-400 uppercase">
+          {title}
+          {aside != null && <span className="ml-auto normal-case">{aside}</span>}
+        </h3>
+        {children}
+      </div>
+    </section>
+  );
+}
+
 export function CalendarDetailModal(props: CalendarDetailModalProps) {
   const { booking, onClose } = props;
   const isBlock = booking?.status === "blocked";
@@ -251,7 +299,7 @@ function BlockBody({
     <div className="flex flex-col">
       <header className="hairline-b flex items-start gap-3.5 px-6 py-5 pr-14">
         <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-cal-block-surface text-cal-block-foreground">
-          <Wrench className="size-5" />
+          <Icon icon={Wrench01Icon} className="size-5" />
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
@@ -316,7 +364,7 @@ function BlockBody({
               }
             }}
           >
-            <DoorOpen /> {labels.unblock}
+            <Icon icon={Door01Icon} /> {labels.unblock}
           </Button>
         )}
       </footer>
@@ -528,7 +576,7 @@ function DetailBody({
                 qisqa bron deb o'qib, "mehmon erta ketdi" degan xulosaga kelardi. */}
             {b.linkId && (
               <span className="inline-flex items-center gap-1 rounded-full bg-brand-100 px-2 py-0.5 text-[0.6875rem] font-medium text-brand-800">
-                <Scissors className="size-3" />
+                <Icon icon={Scissor01Icon} className="size-3" />
                 {labels.splitLinked}
               </span>
             )}
@@ -546,6 +594,38 @@ function DetailBody({
           </DialogDescription>
         </div>
 
+        {/* Kirish → chiqish — SARLAVHADA (founder, 2026-08-07): top bar bo'sh yurmasin, sana esa
+            scroll'siz doim ko'z oldida tursin. Tahrirda jonli qiymatni ko'rsatadi — xodim sana
+            tanlayotib natijani shu yerdan kuzatadi. Tor ekranda yashirinadi (MUDDAT bandi bor). */}
+        <div className="hidden shrink-0 items-center gap-3.5 rounded-card bg-neutral-50 px-4 py-2 lg:flex">
+          <div className="flex flex-col">
+            <span className="text-xs font-medium tracking-wide text-neutral-400 uppercase">
+              {labels.arrival}
+            </span>
+            <span className="text-sm font-semibold text-neutral-900 tabular-nums">
+              {fmtLongDate(editing ? start : b.start, labels)}
+              <span className="ml-1.5 font-normal text-neutral-500">
+                {labels.checkInTime}
+              </span>
+            </span>
+          </div>
+          <Icon
+            icon={ArrowRight02Icon}
+            className="size-4 shrink-0 text-neutral-300"
+          />
+          <div className="flex flex-col">
+            <span className="text-xs font-medium tracking-wide text-neutral-400 uppercase">
+              {labels.departure}
+            </span>
+            <span className="text-sm font-semibold text-neutral-900 tabular-nums">
+              {fmtLongDate(editing ? end : b.end, labels)}
+              <span className="ml-1.5 font-normal text-neutral-500">
+                {labels.checkOutTime}
+              </span>
+            </span>
+          </div>
+        </div>
+
         {!editing && onEdit && !isClosed && (
           <Button
             variant="outline"
@@ -553,7 +633,7 @@ function DetailBody({
             className="shrink-0 rounded-control"
             onClick={() => setEditing(true)}
           >
-            <Pencil /> {labels.edit}
+            <Icon icon={PencilEdit02Icon} /> {labels.edit}
           </Button>
         )}
         <Button
@@ -563,7 +643,7 @@ function DetailBody({
           aria-label={labels.close}
           onClick={onClose}
         >
-          <X />
+          <Icon icon={Cancel01Icon} />
         </Button>
       </header>
 
@@ -620,8 +700,10 @@ function DetailBody({
 
         {/* Tafsilotlar — o'z scroll'i */}
         <div className="app-scroll min-h-0 flex-1 lg:overflow-y-auto">
-          <div className="flex max-w-3xl flex-col gap-7 py-6 pr-5 pl-3 sm:pr-6">
-            <Section icon={<User className="size-3.5" />} title={labels.guest}>
+          {/* gap YO'Q — oraliqni ThreadSection'ning pb-8'i beradi: ip (chiziq) shu padding
+              orqali uzluksiz o'tadi, gap bo'lsa bo'limlar orasida uzilib qolardi. */}
+          <div className="flex max-w-3xl flex-col py-6 pr-5 pl-3 sm:pr-6">
+            <ThreadSection icon={<Icon icon={User02Icon} className="size-3.5" />} title={labels.guest}>
               {/* Uch ustun ("Yangi bron" oynasidagi qatorning ko'zgusi): to'liq ekranda ikkita
                 maydonni butun kenglikka yoyish ma'lumotni emas, bo'shliqni ko'rsatadi. Uchinchi
                 ustunda xona/tashkilot xulosasi turadi — mehmon bilan bir qatorda o'qiladi. */}
@@ -666,12 +748,16 @@ function DetailBody({
                   </ReadValue>
                 </Field>
               </div>
-            </Section>
+            </ThreadSection>
 
             {/* ── Kim yashaydi ────────────────────────────────────────────── */}
-            <Section
-              icon={<Users className="size-3.5" />}
-              title={labels.companions}
+            {/* Sarlavha "Hamroh mehmonlar" EMAS (founder, 2026-08-07): ro'yxatda asosiy mehmon
+                ham bor, mehmon yolg'iz tursa o'zi "hamroh" bo'lib chiqib, ikkinchi odam bordek
+                o'qilardi. "Xonadagi mehmonlar" ikkala holatda ham to'g'ri. `companions` yorlig'i
+                yaratish oynasida qoladi — u yerdagi ro'yxat chindan faqat hamrohlar. */}
+            <ThreadSection
+              icon={<Icon icon={UserMultiple02Icon} className="size-3.5" />}
+              title={labels.roomGuests}
               aside={
                 <span
                   className={cn(
@@ -738,15 +824,15 @@ function DetailBody({
                       className="h-9 self-start rounded-control"
                       onClick={() => setAdding(true)}
                     >
-                      <Plus /> {labels.addGuest}
+                      <Icon icon={PlusSignIcon} /> {labels.addGuest}
                     </Button>
                   )
                 )}
               </div>
-            </Section>
+            </ThreadSection>
 
-            <Section
-              icon={<DoorOpen className="size-3.5" />}
+            <ThreadSection
+              icon={<Icon icon={Door01Icon} className="size-3.5" />}
               title={labels.stay}
             >
               <div className="flex flex-col gap-3">
@@ -787,7 +873,7 @@ function DetailBody({
                           variant="outline"
                           className="h-9 justify-start gap-2 font-normal"
                         >
-                          <CalendarDays className="text-neutral-500" />
+                          <Icon icon={Calendar03Icon} className="text-neutral-500" />
                           <span className="tabular-nums">
                             {fmtDay(start, labels)} – {fmtDay(end, labels)}
                           </span>
@@ -825,7 +911,7 @@ function DetailBody({
                             variant="outline"
                             className="h-9 justify-start gap-2 font-normal"
                           >
-                            <CalendarPlus className="text-neutral-500" />
+                            <Icon icon={CalendarAdd01Icon} className="text-neutral-500" />
                             <span className="tabular-nums">
                               {labels.departure}: {fmtDay(end, labels)}
                             </span>
@@ -856,8 +942,8 @@ function DetailBody({
                       </span>
                     </div>
                   ) : (
-                    // KO'RISH holatida bu yerda karta TAKRORLANMAYDI — u o'ng ustunning eng
-                    // tepasida, doim ko'rinadigan joyda turadi. Ikki nusxa bir ekranda bir xil
+                    // KO'RISH holatida bu yerda karta TAKRORLANMAYDI — sanalar sarlavhada
+                    // (top bar), doim ko'rinadigan joyda turadi. Ikki nusxa bir ekranda bir xil
                     // sanani ikki xil o'lchamda ko'rsatib, qaysi biri "asosiy" degan savol
                     // tug'dirardi. Bu yerda faqat bir qatorlik javob qoladi.
                     <ReadValue>
@@ -878,13 +964,16 @@ function DetailBody({
                   </p>
                 )}
               </div>
-            </Section>
+            </ThreadSection>
 
-            <Section
-              icon={<Wallet className="size-3.5" />}
+            {/* TO'LOV markazda FAQAT TAHRIRDA turadi — sana/xona o'zgarganda summa shu yerda
+                qayta hisoblanib ko'rinadi. KO'RISH holatidagi billing (summary + ledger +
+                to'lov qabul qilish) o'ng ustunning ENG TEPASIDA (founder, 2026-08-07). */}
+            {editing && (
+            <ThreadSection
+              icon={<Icon icon={Wallet02Icon} className="size-3.5" />}
               title={labels.payment}
             >
-              {editing ? (
                 <div className="grid gap-3 sm:grid-cols-2">
                   {/* Summa YOZILMAYDI — sana/xona o'zgarishi bilan o'zi qayta hisoblanadi
                     (formula tepada, `newTotal`). Eski → yangi ko'rsatiladi: xodim mehmonga
@@ -935,135 +1024,13 @@ function DetailBody({
                     </span>
                   </Field>
                 </div>
-              ) : payment ? (
-                <div className="flex flex-col gap-2.5">
-                  {/* KORPORATIV bron: qoldiq mehmonning qarzi EMAS, kompaniya hisobi. Amber
-                    progress va "qoldi" qatori xodimni mehmondan pul so'rashga undardi —
-                    mahsulotning va'dasi aynan shu joyda buzilardi. */}
-                  {corporateOrg ? (
-                    <div className="rounded-card bg-brand-50 p-4">
-                      <div className="flex items-baseline justify-between gap-2">
-                        <span className="text-xs font-medium text-brand-800">
-                          {labels.corporateBilling}
-                        </span>
-                        <span className="text-sm font-semibold text-neutral-900 tabular-nums">
-                          {labels.money(payment.total)}
-                        </span>
-                      </div>
-                      <p className="mt-1 text-sm font-medium text-neutral-900">
-                        {corporateOrg.name}
-                        {b.orgRef && (
-                          <span className="ml-2 text-xs font-normal text-neutral-500">
-                            {b.orgRef}
-                          </span>
-                        )}
-                      </p>
-                      <p className="mt-1.5 text-xs leading-relaxed text-brand-700">
-                        {labels.corporateNoCash}
-                      </p>
-                      {viewRoom?.rate != null && (
-                        <p className="mt-2.5 text-xs text-neutral-500 tabular-nums">
-                          {labels.nightlyRate} {labels.money(viewRoom.rate)} ×{" "}
-                          {nights}
-                        </p>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="rounded-card bg-neutral-50 p-4">
-                      <div className="flex items-baseline justify-between">
-                        <span className="text-xs font-medium text-neutral-500">
-                          {labels.total}
-                        </span>
-                        <span className="text-sm font-semibold text-neutral-900 tabular-nums">
-                          {labels.money(payment.paid)}
-                          <span className="font-normal text-neutral-400">
-                            {" "}
-                            / {labels.money(payment.total)}
-                          </span>
-                        </span>
-                      </div>
-                      <div className="mt-2 h-2 overflow-hidden rounded-full bg-neutral-200">
-                        <div
-                          className={cn(
-                            "h-full rounded-full transition-[width]",
-                            ratio >= 1 ? "bg-success" : "bg-warning",
-                          )}
-                          style={{ width: `${Math.max(ratio * 100, 2)}%` }}
-                        />
-                      </div>
-                      {remaining > 0 && (
-                        <div className="mt-2 flex items-center justify-between text-xs">
-                          <span className="text-neutral-500">
-                            {labels.remaining}
-                          </span>
-                          <span className="font-semibold text-warning tabular-nums">
-                            {labels.money(remaining)}
-                          </span>
-                        </div>
-                      )}
-                      {viewRoom?.rate != null && (
-                        <p className="mt-2.5 text-xs text-neutral-500 tabular-nums">
-                          {labels.nightlyRate} {labels.money(viewRoom.rate)} ×{" "}
-                          {nights}
-                        </p>
-                      )}
-                    </div>
-                  )}
+            </ThreadSection>
+            )}
 
-                  {/* ── To'lov LEDGERI: kim, qancha, qachon. Storno chizilib qoladi — o'chirish yo'q. */}
-                  {payments && payments.length > 0 && (
-                    <ol className="flex flex-col">
-                      {payments.map((p) => (
-                        <PaymentRow
-                          key={p.id}
-                          payment={p}
-                          labels={labels}
-                          onVoid={
-                            onVoidPayment && p.canVoid
-                              ? (input) => onVoidPayment(b.id, p.id, input)
-                              : undefined
-                          }
-                        />
-                      ))}
-                    </ol>
-                  )}
-
-                  {/* Korporativ bronda resepshn PUL OLMAYDI: tugma umuman chiqmaydi. Aks holda
-                    xodim mehmondan naqd olib, kompaniya ham oy oxirida to'lardi — farq esa
-                    hech qayerda ko'rinmasdi. Istisno holat menejer panelidan hal qilinadi. */}
-                  {!corporateOrg &&
-                    onRecordPayment &&
-                    b.status !== "cancelled" &&
-                    remaining > 0 &&
-                    (payFormOpen ? (
-                      <ReceivePaymentForm
-                        labels={labels}
-                        suggested={remaining}
-                        onCancel={() => setPayFormOpen(false)}
-                        onSubmit={async (input) => {
-                          await onRecordPayment(b.id, input);
-                          setPayFormOpen(false);
-                        }}
-                      />
-                    ) : (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="h-9 self-start rounded-control"
-                        onClick={() => setPayFormOpen(true)}
-                      >
-                        <Plus /> {labels.receivePayment}
-                      </Button>
-                    ))}
-                </div>
-              ) : (
-                <ReadValue muted>—</ReadValue>
-              )}
-            </Section>
-
-            <Section
-              icon={<StickyNote className="size-3.5" />}
+            <ThreadSection
+              icon={<Icon icon={StickyNote02Icon} className="size-3.5" />}
               title={labels.note}
+              last
             >
               {editing ? (
                 <Textarea
@@ -1075,28 +1042,150 @@ function DetailBody({
               ) : (
                 <ReadValue muted={!b.note}>{b.note || "—"}</ReadValue>
               )}
-            </Section>
+            </ThreadSection>
           </div>
         </div>
 
-        {/* ── O'ng reyd: sanalar + amallar ────────────────────────────────── */}
+        {/* ── O'ng reyd: PUL yuqorida, keyin amallar ──────────────────────── */}
         {/* Ajratuvchi chiziq YO'Q — design.md: avval sirt kontrasti (bg-neutral-50), chiziq faqat
-            boshqa iloji bo'lmaganda. Mobil (ustma-ust) va desktop (yonma-yon) ikkalasida ishlaydi. */}
+            boshqa iloji bo'lmaganda. PUL ENG TEPADA (founder, 2026-08-07): bu oynadagi bosh
+            savol "qancha qoldi va qanday olindi" — javob scroll'siz, ko'z tushadigan joyda.
+            Sanalar sarlavhaga ko'chgani uchun tepa bo'shadi. Oq kartalar neutral-50 ustida
+            orol bo'lib ko'tariladi (ohang > chegara). TAHRIRDA butun ustun yashirinadi:
+            summa markazda qayta hisoblanayotganda bu yerda eski qiymat ko'rsatib turish
+            "qaysi biri to'g'ri" degan savol tug'dirardi. */}
+        {!editing && (
         <aside className="app-scroll flex min-h-0 shrink-0 flex-col gap-5 bg-neutral-50 px-5 py-6 lg:w-[23rem] lg:overflow-y-auto">
-          {/* Yashash kartasi ENG TEPADA — "Yangi bron" oynasidagi bilan bir xil joyda. Xodim
-              telefonda gaplashayotib eng ko'p shu ikki sanani o'qiydi, shuning uchun u scroll
-              talab qilmaydigan yagona blok bo'lishi kerak. */}
-          <StayCard
-            arrivalLabel={labels.arrival}
-            departureLabel={labels.departure}
-            arrival={fmtLongDate(b.start, labels)}
-            departure={fmtLongDate(b.end, labels)}
-            arrivalTime={labels.checkInTime}
-            departureTime={labels.checkOutTime}
-            className="bg-white"
-          />
+          <Section
+            icon={<Icon icon={Wallet02Icon} className="size-3.5" />}
+            title={labels.payment}
+          >
+            {payment ? (
+              <div className="flex flex-col gap-2.5">
+                {/* KORPORATIV bron: qoldiq mehmonning qarzi EMAS, kompaniya hisobi. Amber
+                    progress va "qoldi" qatori xodimni mehmondan pul so'rashga undardi —
+                    mahsulotning va'dasi aynan shu joyda buzilardi. */}
+                {corporateOrg ? (
+                  <div className="rounded-card bg-brand-50 p-4">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="text-xs font-medium text-brand-800">
+                        {labels.corporateBilling}
+                      </span>
+                      <span className="text-base font-semibold text-neutral-900 tabular-nums">
+                        {labels.money(payment.total)}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-sm font-medium text-neutral-900">
+                      {corporateOrg.name}
+                      {b.orgRef && (
+                        <span className="ml-2 text-xs font-normal text-neutral-500">
+                          {b.orgRef}
+                        </span>
+                      )}
+                    </p>
+                    <p className="mt-1.5 text-xs leading-relaxed text-brand-700">
+                      {labels.corporateNoCash}
+                    </p>
+                    {viewRoom?.rate != null && (
+                      <p className="mt-2.5 text-xs text-neutral-500 tabular-nums">
+                        {labels.nightlyRate} {labels.money(viewRoom.rate)} ×{" "}
+                        {nights}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="rounded-card bg-white p-4">
+                    <div className="flex items-baseline justify-between">
+                      <span className="text-xs font-medium text-neutral-500">
+                        {labels.total}
+                      </span>
+                      <span className="text-base font-semibold text-neutral-900 tabular-nums">
+                        {labels.money(payment.paid)}
+                        <span className="text-sm font-normal text-neutral-400">
+                          {" "}
+                          / {labels.money(payment.total)}
+                        </span>
+                      </span>
+                    </div>
+                    <div className="mt-2.5 h-2 overflow-hidden rounded-full bg-neutral-200">
+                      <div
+                        className={cn(
+                          "h-full rounded-full transition-[width]",
+                          ratio >= 1 ? "bg-success" : "bg-warning",
+                        )}
+                        style={{ width: `${Math.max(ratio * 100, 2)}%` }}
+                      />
+                    </div>
+                    {remaining > 0 && (
+                      <div className="mt-2.5 flex items-baseline justify-between">
+                        <span className="text-xs text-neutral-500">
+                          {labels.remaining}
+                        </span>
+                        <span className="text-sm font-semibold text-warning tabular-nums">
+                          {labels.money(remaining)}
+                        </span>
+                      </div>
+                    )}
+                    {viewRoom?.rate != null && (
+                      <p className="mt-2.5 text-xs text-neutral-500 tabular-nums">
+                        {labels.nightlyRate} {labels.money(viewRoom.rate)} ×{" "}
+                        {nights}
+                      </p>
+                    )}
+                  </div>
+                )}
 
-          {!editing && (
+                {/* ── To'lov LEDGERI: kim, qancha, qachon. Storno chizilib qoladi — o'chirish yo'q. */}
+                {payments && payments.length > 0 && (
+                  <ol className="flex flex-col rounded-card bg-white p-1.5">
+                    {payments.map((p) => (
+                      <PaymentRow
+                        key={p.id}
+                        payment={p}
+                        labels={labels}
+                        onVoid={
+                          onVoidPayment && p.canVoid
+                            ? (input) => onVoidPayment(b.id, p.id, input)
+                            : undefined
+                        }
+                      />
+                    ))}
+                  </ol>
+                )}
+
+                {/* Korporativ bronda resepshn PUL OLMAYDI: tugma umuman chiqmaydi. Aks holda
+                    xodim mehmondan naqd olib, kompaniya ham oy oxirida to'lardi — farq esa
+                    hech qayerda ko'rinmasdi. Istisno holat menejer panelidan hal qilinadi. */}
+                {!corporateOrg &&
+                  onRecordPayment &&
+                  b.status !== "cancelled" &&
+                  remaining > 0 &&
+                  (payFormOpen ? (
+                    <ReceivePaymentForm
+                      labels={labels}
+                      suggested={remaining}
+                      onCancel={() => setPayFormOpen(false)}
+                      onSubmit={async (input) => {
+                        await onRecordPayment(b.id, input);
+                        setPayFormOpen(false);
+                      }}
+                    />
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="h-9 rounded-control"
+                      onClick={() => setPayFormOpen(true)}
+                    >
+                      <Icon icon={PlusSignIcon} /> {labels.receivePayment}
+                    </Button>
+                  ))}
+              </div>
+            ) : (
+              <ReadValue muted>—</ReadValue>
+            )}
+          </Section>
+
             <Section title={labels.actions}>
               <div className="flex flex-col gap-2">
                 {/* Kirish/chiqish TUGMASI bu yerda emas — u pastdagi amal panelida (footer).
@@ -1141,6 +1230,21 @@ function DetailBody({
                   />
                 )}
 
+                {/* Hisob-faktura BIRINCHI — billing bloki shundoq tepada, hujjat esa uning
+                    davomi (founder, 2026-08-07: pulga bog'liq narsalar bir joyda tursin).
+                    Yopilgan bronda ham kerak: mehmon qog'ozni chiqib ketgandan keyin
+                    so'rashi odatiy hol. */}
+                {onInvoice && (
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    className="rounded-control"
+                    onClick={() => onInvoice(b)}
+                  >
+                    <Icon icon={Invoice01Icon} /> {labels.invoice}
+                  </Button>
+                )}
+
                 {/* Bo'lish — kelmagan yoki ichkaridagi mehmon uchun (chiqib ketganini bo'lish
                     ma'nosiz: xona allaqachon bo'shagan). Kamida ikki kechalik yashash kerak,
                     aks holda qismlardan biri nol kechali bo'lardi. */}
@@ -1153,22 +1257,9 @@ function DetailBody({
                       className="rounded-control"
                       onClick={() => onSplit(b)}
                     >
-                      <Scissors /> {labels.split}
+                      <Icon icon={Scissor01Icon} /> {labels.split}
                     </Button>
                   )}
-
-                {/* Hisob-faktura — yopilgan bronda ham kerak: mehmon qog'ozni chiqib ketgandan
-                    keyin so'rashi odatiy hol. */}
-                {onInvoice && (
-                  <Button
-                    size="lg"
-                    variant="outline"
-                    className="rounded-control"
-                    onClick={() => onInvoice(b)}
-                  >
-                    <ReceiptText /> {labels.invoice}
-                  </Button>
-                )}
 
                 {/* Ikkilamchi amallar — bron yopilgan bo'lsa ham ishlaydi (suhbat tarixi va
                     qaytib keluvchi mehmon uchun nusxalash aynan shunda kerak bo'ladi). */}
@@ -1179,7 +1270,7 @@ function DetailBody({
                     className="rounded-control"
                     onClick={() => onOpenChat(b)}
                   >
-                    <MessageSquare /> {labels.openChat}
+                    <Icon icon={Message02Icon} /> {labels.openChat}
                   </Button>
                 )}
                 {onDuplicate && (
@@ -1189,7 +1280,7 @@ function DetailBody({
                     className="rounded-control"
                     onClick={() => onDuplicate(b)}
                   >
-                    <Copy /> {labels.duplicate}
+                    <Icon icon={Copy01Icon} /> {labels.duplicate}
                   </Button>
                 )}
 
@@ -1222,8 +1313,8 @@ function DetailBody({
                   ))}
               </div>
             </Section>
-          )}
         </aside>
+        )}
       </div>
 
       {/* ── Amal paneli ──────────────────────────────────────────────────────
@@ -1279,7 +1370,7 @@ function DetailBody({
                   b.start > today ? setConfirming("checkin") : run(onCheckIn)
                 }
               >
-                <LogIn /> {labels.checkIn}
+                <Icon icon={Login03Icon} /> {labels.checkIn}
               </Button>
             )}
             {b.status === "checked_in" && onCheckOut && (
@@ -1295,7 +1386,7 @@ function DetailBody({
                     : run(onCheckOut)
                 }
               >
-                <LogOut /> {labels.checkOut}
+                <Icon icon={Logout03Icon} /> {labels.checkOut}
               </Button>
             )}
           </>
@@ -1434,7 +1525,7 @@ function GuestRow({
               disabled={busy}
               onClick={() => run(onMakePrimary)}
             >
-              <Star />
+              <Icon icon={StarIcon} />
             </Button>
           )}
           {onSave && (
@@ -1445,7 +1536,7 @@ function GuestRow({
               aria-label={labels.edit}
               onClick={() => setEditing(true)}
             >
-              <Pencil />
+              <Icon icon={PencilEdit02Icon} />
             </Button>
           )}
           {!g.isPrimary && onRemove && (
@@ -1458,7 +1549,7 @@ function GuestRow({
               disabled={busy}
               onClick={() => run(onRemove)}
             >
-              <Trash2 />
+              <Icon icon={Delete02Icon} />
             </Button>
           )}
         </div>
@@ -1509,7 +1600,7 @@ function NewGuestRow({
       </div>
       <div className="mt-2.5 flex justify-end gap-2">
         <Button variant="ghost" size="sm" onClick={onCancel} disabled={busy}>
-          <X /> {labels.close}
+          <Icon icon={Cancel01Icon} /> {labels.close}
         </Button>
         <Button
           size="sm"
@@ -1528,7 +1619,7 @@ function NewGuestRow({
             }
           }}
         >
-          <Check /> {labels.save}
+          <Icon icon={Tick02Icon} /> {labels.save}
         </Button>
       </div>
     </div>
@@ -1570,7 +1661,12 @@ function PaymentRow({
           {labels.voidPayment}: {labels.money(Math.abs(p.amount))}
         </p>
         {isCash && (
-          <div className="mb-2 flex flex-col gap-1" role="radiogroup">
+          // role="radiogroup" endi RadioGroup'ning o'zidan keladi (radix).
+          <RadioGroup
+            value={String(cashReturned)}
+            onValueChange={(v) => setCashReturned(v === "true")}
+            className="mb-2 flex flex-col gap-1"
+          >
             {(
               [
                 { value: true, text: labels.voidCashReturned },
@@ -1581,17 +1677,11 @@ function PaymentRow({
                 key={String(opt.value)}
                 className="flex cursor-pointer items-center gap-2 rounded-control px-2 py-1.5 text-xs font-medium text-neutral-700 transition-colors hover:bg-neutral-100"
               >
-                <input
-                  type="radio"
-                  name={`cash-returned-${p.id}`}
-                  checked={cashReturned === opt.value}
-                  onChange={() => setCashReturned(opt.value)}
-                  className="accent-brand-600"
-                />
+                <RadioGroupItem value={String(opt.value)} />
                 {opt.text}
               </label>
             ))}
-          </div>
+          </RadioGroup>
         )}
         <Input
           autoFocus
@@ -1723,7 +1813,9 @@ function ReceivePaymentForm({
     amount !== "" && Number.isFinite(amountNum) && amountNum > 0 && !tooBig;
 
   return (
-    <div className="rounded-card bg-neutral-50 p-3 ring-1 ring-brand-200">
+    // Oq sirt: forma o'ng ustunda (bg-neutral-50) ochiladi — kulrang ustida kulrang emas,
+    // ko'tarilgan orol bo'lib ko'rinsin. Maydonlar TIK: ustun 23rem, yonma-yon sig'maydi.
+    <div className="rounded-card bg-white p-3 ring-1 ring-brand-200">
       {/* Usul — naqd oldindan tanlangan (eng ko'p holat), lekin karta/o'tkazma bir bosishda:
           usulni to'g'ri yozish kassa hisobining o'zagi — karta puli g'aladonga tushmaydi. */}
       <Segmented
@@ -1736,18 +1828,16 @@ function ReceivePaymentForm({
           label: labels.paymentMethodText[m] ?? m,
         }))}
       />
-      <div className="flex items-center gap-2">
+      <div className="flex flex-col gap-2">
         <MoneyInput
           value={amount}
           onChange={setAmount}
           ariaLabel={labels.amount}
-          className="w-48 shrink-0"
         />
         <Input
           value={note}
           onChange={(e) => setNote(e.target.value)}
           placeholder={labels.paymentNotePlaceholder}
-          className="flex-1"
         />
       </div>
       {tooBig && (
@@ -1757,7 +1847,7 @@ function ReceivePaymentForm({
       )}
       <div className="mt-2.5 flex justify-end gap-2">
         <Button variant="ghost" size="sm" onClick={onCancel} disabled={busy}>
-          <X /> {labels.close}
+          <Icon icon={Cancel01Icon} /> {labels.close}
         </Button>
         <Button
           size="sm"
@@ -1778,7 +1868,7 @@ function ReceivePaymentForm({
             }
           }}
         >
-          <Check /> {labels.confirm}
+          <Icon icon={Tick02Icon} /> {labels.confirm}
         </Button>
       </div>
     </div>
@@ -1853,26 +1943,26 @@ function activityDetails(
   }
 }
 
-const ACTIVITY_VISUAL: Record<string, { icon: LucideIcon; tone?: string }> = {
-  "booking.created": { icon: CalendarPlus },
-  "booking.updated": { icon: Pencil },
-  "booking.checked_in": { icon: LogIn },
-  "booking.checked_out": { icon: LogOut },
+const ACTIVITY_VISUAL: Record<string, { icon: IconData; tone?: string }> = {
+  "booking.created": { icon: CalendarAdd01Icon },
+  "booking.updated": { icon: PencilEdit02Icon },
+  "booking.checked_in": { icon: Login03Icon },
+  "booking.checked_out": { icon: Logout03Icon },
   "booking.cancelled": {
-    icon: Ban,
+    icon: CancelCircleIcon,
     tone: "bg-destructive-surface text-destructive-surface-foreground",
   },
-  "booking.guest_added": { icon: UserPlus },
-  "booking.guest_removed": { icon: UserMinus },
-  "booking.primary_changed": { icon: Star },
-  "booking.split": { icon: Scissors },
-  "payment.recorded": { icon: Wallet },
+  "booking.guest_added": { icon: UserAdd01Icon },
+  "booking.guest_removed": { icon: UserMinus01Icon },
+  "booking.primary_changed": { icon: StarIcon },
+  "booking.split": { icon: Scissor01Icon },
+  "payment.recorded": { icon: Wallet02Icon },
   "payment.voided": {
-    icon: Undo2,
+    icon: ArrowTurnBackwardIcon,
     tone: "bg-destructive-surface text-destructive-surface-foreground",
   },
-  "payment.adjusted": { icon: Wallet },
-  "invoice.issued": { icon: ReceiptText },
+  "payment.adjusted": { icon: Wallet02Icon },
+  "invoice.issued": { icon: Invoice01Icon },
 };
 
 function ActivityRow({
@@ -1886,7 +1976,7 @@ function ActivityRow({
 }) {
   const details = activityDetails(e, labels);
   const visual = ACTIVITY_VISUAL[e.action];
-  const EventIcon = visual?.icon ?? Circle;
+  const eventIcon = visual?.icon ?? CircleIcon;
 
   return (
     <li className="relative flex gap-3 pb-5 last:pb-0">
@@ -1903,7 +1993,7 @@ function ActivityRow({
           visual?.tone ?? "bg-neutral-100 text-neutral-500",
         )}
       >
-        <EventIcon className="size-3.5" />
+        <Icon icon={eventIcon} className="size-3.5" />
       </span>
       <div className="min-w-0 flex-1">
         <p className="text-sm leading-snug font-medium text-neutral-800">

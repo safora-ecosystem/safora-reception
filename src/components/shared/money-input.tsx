@@ -98,7 +98,7 @@ export function MoneyInput({
           s.box,
           invalid
             ? "border-destructive focus-visible:ring-3 focus-visible:ring-destructive/15"
-            : "border-neutral-200 hover:border-neutral-300 focus-visible:border-brand-400 focus-visible:ring-3 focus-visible:ring-ring/15",
+            : "border-neutral-200 hover:border-neutral-300 focus-visible:border-neutral-400 focus-visible:ring-3 focus-visible:ring-neutral-400/20",
         )}
       />
       {}

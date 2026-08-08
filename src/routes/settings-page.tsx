@@ -1,9 +1,11 @@
 import { useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { LogOut, Volume2 } from "lucide-react"
+import { Logout03Icon, VolumeHighIcon } from "@hugeicons/core-free-icons"
+import { Icon } from "@/components/ui/icon"
 import { toast } from "sonner"
 import { PageLayout } from "@/components/layout/page-layout"
 import { AvatarUploader } from "@/components/shared/avatar-uploader"
+import { ChangePasswordSection } from "@/components/settings/change-password"
 import { ErrorState } from "@/components/shared/error-state"
 import { SkeletonList } from "@/components/shared/skeletons"
 import {
@@ -90,12 +92,17 @@ export function SettingsPage() {
             />
           </Section>
 
+          {}
+          <Section title={t("auth.changeTitle")}>
+            <ChangePasswordSection />
+          </Section>
+
           <Section
             title={t("settings.notifications.title")}
             hint={t("settings.notifications.hint")}
             action={
               <Button variant="outline" size="sm" onClick={() => playMessageChime()}>
-                <Volume2 strokeWidth={1.75} />
+                <Icon icon={VolumeHighIcon} strokeWidth={1.75} />
                 {t("settings.notifications.preview")}
               </Button>
             }
@@ -164,7 +171,7 @@ export function SettingsPage() {
                   onClick={() => revokeOthers.mutate()}
                   disabled={revokeOthers.isPending}
                 >
-                  <LogOut strokeWidth={1.75} /> {t("settings.sessions.revokeOthers")}
+                  <Icon icon={Logout03Icon} strokeWidth={1.75} /> {t("settings.sessions.revokeOthers")}
                 </Button>
               ) : undefined
             }

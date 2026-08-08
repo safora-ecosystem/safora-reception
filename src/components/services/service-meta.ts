@@ -1,4 +1,11 @@
-import { CarTaxiFront, Coffee, ConciergeBell, Package, Wrench } from "lucide-react"
+import {
+  Coffee02Icon,
+  ConciergeBellIcon,
+  PackageIcon,
+  Taxi02Icon,
+  Wrench01Icon,
+} from "@hugeicons/core-free-icons"
+import type { IconData } from "@/components/ui/icon"
 import type { ServiceRequest } from "@/lib/api"
 import { t as tr, type TKey } from "@/lib/i18n"
 
@@ -21,12 +28,12 @@ export const COLUMN_EMPTY: Record<BoardColumn, TKey> = {
   done: "services.colDoneEmpty",
 }
 
-export const TYPE_META: Record<ServiceRequest["type"], { labelKey: TKey; icon: typeof Coffee }> = {
-  taxi: { labelKey: "services.type.taxi", icon: CarTaxiFront },
-  cleaning: { labelKey: "services.type.cleaning", icon: Wrench },
-  food: { labelKey: "services.type.food", icon: Coffee },
-  amenity: { labelKey: "services.type.amenity", icon: Package },
-  other: { labelKey: "services.type.otherType", icon: ConciergeBell },
+export const TYPE_META: Record<ServiceRequest["type"], { labelKey: TKey; icon: IconData }> = {
+  taxi: { labelKey: "services.type.taxi", icon: Taxi02Icon },
+  cleaning: { labelKey: "services.type.cleaning", icon: Wrench01Icon },
+  food: { labelKey: "services.type.food", icon: Coffee02Icon },
+  amenity: { labelKey: "services.type.amenity", icon: PackageIcon },
+  other: { labelKey: "services.type.otherType", icon: ConciergeBellIcon },
 }
 
 export const CREATABLE_TYPES: ServiceRequest["type"][] = ["cleaning", "food", "amenity", "other"]

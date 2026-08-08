@@ -1,4 +1,4 @@
-import { clearSession, getSession, updateTokens, type Session } from "./auth"
+import { clearSession, getSession, updateAccessExpiry, type Session } from "./auth"
 import { t } from "./i18n"
 
 const BASE_URL = import.meta.env.VITE_API_URL
@@ -44,18 +44,20 @@ export class NetworkError extends Error {
 type ApiOptions = {
   method?: string
   body?: unknown
-  token?: string
   signal?: AbortSignal
   /** Standart 15s. Fayl yuklashda uzunroq: sekin mobil ulanishda 8MB shunga sig'maydi. */
   timeoutMs?: number
 }
+
+/** Panel o'zini shu sarlavhada tanitadi — backend seans cookie'sini shu nom bo'yicha topadi
+    (har panelning o'z cookie'si bor, aks holda ikkinchi panelga kirish birinchisini o'chirardi). */
+export const PANEL_HEADER: Record<string, string> = { "x-panel": "reception" }
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 async function rawFetch(
   path: string,
   { method = "GET", body, signal, timeoutMs: callerTimeout }: ApiOptions,
-  token?: string,
   timeoutMs = callerTimeout ?? DEFAULT_TIMEOUT_MS,
 ) {
   const hasBody = body !== undefined
@@ -73,11 +75,13 @@ async function rawFetch(
   try {
     return await fetch(`${BASE_URL}${path}`, {
       method,
+      // Seans `httpOnly` cookie'da: brauzer uni FAQAT shu bayroq bilan qo'shadi.
+      credentials: "include",
       // Only advertise a JSON body when we actually send one — Fastify rejects an empty
       // `application/json` body with 400, so bodyless GET/DELETE must NOT set content-type.
       headers: {
         ...(hasBody && !isForm ? { "content-type": "application/json" } : {}),
-        ...(token ? { authorization: `Bearer ${token}` } : {}),
+        ...PANEL_HEADER,
       },
       ...(hasBody ? { body: isForm ? (body as FormData) : JSON.stringify(body) } : {}),
       signal: controller.signal,
@@ -91,11 +95,11 @@ async function rawFetch(
 /** rawFetch + idempotent retry: tarmoq/timeout xatosi yoki 502/503/504'da GET'ni backoff bilan
     qayta uradi; chaqiruvchi ataylab bekor qilsa (unmount) — retry yo'q, propagate. So'rov umuman
     yetib bormasa NetworkError. */
-async function sendWithRetry(path: string, options: ApiOptions, token: string | undefined): Promise<Response> {
+async function sendWithRetry(path: string, options: ApiOptions): Promise<Response> {
   const idempotent = (options.method ?? "GET").toUpperCase() === "GET"
   for (let attempt = 0; ; attempt++) {
     try {
-      const res = await rawFetch(path, options, token)
+      const res = await rawFetch(path, options)
       if (idempotent && RETRYABLE_STATUS.has(res.status) && attempt < MAX_RETRIES) {
         await delay(RETRY_BASE_MS * 2 ** attempt)
         continue
@@ -124,36 +128,21 @@ const REFRESH_LOCK = "safora-refresh"
 /** Access tokenda shu vaqtdan ko'proq qolgan bo'lsa yangilash shart emas. */
 const FRESH_MARGIN_SEC = 30
 
-/** JWT `exp` — imzo TEKSHIRILMAYDI. Bu xavfsizlik qarori emas, "yangilash kerakmi?" degan
-    mahalliy savol; haqiqiy tekshiruv baribir serverda. */
-function accessExpiresAt(token: string | undefined): number {
-  if (!token) return 0
-  try {
-    const payload = token.split(".")[1]
-    const json = atob(payload.replace(/-/g, "+").replace(/_/g, "/"))
-    const { exp } = JSON.parse(json) as { exp?: number }
-    return typeof exp === "number" ? exp : 0
-  } catch {
-    return 0
-  }
-}
-
 /** Server "bu token o'lik" degan yagona holat. Tarmoq/5xx bundan FARQ qiladi. */
 class SessionExpiredError extends Error {}
 
+// Refresh tokeni so'rov TANASIDA emas: u `httpOnly` cookie'da va brauzer uni /auth/refresh
+// yo'liga o'zi qo'shadi. Muddat esa seansdan o'qiladi — JWT endi panelga ko'rinmaydi.
 async function runRefresh(): Promise<Session | null> {
   const current = getSession()
-  if (!current?.refreshToken) return null
-  // Qulfni kutayotganda boshqa tab yangilab qo'ygan bo'lishi mumkin — o'sha tokendan foydalanamiz.
-  if (accessExpiresAt(current.accessToken) - Date.now() / 1000 > FRESH_MARGIN_SEC) return current
+  if (!current) return null
+  // Qulfni kutayotganda boshqa tab yangilab qo'ygan bo'lishi mumkin — u holda so'rov shart emas.
+  if (current.accessExpiresAt - Date.now() / 1000 > FRESH_MARGIN_SEC) return current
 
-  const res = await rawFetch("/auth/refresh", {
-    method: "POST",
-    body: { refreshToken: current.refreshToken },
-  })
+  const res = await rawFetch("/auth/refresh", { method: "POST", body: {} })
   if (res.ok) {
     const next = (await res.json()) as Session
-    updateTokens(next.accessToken, next.refreshToken)
+    updateAccessExpiry(next.accessExpiresAt)
     return next
   }
   // FAQAT server tokenni rad etsa sessiya tugaydi. 5xx yoki tarmoq uzilishi vaqtinchalik
@@ -175,13 +164,13 @@ function refreshSession(): Promise<Session | null> {
   return refreshInFlight
 }
 
-/** Sessiya tokenini avtomatik qo'shadi; access eskirgan bo'lsa (401) bir marta refresh qilib
+/** Seans cookie'sini brauzer o'zi qo'shadi; access eskirgan bo'lsa (401) bir marta refresh qilib
     qayta urinadi (single-flight), refresh ham o'lgan bo'lsa sessiyani tozalab /login'ga qaytaradi. */
 export async function api<T>(path: string, options: ApiOptions = {}): Promise<T> {
   const session = getSession()
-  let res = await sendWithRetry(path, options, options.token ?? session?.accessToken)
+  let res = await sendWithRetry(path, options)
 
-  if (res.status === 401 && !options.token && session?.refreshToken) {
+  if (res.status === 401 && session) {
     let next: Session | null = null
     try {
       next = await refreshSession()
@@ -195,7 +184,7 @@ export async function api<T>(path: string, options: ApiOptions = {}): Promise<T>
     }
     // `next` null bo'lsa — vaqtinchalik nosozlik. Sessiya saqlanadi, chaqiruvchi oddiy
     // xatolikni oladi va keyingi urinishda hammasi tiklanadi.
-    if (next) res = await sendWithRetry(path, options, next.accessToken)
+    if (next) res = await sendWithRetry(path, options)
   }
 
   const payload = await res.json().catch(() => null)
@@ -1124,16 +1113,63 @@ export const chatRtConnect = () =>
 export const chatRtSubscribe = (channel: string) =>
   api<{ token: string }>("/chat/rt/subscribe", { method: "POST", body: { channel } })
 
+/** `remember: false` — "Vaqtinchalik sessiya": server seans cookie'sini muddatsiz yozadi va u
+    brauzer yopilishi bilan o'chadi. Tanlov endi SERVERDA amalga oshadi (cookie muddatini o'sha
+    yozadi), shuning uchun login so'roviga qo'shiladi. */
 export function staffLogin(
   staffHandle: string,
   password: string,
   turnstileToken: string | null,
+  remember: boolean,
 ): Promise<Session> {
   // `panel` — bu reception paneli: backend faqat role=reception hisobiga sessiya beradi,
   // owner/manager o'z paneliga yo'naltiriladi (403 + havola).
   return api<Session>("/auth/login", {
     method: "POST",
-    body: { staffHandle, password, panel: "reception", ...(turnstileToken ? { turnstileToken } : {}) },
+    body: {
+      staffHandle,
+      password,
+      panel: "reception",
+      remember,
+      ...(turnstileToken ? { turnstileToken } : {}),
+    },
+  })
+}
+
+/**
+ * Tiklash havolasini so'rash. Javob ATAYIN noaniq: hisob bor-yo'qligi oshkor qilinmaydi
+ * (aks holda bu forma "qaysi login mavjud" degan tekshirgichga aylanardi). Yagona istisno —
+ * emailsiz hisob: bu holatda xodim kutib o'tirmasin deb ochiq aytiladi.
+ *
+ * Backend `TurnstileGuard` bilan himoyalangan: usiz bu endpoint istalgan manzilga xat
+ * yog'diradigan dastak bo'lardi.
+ */
+export function requestPasswordReset(
+  identifier: string,
+  turnstileToken: string | null,
+): Promise<{ ok: true; message: string }> {
+  return api<{ ok: true; message: string }>("/auth/forgot-password", {
+    method: "POST",
+    body: { identifier, ...(turnstileToken ? { turnstileToken } : {}) },
+  })
+}
+
+/** Havoladagi token bilan yangi parol qo'yish. Token bir martalik va muddatli. */
+export function resetPassword(token: string, newPassword: string): Promise<{ ok: true }> {
+  return api<{ ok: true }>("/auth/reset-password", {
+    method: "POST",
+    body: { token, newPassword },
+  })
+}
+
+/** O'z parolini almashtirish — eski parol bilan. Boshqa barcha seanslar yopiladi. */
+export function changePassword(
+  currentPassword: string,
+  newPassword: string,
+): Promise<{ ok: true }> {
+  return api<{ ok: true }>("/auth/change-password", {
+    method: "POST",
+    body: { currentPassword, newPassword },
   })
 }
 

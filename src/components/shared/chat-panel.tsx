@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router"
 import { useQuery } from "@tanstack/react-query"
-import { MessagesSquare } from "lucide-react"
+import { Message02Icon } from "@hugeicons/core-free-icons"
+import { Icon } from "@/components/ui/icon"
 import { listConversations } from "@/lib/api"
 import { conversationsKey } from "@/lib/chat-realtime"
 import { ErrorState } from "@/components/shared/error-state"
@@ -18,10 +19,11 @@ export function ChatPanel() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Suhbatlar</CardTitle>
+        {}
+        <CardTitle>{t("nav.chat")}</CardTitle>
         <CardAction>
           <Button asChild variant="ghost" size="sm" className="text-neutral-500">
-            <Link to="/chat">Barchasi</Link>
+            <Link to="/chat">{t("common.all")}</Link>
           </Button>
         </CardAction>
       </CardHeader>
@@ -42,13 +44,11 @@ export function ChatPanel() {
       ) : items.length === 0 ? (
         <CardContent className="flex flex-1 flex-col items-center justify-center gap-3 py-10 text-center">
           <span className="flex size-11 items-center justify-center rounded-full bg-neutral-100">
-            <MessagesSquare className="size-5 text-neutral-400" strokeWidth={1.75} />
+            <Icon icon={Message02Icon} className="size-5 text-neutral-400" strokeWidth={1.75} />
           </span>
           <div className="max-w-52">
-            <p className="text-sm font-medium text-neutral-700">Hozircha suhbat yo'q</p>
-            <p className="mt-1 text-xs text-neutral-500">
-              Mehmon QR orqali yozsa, xabarlar shu yerda va Suhbat bo'limida ko'rinadi.
-            </p>
+            <p className="text-sm font-medium text-neutral-700">{t("chat.emptyGuests")}</p>
+            <p className="mt-1 text-xs text-neutral-500">{t("chat.emptyGuestsHint")}</p>
           </div>
         </CardContent>
       ) : (

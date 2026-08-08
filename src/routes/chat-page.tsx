@@ -2,24 +2,21 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useSearch } from "@tanstack/react-router"
 import {
-  Archive,
-  ArchiveRestore,
-  ChevronDown,
-  ChevronLeft,
-  CornerUpLeft,
-  Loader2,
-  MessagesSquare,
-  Send,
-  Users,
-  X,
-} from "lucide-react"
-import { toast } from "sonner"
-import {
+  Archive02Icon,
+  ArrowDown01Icon,
+  ArrowLeft01Icon,
+  ArrowMoveDownLeftIcon,
+  ArrowTurnBackwardIcon,
+  Cancel01Icon,
   CleanIcon,
+  Loading03Icon,
+  Message02Icon,
+  Sent02Icon,
   UserGroupIcon,
   UserMultiple02Icon,
   UserStar01Icon,
 } from "@hugeicons/core-free-icons"
+import { toast } from "sonner"
 import { getSession } from "@/lib/auth"
 import {
   archiveConversation,
@@ -79,6 +76,7 @@ import { usePermissions } from "@/lib/permissions"
 import { EmptyState } from "@/components/shared/empty-state"
 import { ErrorState, Spinner } from "@/components/shared/error-state"
 import { PersonAvatar } from "@/components/shared/person-avatar"
+import { SegmentedTabs } from "@/components/shared/segmented-tabs"
 import { SkeletonList, SkeletonThread } from "@/components/shared/skeletons"
 import { Button } from "@/components/ui/button"
 import { Icon, type IconData } from "@/components/ui/icon"
@@ -264,6 +262,23 @@ export function ChatPage() {
   const selectedConv = convItems.find((c) => c.bookingId === guestSel) ?? null
   const selectedMate = teamItems.find((t) => t.user.id === teamSel) ?? null
 
+  // ── Bo'lim nishonlari (founder, 2026-08-07: "notification qaysi biridanligi aniq ko'rinsin")
+  //
+  // Mehmon/jamoa sonlari ALLAQACHON yuklangan ro'yxatlardan yig'iladi — qo'shimcha so'rov yo'q.
+  // Arxivlangan suhbatlar hisobga KIRMAYDI: arxiv "hozir menga kerak emas" degani, uni tab
+  // ustida qizil son bilan qaytarib turish arxivning ma'nosini yo'q qilardi.
+  //
+  // Guruh tabining ostida ikki xona bor (jamoa guruhi + housekeeping), shuning uchun nishoni
+  // ikkalasining YIG'INDISI. So'rovlar `GroupRoomList` dagilar bilan AYNAN BIR KALITDA —
+  // TanStack Query keshni ulashadi, ya'ni tab guruhlar ro'yxati ochilmagan bo'lsa ham sonni
+  // biladi va bu qo'shimcha trafik tug'dirmaydi.
+  const groupUnreadQ = useQuery({ queryKey: groupUnreadKey, queryFn: getGroupUnread, staleTime: 15_000 })
+  const hkUnreadQ = useQuery({ queryKey: hkUnreadKey, queryFn: getHkUnread, staleTime: 15_000, retry: false })
+
+  const guestUnread = useMemo(() => activeConv.reduce((n, c) => n + c.unread, 0), [activeConv])
+  const teamUnread = useMemo(() => activeTeam.reduce((n, x) => n + x.unread, 0), [activeTeam])
+  const groupsUnread = (groupUnreadQ.data?.unread ?? 0) + (hkUnreadQ.data?.unread ?? 0)
+
   return (
     <div className="relative h-full min-h-0">
       <div className="absolute inset-0 flex min-h-0 gap-3 overflow-hidden">
@@ -275,29 +290,34 @@ export function ChatPage() {
         >
           {canGuest && canTeam ? (
             <div className="shrink-0 p-3 pb-0">
-              <div className="flex gap-0.5 rounded-control bg-neutral-100 p-1">
-                <TabButton
-                  icon={UserStar01Icon}
-                  active={tab === "guests"}
-                  onClick={() => setTab("guests")}
-                >
-                  Mehmonlar
-                </TabButton>
-                <TabButton
-                  icon={UserMultiple02Icon}
-                  active={tab === "team"}
-                  onClick={() => setTab("team")}
-                >
-                  Jamoa
-                </TabButton>
-                <TabButton
-                  icon={UserGroupIcon}
-                  active={tab === "group"}
-                  onClick={() => setTab("group")}
-                >
-                  Guruhlar
-                </TabButton>
-              </div>
+              {/* Yorliqlar ILGARI KODDA QOTIB yozilgan o'zbekcha satrlar edi ("Mehmonlar",
+                  "Jamoa", "Guruhlar") — ya'ni rus/ingliz tilida ham o'zbekcha chiqardi.
+                  Endi lug'atdan. */}
+              <SegmentedTabs
+                value={tab}
+                onChange={setTab}
+                ariaLabel={t("nav.chat")}
+                items={[
+                  {
+                    value: "guests",
+                    label: t("chat.guests"),
+                    icon: UserStar01Icon,
+                    count: guestUnread,
+                  },
+                  {
+                    value: "team",
+                    label: t("chat.team"),
+                    icon: UserMultiple02Icon,
+                    count: teamUnread,
+                  },
+                  {
+                    value: "group",
+                    label: t("chat.groups"),
+                    icon: UserGroupIcon,
+                    count: groupsUnread,
+                  },
+                ]}
+              />
             </div>
           ) : (
             <p className="px-4 pt-4 text-sm font-medium text-neutral-900">
@@ -336,7 +356,7 @@ export function ChatPage() {
                 />
               ) : convItems.length === 0 ? (
                 <EmptyState
-                  icon={MessagesSquare}
+                  icon={Message02Icon}
                   title={t("chat.emptyGuests")}
                   hint={t("chat.emptyGuestsHint")}
                   className="py-10"
@@ -364,7 +384,7 @@ export function ChatPage() {
               />
             ) : teamItems.length === 0 ? (
               <EmptyState
-                icon={Users}
+                icon={UserMultiple02Icon}
                 title={t("chat.emptyTeam")}
                 hint={t("chat.emptyTeamHint")}
                 className="py-10"
@@ -391,12 +411,12 @@ export function ChatPage() {
                   onClick={() => setShowArchive((v) => !v)}
                   className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-xs font-medium text-neutral-500 transition-colors hover:bg-neutral-50"
                 >
-                  <Archive className="size-3.5" strokeWidth={1.75} />
+                  <Icon icon={Archive02Icon} className="size-3.5" strokeWidth={1.75} />
                   Arxiv
                   <span className="tabular-nums">
                     {(tab === "guests" ? archivedConv : archivedTeam).length}
                   </span>
-                  <ChevronDown
+                  <Icon icon={ArrowDown01Icon}
                     className={cn(
                       "ml-auto size-3.5 transition-transform",
                       showArchive && "rotate-180",
@@ -940,6 +960,7 @@ function ThreadShell({
 }) {
   const t = useT()
   const scrollRef = useRef<HTMLDivElement>(null)
+  const composerRef = useRef<HTMLTextAreaElement>(null)
   const nearBottomRef = useRef(true)
   const [showJump, setShowJump] = useState(false)
   const bubbleRefs = useRef(new Map<string, HTMLDivElement>())
@@ -971,6 +992,15 @@ function ThreadShell({
     }
     prevRef.current = { key: threadKey, firstId, lastId, height: el.scrollHeight }
   }, [threadKey, firstId, lastId, lastMine])
+
+  useEffect(() => {
+    if (!window.matchMedia("(pointer: fine)").matches) return
+    composerRef.current?.focus()
+  }, [threadKey])
+
+  useEffect(() => {
+    if (replyTo) composerRef.current?.focus()
+  }, [replyTo])
 
   useEffect(() => {
     if (!menu) return
@@ -1047,7 +1077,7 @@ function ThreadShell({
           onClick={onBack}
           aria-label={t("common.back")}
         >
-          <ChevronLeft />
+          <Icon icon={ArrowLeft01Icon} />
         </Button>
         <PersonAvatar name={title} avatarUrl={avatarUrl} />
         <div className="min-w-0">
@@ -1100,32 +1130,40 @@ function ThreadShell({
             aria-label={t("chat.toLatest")}
             className="absolute right-4 bottom-4 z-10 flex size-9 items-center justify-center rounded-full border border-border bg-white text-neutral-600 shadow-md transition-colors animate-in fade-in zoom-in-95 hover:text-neutral-900"
           >
-            <ChevronDown className="size-4" />
+            <Icon icon={ArrowDown01Icon} className="size-4" />
           </button>
         )}
       </div>
 
       {replyTo && (
         <div className="hairline-t flex items-center gap-2.5 px-4 py-2">
-          <CornerUpLeft className="size-4 shrink-0 text-primary" strokeWidth={2} />
+          <Icon icon={ArrowMoveDownLeftIcon} className="size-4 shrink-0 text-primary" strokeWidth={2} />
           <div className="min-w-0 flex-1 border-l-2 border-primary pl-2.5">
             <p className="text-xs font-medium text-primary">{replyTo.author}</p>
             <p className="truncate text-xs text-neutral-500">{replyTo.text}</p>
           </div>
           <Button variant="ghost" size="icon-xs" onClick={onCancelReply} aria-label={t("common.cancel")}>
-            <X />
+            <Icon icon={Cancel01Icon} />
           </Button>
         </div>
       )}
 
       <div className="flex shrink-0 items-end gap-2 p-3">
         <Textarea
+          ref={composerRef}
           value={draft}
           onChange={(e) => onDraft(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault()
               onSend()
+            }
+            // Esc — javob rejimidan chiqish. Ilgari uni bekor qilishning YAGONA yo'li
+            // sitatadagi kichkina ✕ ni sichqoncha bilan topish edi; klaviaturada yozib
+            // turgan odam esa aynan shu paytda qo'lini olib ketishga majbur bo'lardi.
+            if (e.key === "Escape" && replyTo) {
+              e.preventDefault()
+              onCancelReply()
             }
           }}
           placeholder={t("chat.inputPlaceholder")}
@@ -1139,7 +1177,7 @@ function ThreadShell({
           disabled={!draft.trim() || pending}
           aria-label={t("chat.send")}
         >
-          {pending ? <Loader2 className="animate-spin" /> : <Send className="size-4" />}
+          {pending ? <Icon icon={Loading03Icon} className="animate-spin" /> : <Icon icon={Sent02Icon} className="size-4" />}
         </Button>
       </div>
 
@@ -1191,7 +1229,8 @@ function MessageMenu({
             onClick={() => onReact(emoji)}
             className={cn(
               "flex size-9 items-center justify-center rounded-lg text-lg transition-transform hover:scale-125 hover:bg-neutral-100",
-              mine === emoji && "bg-accent",
+              // accent neytral bo'lgach hover bilan bir xil edi — tanlangani bir pog'ona to'qroq.
+              mine === emoji && "bg-neutral-200",
             )}
             aria-label={emoji}
           >
@@ -1204,7 +1243,7 @@ function MessageMenu({
         onClick={onReply}
         className="hairline-t flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-neutral-800 transition-colors hover:bg-neutral-50"
       >
-        <CornerUpLeft className="size-4 text-neutral-500" strokeWidth={1.75} />
+        <Icon icon={ArrowMoveDownLeftIcon} className="size-4 text-neutral-500" strokeWidth={1.75} />
         Javob berish
       </button>
     </div>
@@ -1387,7 +1426,9 @@ function Bubble({
                       ? "bg-white/30"
                       : "bg-white/15 hover:bg-white/25"
                     : r.mine
-                      ? "bg-accent text-accent-foreground"
+                      ? // Halqa "meniki"ni aytadi: neytral accent boshqalarning bg-neutral-100
+                        // pilidan rangda ajralmay qolgan edi.
+                        "bg-neutral-200 text-neutral-900 ring-1 ring-neutral-400/40"
                       : "bg-neutral-100 hover:bg-neutral-200",
                 )}
               >
@@ -1399,33 +1440,6 @@ function Bubble({
         )}
       </div>
     </div>
-  )
-}
-
-function TabButton({
-  icon,
-  active,
-  onClick,
-  children,
-}: {
-  icon: IconData
-  active: boolean
-  onClick: () => void
-  children: string
-}) {
-  return (
-    <button
-      type="button"
-      aria-pressed={active}
-      onClick={onClick}
-      className={cn(
-        "flex flex-1 items-center justify-center gap-1.5 rounded-[0.625rem] px-2 py-1.5 text-[0.8125rem] font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
-        active ? "bg-white text-neutral-900 shadow-xs" : "text-neutral-500 hover:text-neutral-800",
-      )}
-    >
-      <Icon icon={icon} className="size-4 shrink-0" />
-      {children}
-    </button>
   )
 }
 
@@ -1503,10 +1517,11 @@ function GroupRoomRow({
       onClick={onClick}
       className={cn(
         "flex w-full items-center gap-3 rounded-control px-3 py-2.5 text-left transition-colors",
-        active ? "bg-accent" : "hover:bg-neutral-100",
+        // Aktiv qator hover'dan bir pog'ona to'q (accent endi neytral — ikkisi bir xil bo'lib qolardi).
+        active ? "bg-neutral-200/70" : "hover:bg-neutral-100",
       )}
     >
-      <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
+      <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-neutral-500">
         <Icon icon={icon} className="size-5" />
       </span>
       <div className="min-w-0 flex-1">
@@ -1553,7 +1568,7 @@ function RowShell({
         onClick={onClick}
         className={cn(
           "flex w-full items-center gap-3 rounded-control px-3 py-2.5 text-left transition-colors",
-          active ? "bg-accent" : "hover:bg-neutral-100",
+          active ? "bg-neutral-200/70" : "hover:bg-neutral-100",
         )}
       >
         <PersonAvatar name={name} avatarUrl={avatarUrl} size="lg" />
@@ -1594,9 +1609,9 @@ function RowShell({
         className="absolute right-2.5 bottom-2 hidden size-6 items-center justify-center rounded-md text-neutral-400 transition-colors group-hover/row:flex hover:bg-neutral-200/70 hover:text-neutral-700"
       >
         {archivedRow ? (
-          <ArchiveRestore className="size-3.5" strokeWidth={1.75} />
+          <Icon icon={ArrowTurnBackwardIcon} className="size-3.5" strokeWidth={1.75} />
         ) : (
-          <Archive className="size-3.5" strokeWidth={1.75} />
+          <Icon icon={Archive02Icon} className="size-3.5" strokeWidth={1.75} />
         )}
       </button>
     </li>

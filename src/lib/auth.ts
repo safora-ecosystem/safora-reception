@@ -19,9 +19,8 @@ export const ROLE_KEY: Record<StaffRole, TKey> = {
 }
 
 export type Session = {
-  accessToken: string
-  refreshToken: string
   user: StaffUser
+  accessExpiresAt: number
 }
 
 const KEY = "safora_reception_session"
@@ -43,12 +42,12 @@ export function getSession(): Session | null {
   }
 }
 
-export function updateTokens(accessToken: string, refreshToken: string): void {
+export function updateAccessExpiry(accessExpiresAt: number): void {
   const inSession = sessionStorage.getItem(KEY) !== null
   const current = getSession()
   if (!current) return
   const store = inSession ? sessionStorage : localStorage
-  store.setItem(KEY, JSON.stringify({ ...current, accessToken, refreshToken }))
+  store.setItem(KEY, JSON.stringify({ ...current, accessExpiresAt }))
 }
 
 export function updateAvatar(avatarUrl: string | null): void {

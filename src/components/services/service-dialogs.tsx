@@ -205,7 +205,7 @@ export function CreateRequestDialog({
               value={roomId}
               onChange={(e) => setRoomId(e.target.value)}
               required
-              className="h-11 rounded-control bg-neutral-100 px-3 text-sm text-neutral-900 outline-none focus-visible:ring-3 focus-visible:ring-ring/40"
+              className="h-11 rounded-control bg-neutral-100 px-3 text-sm text-neutral-900 outline-none focus-visible:ring-3 focus-visible:ring-neutral-400/30"
             >
               <option value="">{t("services.choose")}</option>
               {rooms.map((room) => (
@@ -241,9 +241,9 @@ export function CreateRequestDialog({
                   type="button"
                   onClick={() => setType(key)}
                   className={cn(
-                    "rounded-control border px-3 py-1.5 text-sm transition-colors",
+                    "rounded-full border px-3 py-1.5 text-sm transition-colors",
                     type === key
-                      ? "border-transparent bg-accent text-accent-foreground"
+                      ? "border-transparent bg-accent font-medium text-accent-foreground"
                       : "border-border text-neutral-600 hover:bg-neutral-100",
                   )}
                 >

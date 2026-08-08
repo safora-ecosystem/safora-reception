@@ -67,7 +67,7 @@ export function DropdownSelect<T extends string>({
               )}
             >
               <span className="truncate">{o.label}</span>
-              {selected && <Check className="size-4 shrink-0 text-brand-600" />}
+              {selected && <Check className="size-4 shrink-0" />}
             </button>
           )
         })}

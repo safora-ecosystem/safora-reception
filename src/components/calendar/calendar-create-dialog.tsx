@@ -1,17 +1,18 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion"
 import {
-  Building2,
-  CalendarDays,
-  DoorOpen,
-  Plus,
-  StickyNote,
-  User,
-  Users,
-  Wallet,
-  Wrench,
-  X,
-} from "lucide-react"
+  Building03Icon,
+  Calendar03Icon,
+  Cancel01Icon,
+  Door01Icon,
+  PlusSignIcon,
+  StickyNote02Icon,
+  User02Icon,
+  UserMultiple02Icon,
+  Wallet02Icon,
+  Wrench01Icon,
+} from "@hugeicons/core-free-icons"
+import { Icon } from "@/components/ui/icon"
 import { uz } from "date-fns/locale"
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
@@ -532,22 +533,22 @@ function CreateForm({
           onChange={(m) => setMode(m as Mode)}
           tone={tone}
           options={[
-            { value: "booking", label: labels.modeBooking, icon: <User className="size-3.5" /> },
+            { value: "booking", label: labels.modeBooking, icon: <Icon icon={User02Icon} className="size-3.5" /> },
             ...(orgs.length > 0
               ? [
                   {
                     value: "corporate",
                     label: labels.modeCorporate,
-                    icon: <Building2 className="size-3.5" />,
+                    icon: <Icon icon={Building03Icon} className="size-3.5" />,
                   },
                 ]
               : []),
-            { value: "block", label: labels.modeBlock, icon: <Wrench className="size-3.5" /> },
+            { value: "block", label: labels.modeBlock, icon: <Icon icon={Wrench01Icon} className="size-3.5" /> },
           ]}
         />
 
         <Button type="button" variant="ghost" size="icon" aria-label={labels.close} onClick={onClose}>
-          <X />
+          <Icon icon={Cancel01Icon} />
         </Button>
       </header>
 
@@ -557,7 +558,7 @@ function CreateForm({
         <div className="app-scroll min-h-0 flex-1 lg:overflow-y-auto">
           <div className="mx-auto flex max-w-5xl flex-col gap-7 px-5 py-6 sm:px-6">
             {isBlock ? (
-              <Section icon={<Wrench className="size-3.5" />} title={labels.blockKind}>
+              <Section icon={<Icon icon={Wrench01Icon} className="size-3.5" />} title={labels.blockKind}>
                 <div className="flex flex-col gap-3">
                   <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                     {BLOCK_KINDS.map((k) => (
@@ -590,7 +591,7 @@ function CreateForm({
             ) : isCorporate ? (
               // Korporativda birinchi savol MEHMON emas, TO'LOVCHI: shartnoma chegirmasi narxni,
               // qarz shifti esa ogohlantirishni belgilaydi, ya'ni qolgan hamma narsa shunga bog'liq.
-              <Section icon={<Building2 className="size-3.5" />} title={labels.organization}>
+              <Section icon={<Icon icon={Building03Icon} className="size-3.5" />} title={labels.organization}>
                 <div className="grid gap-3 sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
                   <Field label={labels.organization}>
                     <OrganizationPicker
@@ -620,7 +621,7 @@ function CreateForm({
               </Section>
             ) : (
               <>
-                <Section icon={<User className="size-3.5" />} title={labels.guest}>
+                <Section icon={<Icon icon={User02Icon} className="size-3.5" />} title={labels.guest}>
                   {/* Telefon ustuni kengroq — davlat tanlagich ham, raqam ham sig'sin. */}
                   <div className="grid gap-3 sm:grid-cols-2 xl:[grid-template-columns:1.1fr_1.4fr_1fr_1fr]">
                     <Field label={labels.guestName}>
@@ -687,7 +688,7 @@ function CreateForm({
             />
 
             <Section
-              icon={<DoorOpen className="size-3.5" />}
+              icon={<Icon icon={Door01Icon} className="size-3.5" />}
               title={labels.rooms}
               aside={
                 <span className={cn("text-xs", lines.length > 0 ? "text-neutral-500" : "text-neutral-400")}>
@@ -714,7 +715,7 @@ function CreateForm({
                 quriladi va bo'sh xona ro'yxatida ko'rsatadigan narsa yo'q. */}
             {isCorporate && lines.length > 0 && (
               <Section
-                icon={<Users className="size-3.5" />}
+                icon={<Icon icon={UserMultiple02Icon} className="size-3.5" />}
                 title={labels.rooming}
                 aside={
                   <span className="text-xs text-neutral-500 tabular-nums">
@@ -733,7 +734,7 @@ function CreateForm({
             )}
 
             {!isBlock && (
-              <Section icon={<StickyNote className="size-3.5" />} title={labels.note}>
+              <Section icon={<Icon icon={StickyNote02Icon} className="size-3.5" />} title={labels.note}>
                 <Textarea
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
@@ -860,12 +861,12 @@ const StayBlock = memo(function StayBlock({
   }
 
   return (
-    <Section icon={<CalendarDays className="size-3.5" />} title={`${labels.arrival} – ${labels.departure}`}>
+    <Section icon={<Icon icon={Calendar03Icon} className="size-3.5" />} title={`${labels.arrival} – ${labels.departure}`}>
       <div className="flex flex-wrap items-center gap-2">
         <Popover open={open} onOpenChange={setOpen}>
           <PopoverTrigger asChild>
             <Button type="button" variant="outline" className="h-9 justify-start gap-2 font-normal">
-              <CalendarDays className="text-neutral-500" />
+              <Icon icon={Calendar03Icon} className="text-neutral-500" />
               <span className="tabular-nums">
                 {fmtDay(start, labels)} – {fmtDay(end, labels)}
               </span>
@@ -939,7 +940,7 @@ const CompanionsBlock = memo(function CompanionsBlock({
   const reduce = useReducedMotion()
   return (
     <Section
-      icon={<Users className="size-3.5" />}
+      icon={<Icon icon={UserMultiple02Icon} className="size-3.5" />}
       title={labels.companions}
       aside={<span className="text-xs text-neutral-500 tabular-nums">{labels.guestsWord(guestTotal)}</span>}
     >
@@ -1008,7 +1009,7 @@ const CompanionsBlock = memo(function CompanionsBlock({
                   onClick={() => onRemove(c.key)}
                   className="mt-1"
                 >
-                  <X />
+                  <Icon icon={Cancel01Icon} />
                 </Button>
               </div>
             </motion.div>
@@ -1017,7 +1018,7 @@ const CompanionsBlock = memo(function CompanionsBlock({
 
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           <Button type="button" variant="outline" className="h-9" onClick={onAdd}>
-            <Plus /> {labels.addGuest}
+            <Icon icon={PlusSignIcon} /> {labels.addGuest}
           </Button>
 
           {chargedGuests > 0 && extraTotal > 0 && (
@@ -1096,7 +1097,7 @@ const MoneyPanel = memo(function MoneyPanel({
         </div>
       )}
 
-      <Section icon={<Wallet className="size-3.5" />} title={labels.amount}>
+      <Section icon={<Icon icon={Wallet02Icon} className="size-3.5" />} title={labels.amount}>
         {lines.length === 0 ? (
           <p className="text-xs text-neutral-400">{labels.roomsSelected(0)}</p>
         ) : (

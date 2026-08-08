@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query"
-import { CalendarClock, Plus } from "lucide-react"
+import { PlusSignIcon, TimeScheduleIcon } from "@hugeicons/core-free-icons"
+import { Icon } from "@/components/ui/icon"
 import { Link } from "@tanstack/react-router"
 import { PageLayout } from "@/components/layout/page-layout"
 import { DoorIn, DoorOut } from "@/components/shared/icons"
@@ -59,6 +60,7 @@ type Movement = {
   type: "in" | "out"
   booking: Booking
   done: boolean
+  late?: boolean
 }
 
 export function StatistikaPage() {
@@ -82,7 +84,13 @@ export function StatistikaPage() {
   const departures: Movement[] = allBookings
     .filter((b) => bookingDate(b.checkOutDate) === today && (b.status === "checked_in" || b.status === "checked_out"))
     .map((b) => ({ type: "out", booking: b, done: b.status === "checked_out" }))
-  const movements = [...arrivals, ...departures].sort((a, b) => Number(a.done) - Number(b.done))
+  const late: Movement[] = allBookings
+    .filter((b) => b.status === "checked_in" && bookingDate(b.checkOutDate) < today)
+    .map((b) => ({ type: "out", booking: b, done: false, late: true }))
+  const movements = [...late, ...arrivals, ...departures].sort((a, b) => {
+    const rank = (m: Movement) => (m.late ? 0 : m.done ? 2 : 1)
+    return rank(a) - rank(b)
+  })
 
   const week = weeklyOccupancy(allBookings, totalRooms)
 
@@ -118,7 +126,7 @@ export function StatistikaPage() {
       actions={
         <Button size="xl" asChild>
           <Link to="/calendar">
-            <Plus strokeWidth={2} />
+            <Icon icon={PlusSignIcon} strokeWidth={2} />
             {t("stats.newBooking")}
           </Link>
         </Button>
@@ -184,15 +192,27 @@ export function StatistikaPage() {
               ro'yxatdan odamni ochish uchun "Mehmonlar" ga o'tib qayta qidirish kerak edi). */}
           <ListCard
             title={t("stats.movements")}
+            // Meta ikki sonni AJRATIB aytadi: kechikkanlar kutilayotganlarga qo'shilib
+            // ketmasin — ular boshqa turdagi ish (biri rejalashtirilgan, biri qarzdorlik).
             meta={
-              movements.length > 0
-                ? t("stats.pendingCount", { count: movements.filter((m) => !m.done).length })
-                : undefined
+              movements.length > 0 ? (
+                <>
+                  {t("stats.pendingCount", { count: arrivals.length + departures.length })}
+                  {late.length > 0 && (
+                    <>
+                      {" · "}
+                      <span className="font-medium text-warning">
+                        {t("calendarToast.overdue", { count: late.length })}
+                      </span>
+                    </>
+                  )}
+                </>
+              ) : undefined
             }
           >
             {movements.length === 0 ? (
               <EmptyState
-                icon={CalendarClock}
+                icon={TimeScheduleIcon}
                 title={t("stats.noMovements")}
                 hint={t("stats.noMovementsHint")}
                 className="py-8"
@@ -210,7 +230,24 @@ export function StatistikaPage() {
                           </RowIcon>
                           <RowText
                             title={m.booking.guestName}
-                            caption={`${m.type === "in" ? t("stay.checkIn") : t("stay.checkOut")} · ${t("stay.roomNo", { number: m.booking.room.number })} · ${m.done ? t("common.done") : t("common.pending")}`}
+                            caption={
+                              <>
+                                {m.type === "in" ? t("stay.checkIn") : t("stay.checkOut")}
+                                {" · "}
+                                {t("stay.roomNo", { number: m.booking.room.number })}
+                                {" · "}
+                                {/* Kechikkan holat AMBER: ro'yxatdagi yagona rangli so'z,
+                                    ya'ni ko'z uni qidirmasdan topadi (design.md — rang
+                                    faqat qaror qabul qilishga yordam berganda). */}
+                                <span className={m.late ? "font-medium text-warning" : undefined}>
+                                  {m.late
+                                    ? t("common.overdue")
+                                    : m.done
+                                      ? t("common.done")
+                                      : t("common.pending")}
+                                </span>
+                              </>
+                            }
                           />
                         </Link>
                       </ListRow>

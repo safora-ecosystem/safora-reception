@@ -1,5 +1,11 @@
 import { useDraggable } from "@dnd-kit/core"
-import { Ban, Coins, Ellipsis, RotateCcw } from "lucide-react"
+import {
+  ArrowTurnBackwardIcon,
+  CancelCircleIcon,
+  Coins01Icon,
+  MoreHorizontalIcon,
+} from "@hugeicons/core-free-icons"
+import { Icon } from "@/components/ui/icon"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -51,7 +57,6 @@ export function ServiceCard({
   })
 
   const meta = TYPE_META[request.type] ?? TYPE_META.other
-  const Icon = meta.icon
   const amount = Number(request.amount)
 
   return (
@@ -78,7 +83,7 @@ export function ServiceCard({
                 : "bg-neutral-100 text-neutral-500",
           )}
         >
-          <Icon className="size-4" strokeWidth={1.75} />
+          <Icon icon={meta.icon} className="size-4" />
         </span>
 
         <div className="min-w-0 flex-1">
@@ -102,25 +107,25 @@ export function ServiceCard({
                 onKeyDown={(e) => e.stopPropagation()}
                 className="-mt-1 -mr-1 shrink-0 text-neutral-400"
               >
-                <Ellipsis strokeWidth={2} />
+                <Icon icon={MoreHorizontalIcon} strokeWidth={2} />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
               {open && (
                 <DropdownMenuItem variant="destructive" onSelect={() => actions.onCancel(request)}>
-                  <Ban />
+                  <Icon icon={CancelCircleIcon} />
                   {t("services.cancelRequest")}
                 </DropdownMenuItem>
               )}
               {!open && (
                 <DropdownMenuItem onSelect={() => actions.onReopen(request)}>
-                  <RotateCcw />
+                  <Icon icon={ArrowTurnBackwardIcon} />
                   {t("services.reopen")}
                 </DropdownMenuItem>
               )}
               {request.status === "done" && (
                 <DropdownMenuItem onSelect={() => actions.onEditAmount(request)}>
-                  <Coins />
+                  <Icon icon={Coins01Icon} />
                   {t("services.editAmount")}
                 </DropdownMenuItem>
               )}

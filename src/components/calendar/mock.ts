@@ -28,6 +28,13 @@ const LAST = [
   "Karimov", "Rahimova", "Yusupov", "Ibragimova", "Tosheva", "Aliyev",
   "Sobirov", "Ergasheva", "Nazarov", "Qodirova",
 ]
+const NOTES = [
+  "Kech keladi — 23:00 dan keyin.",
+  "Yuqori qavat so'ragan, imkon bo'lsa katta krovat.",
+  "To'lovni chiqishda naqd qiladi.",
+  "Aeroportdan transfer kerak.\nReys HY-102, 06:40 da qo'nadi.\nHaydovchi: Rustam aka.",
+  "Bola uchun qo'shimcha krovat kerak. Nonushta xonaga. Allergiya: yong'oq — oshxona ogohlantirilsin. Konditsioner shovqiniga sezgir, iloji bo'lsa liftdan uzoqroq xona berilsin. Kechki 22:00 dan keyin bezovta qilinmasin. Ertalab 7:00 da uyg'otish qo'ng'irog'i so'ragan. Chiqishda hisob-faktura kerak, kompaniya nomiga.",
+]
 
 export interface MockOptions {
   rooms?: number
@@ -97,6 +104,7 @@ export function generateMockData(opts: MockOptions = {}): {
         label: `${pick(FIRST)} ${pick(LAST)}`,
         sublabel: `+998 ${90 + Math.floor(rnd() * 10)} ${String(100 + Math.floor(rnd() * 899)).padStart(3, "0")}-${String(Math.floor(rnd() * 100)).padStart(2, "0")}-${String(Math.floor(rnd() * 100)).padStart(2, "0")}`,
         payment: { total, paid: Math.round(total * paidRatio) },
+        ...(rnd() < 0.22 ? { note: pick(NOTES) } : {}),
       })
       cursor = end
     }

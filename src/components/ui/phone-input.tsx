@@ -206,7 +206,7 @@ export const PhoneInput = memo(function PhoneInput({
     <div
       className={cn(
         "flex h-9 w-full min-w-0 items-center rounded-control border border-neutral-200 bg-white transition-colors",
-        "focus-within:border-brand-400 focus-within:ring-3 focus-within:ring-ring/15",
+        "focus-within:border-neutral-400 focus-within:ring-3 focus-within:ring-neutral-400/20",
         className,
       )}
     >
@@ -322,7 +322,7 @@ function CountryList({
                 )}
                 <span className="truncate">{c.name}</span>
                 <span className="ml-auto shrink-0 text-neutral-400 tabular-nums">{c.code}</span>
-                {isSelected && <Check className="size-4 shrink-0 text-brand-600" />}
+                {isSelected && <Check className="size-4 shrink-0" />}
               </button>
             )
           })

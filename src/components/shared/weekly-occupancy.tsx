@@ -16,6 +16,7 @@ export function WeeklyOccupancy({ days: week, todayIndex }: WeeklyOccupancyProps
     values: { value: day.value },
     planned: i > todayIndex,
     emphasis: i === todayIndex,
+    color: i < todayIndex ? "var(--color-neutral-300)" : undefined,
   }))
 
   const peak = week.reduce<DayOccupancy | null>(

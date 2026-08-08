@@ -24,19 +24,36 @@ function BrandLogo() {
 
   return (
     <div className="flex h-15 items-center justify-center">
+      <svg aria-hidden className="absolute size-0">
+        <filter id="logo-sharpen" colorInterpolationFilters="sRGB">
+          <feConvolveMatrix
+            order="3"
+            preserveAlpha="true"
+            kernelMatrix="0 -0.25 0  -0.25 2 -0.25  0 -0.25 0"
+          />
+        </filter>
+      </svg>
       {longLogo ? (
         <img
           src={longLogo}
           alt={data?.name ?? t("common.hotel")}
           onError={() => setFailed(true)}
-          className="logo-adapt max-h-full max-w-full object-contain"
+          className="max-h-full max-w-full object-contain [filter:url(#logo-sharpen)]"
         />
       ) : (
-        <img
-          src="/safora-horizontal.png"
-          alt="Safora"
-          className="logo-adapt max-h-full max-w-full object-contain"
-        />
+        <>
+          <img
+            src="/safora-horizontal.png"
+            alt="Safora"
+            className="max-h-full max-w-full object-contain [[data-theme=dark]_&]:hidden"
+          />
+          <img
+            src="/safora-horizontal-dark.png"
+            alt=""
+            aria-hidden
+            className="hidden max-h-full max-w-full object-contain [[data-theme=dark]_&]:block"
+          />
+        </>
       )}
     </div>
   )
@@ -48,7 +65,7 @@ function NavRow({ item, active }: { item: NavItem; active: boolean }) {
     <>
       <Icon
         icon={item.icon}
-        className={cn("size-[1.125rem] shrink-0", active ? "text-primary" : "text-neutral-500")}
+        className={cn("size-[1.125rem] shrink-0", active ? "text-neutral-50" : "text-neutral-500")}
       />
       <span className="truncate">{t(item.labelKey)}</span>
       {item.badge && (
@@ -64,7 +81,7 @@ function NavRow({ item, active }: { item: NavItem; active: boolean }) {
     </>
   )
 
-  const base = "flex items-center gap-3 rounded-control px-3 py-3 text-[0.9375rem] transition-colors"
+  const base = "flex items-center gap-3 rounded-full px-3 py-3 text-[0.9375rem] transition-colors"
 
   return (
     <Link
@@ -72,7 +89,7 @@ function NavRow({ item, active }: { item: NavItem; active: boolean }) {
       className={cn(
         base,
         active
-          ? "bg-accent font-medium text-neutral-900"
+          ? "bg-neutral-950 font-medium text-neutral-50"
           : "text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900"
       )}
     >

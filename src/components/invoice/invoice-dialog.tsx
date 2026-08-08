@@ -1,6 +1,7 @@
 import { useRef, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { FileSpreadsheet, Printer, ReceiptText } from "lucide-react"
+import { Invoice01Icon, PrinterIcon, Xls01Icon } from "@hugeicons/core-free-icons"
+import { Icon } from "@/components/ui/icon"
 import { toast } from "sonner"
 import { DocPreview } from "@/components/shared/doc-preview"
 import { Button } from "@/components/ui/button"
@@ -127,7 +128,7 @@ function InvoiceBody({ bookingId, hotel, onClose, canIssue }: InvoiceDialogProps
     <>
       <DialogHeader>
         <DialogTitle className="flex items-center gap-2">
-          <ReceiptText className="size-4 text-neutral-500" />
+          <Icon icon={Invoice01Icon} className="size-4 text-neutral-500" />
           {inv ? t("calendar.invoiceTitle") : t("calendar.billTitle")}
           {inv && (
             <span className="text-sm font-normal text-neutral-500 tabular-nums">
@@ -162,7 +163,7 @@ function InvoiceBody({ bookingId, hotel, onClose, canIssue }: InvoiceDialogProps
           {t("common.close")}
         </Button>
         <Button variant="outline" onClick={() => downloadInvoiceXlsx(doc)}>
-          <FileSpreadsheet /> {t("calendar.invoiceExcel")}
+          <Icon icon={Xls01Icon} /> {t("calendar.invoiceExcel")}
         </Button>
         <Button
           variant="outline"
@@ -173,7 +174,7 @@ function InvoiceBody({ bookingId, hotel, onClose, canIssue }: InvoiceDialogProps
             if (!printInvoiceFrame(frameRef.current)) printInvoice(doc)
           }}
         >
-          <Printer /> {t("calendar.invoicePrint")}
+          <Icon icon={PrinterIcon} /> {t("calendar.invoicePrint")}
         </Button>
         {!inv && canIssue && (
           <Button
@@ -183,7 +184,7 @@ function InvoiceBody({ bookingId, hotel, onClose, canIssue }: InvoiceDialogProps
               issue.mutate()
             }}
           >
-            <ReceiptText /> {t("calendar.invoiceIssue")}
+            <Icon icon={Invoice01Icon} /> {t("calendar.invoiceIssue")}
           </Button>
         )}
       </DialogFooter>

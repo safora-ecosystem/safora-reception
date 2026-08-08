@@ -6,7 +6,7 @@ import { api, getCurrentShift, shiftKeys, type ShiftSession } from "@/lib/api"
 import { getSession } from "@/lib/auth"
 import { cn } from "@/lib/utils"
 import { clockOf, dayLabel } from "@/lib/format"
-import { useT } from "@/lib/i18n"
+import { useT, type TFunc } from "@/lib/i18n"
 import { usePermissions } from "@/lib/permissions"
 import { VersionTag } from "./version-tag"
 
@@ -49,24 +49,18 @@ function RollingTime({ time, className }: { time: string; className?: string }) 
   )
 }
 
-function durationOf(openedAt: string, now: Date): string {
+function durationOf(openedAt: string, now: Date, t: TFunc): string {
   const mins = Math.max(0, Math.floor((now.getTime() - new Date(openedAt).getTime()) / 60_000))
-  return `${Math.floor(mins / 60)}s ${mins % 60}d`
+  const h = Math.floor(mins / 60)
+  return h > 0 ? t("units.durationHm", { h, m: mins % 60 }) : t("units.durationM", { m: mins })
 }
 
-// Sidebar'ning qoraygan fokus kartasi: soat + sana + HAQIQIY smena holati (ilgari bu yerda
-// soatdan chiqarilgan "yolg'on" smena yorlig'i turardi). Jonli NAQD summa ATAYLAB
-// ko'rsatilmaydi (SHIFT-DESIGN 9): sidebar mehmon oldida ochiq turadi — kassa raqami
-// yakunlash oynasida va hisobotda, bu yerda emas.
-// Uch qator, boshqa emas: [soat · sana] / [holat · aloqa nuqtasi + versiya] / [bitta amal].
 export function ShiftCard() {
   const t = useT()
   const { can } = usePermissions()
   const me = getSession()?.user
   const [now, setNow] = useState(() => new Date())
   const [openDialog, setOpenDialog] = useState(false)
-  // Yopish dialogi QO'LGA OLINGAN sessiya bilan ishlaydi: muvaffaqiyatda kesh yangilanib
-  // jonli `session` null bo'ladi — jonli shartga bog'lansak natija ekrani o'zi yopilib ketardi.
   const [closeTarget, setCloseTarget] = useState<ShiftSession | null>(null)
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 1000)
@@ -83,7 +77,6 @@ export function ShiftCard() {
       ? { dot: "bg-destructive", label: t("shift.offline") }
       : { dot: "bg-neutral-400", label: t("shift.checking") }
 
-  // Gate va boshqa iste'molchilar bilan BITTA kesh kaliti — bitta so'rov, hamma joyda bir holat.
   const canSession = can("payments.record")
   const shiftQ = useQuery({
     queryKey: shiftKeys.current,
@@ -101,8 +94,8 @@ export function ShiftCard() {
       : session == null
         ? t("shiftSession.notStarted")
         : mine
-          ? `${t("shiftSession.ownedByMe")} · ${durationOf(session.openedAt, now)}`
-          : `${t("shiftSession.ownedBy", { name: session.user.name })} · ${durationOf(session.openedAt, now)}`
+          ? `${t("shiftSession.ownedByMe")} · ${durationOf(session.openedAt, now, t)}`
+          : `${t("shiftSession.ownedBy", { name: session.user.name })} · ${durationOf(session.openedAt, now, t)}`
 
   return (
     <div className="surface-dark relative overflow-hidden rounded-card px-3.5 py-3 text-on-fill">

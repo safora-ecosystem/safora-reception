@@ -48,7 +48,7 @@ function DialogOverlay({
 }
 
 const CONTENT_VARIANT = {
-  default: `${OVERLAY_SURFACE} fixed top-1/2 left-1/2 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-card p-4 sm:max-w-sm data-open:zoom-in-95 data-closed:zoom-out-95`,
+  default: `${OVERLAY_SURFACE} fixed top-1/2 left-1/2 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-panel p-4 sm:max-w-sm data-open:zoom-in-95 data-closed:zoom-out-95`,
   // Faqat fade — to'liq ekranda zoom o'nlab piksel siljish bo'lib, "sakragandek" ko'rinardi.
   fullscreen: "fixed inset-0 flex h-dvh w-screen flex-col overflow-hidden",
 } as const
@@ -117,9 +117,9 @@ function DialogFooter({
     <div
       data-slot="dialog-footer"
       className={cn(
-        // Radius dialog qobig'i bilan BIR XIL bo'lishi shart (`card` = 1.25rem) — aks holda
+        // Radius dialog qobig'i bilan BIR XIL bo'lishi shart (`panel` = 1.5rem) — aks holda
         // futer burchagi qobiqning yoyidan chiqib, qirra uzilgandek ko'rinadi.
-        "-mx-4 -mb-4 flex flex-col-reverse gap-2 rounded-b-card border-t bg-muted/50 p-4 sm:flex-row sm:justify-end",
+        "-mx-4 -mb-4 flex flex-col-reverse gap-2 rounded-b-panel border-t bg-muted/50 p-4 sm:flex-row sm:justify-end",
         className
       )}
       {...props}

@@ -4,11 +4,12 @@ import { Button } from "@/components/ui/button"
 import { Icon } from "@/components/ui/icon"
 import { Input } from "@/components/ui/input"
 import { Link, useNavigate } from "@tanstack/react-router"
-import { CalendarClock, ChevronDown, LogOut, TriangleAlert, UserRound, Wallet } from "lucide-react"
+import { Alert02Icon, ArrowDown01Icon, Logout03Icon, TimeScheduleIcon, UserCircleIcon, Wallet02Icon } from "@hugeicons/core-free-icons"
 import { useQuery } from "@tanstack/react-query"
 import { ExpenseDialog, ShiftCloseDialog } from "@/components/shift/shift-dialogs"
 import { getCurrentShift, shiftKeys } from "@/lib/api"
 import { usePermissions } from "@/lib/permissions"
+import { NotesButton } from "@/components/notes/notes-button"
 import { PersonAvatar } from "@/components/shared/person-avatar"
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
 import {
@@ -70,7 +71,8 @@ export function Topbar() {
   return (
     <header className="flex h-[4.5rem] shrink-0 items-center gap-3 rounded-panel border border-border bg-white px-4 sm:px-5">
       {}
-      <div className="relative w-full min-w-0 max-w-[26rem]">
+      {}
+      <div className="relative w-full min-w-0 max-w-[21rem]">
         <Icon
           icon={Search01Icon}
           className="pointer-events-none absolute top-1/2 left-4 size-[1.125rem] -translate-y-1/2 text-neutral-400"
@@ -90,13 +92,16 @@ export function Topbar() {
         </kbd>
       </div>
 
+      {}
+      <NotesButton />
+
       <div className="min-w-0 flex-1" aria-hidden />
 
       {}
       <div className="hidden shrink-0 items-center gap-2 sm:flex">
         {canExpense && activeSession != null && (
           <Button variant="outline" size="xl" onClick={() => setExpenseOpen(true)}>
-            <Wallet strokeWidth={1.75} />
+            <Icon icon={Wallet02Icon} strokeWidth={1.75} />
             {t("shiftSession.expenseButton")}
           </Button>
         )}
@@ -149,9 +154,9 @@ export function Topbar() {
                 <DropdownMenuItem key={`${n.kind}:${n.org.id}`}>
                   <div className="flex items-start gap-2.5">
                     {n.kind === "debt" ? (
-                      <TriangleAlert className="mt-0.5 size-4 shrink-0 text-destructive" strokeWidth={1.75} />
+                      <Icon icon={Alert02Icon} className="mt-0.5 size-4 shrink-0 text-destructive" strokeWidth={1.75} />
                     ) : (
-                      <CalendarClock className="mt-0.5 size-4 shrink-0 text-neutral-400" strokeWidth={1.75} />
+                      <Icon icon={TimeScheduleIcon} className="mt-0.5 size-4 shrink-0 text-neutral-400" strokeWidth={1.75} />
                     )}
                     <span className="min-w-0 flex-1">
                       <span className="block text-sm font-medium text-neutral-900">
@@ -200,7 +205,7 @@ export function Topbar() {
               <p className="text-[0.9375rem] font-medium text-neutral-900">{user?.name ?? t("topbar.staff")}</p>
               <p className="text-sm text-neutral-500">{user ? t(ROLE_KEY[user.role]) : ""}</p>
             </div>
-            <ChevronDown className="hidden size-4 shrink-0 text-neutral-400 lg:block" strokeWidth={2} />
+            <Icon icon={ArrowDown01Icon} className="hidden size-4 shrink-0 text-neutral-400 lg:block" strokeWidth={2} />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuLabel className="flex flex-col gap-0.5">
@@ -212,13 +217,13 @@ export function Topbar() {
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
               <Link to="/settings">
-                <UserRound strokeWidth={1.75} />
+                <Icon icon={UserCircleIcon} strokeWidth={1.75} />
                 {t("topbar.profileSettings")}
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
               <Link to="/my-shifts">
-                <Wallet strokeWidth={1.75} />
+                <Icon icon={Wallet02Icon} strokeWidth={1.75} />
                 {t("shiftSession.myShiftsTitle")}
               </Link>
             </DropdownMenuItem>
@@ -235,7 +240,7 @@ export function Topbar() {
                 }
               }}
             >
-              <LogOut strokeWidth={1.75} />
+              <Icon icon={Logout03Icon} strokeWidth={1.75} />
               {t("topbar.signOut")}
             </DropdownMenuItem>
           </DropdownMenuContent>

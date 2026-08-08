@@ -129,7 +129,9 @@ function CalendarRailImpl({
               <span title={hk === "dirty" ? t("calendar.cleaningWaiting") : t("calendar.cleaningNow")}>
                 <Icon
                   icon={CleanIcon}
-                  className={cn("size-4 shrink-0", hk === "dirty" ? "text-warning" : "text-brand-500")}
+                  // in_progress endi JIM (konsept restyle): tozalanayotgan xona muammo emas,
+                  // e'tibor faqat kutayotganida (dirty amber). Har qatordagi orange shovqin edi.
+                  className={cn("size-4 shrink-0", hk === "dirty" ? "text-warning" : "text-neutral-400")}
                 />
               </span>
             )}

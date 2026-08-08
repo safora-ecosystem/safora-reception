@@ -1,6 +1,8 @@
 import { createRootRoute, createRoute, createRouter, redirect } from "@tanstack/react-router"
 import { RootLayout } from "./root-layout"
 import { LoginPage } from "@/routes/login-page"
+import { ForgotPasswordPage } from "@/routes/forgot-password-page"
+import { ResetPasswordPage } from "@/routes/reset-password-page"
 import { StatistikaPage } from "@/routes/statistika-page"
 import { CalendarPage } from "@/routes/calendar-page"
 import { RoomsPage } from "@/routes/rooms-page"
@@ -24,6 +26,21 @@ const loginRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/login",
   component: LoginPage,
+})
+
+const forgotPasswordRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/forgot-password",
+  component: ForgotPasswordPage,
+})
+
+const resetPasswordRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/reset-password",
+  validateSearch: (search: Record<string, unknown>): { token?: string } => ({
+    token: typeof search.token === "string" && search.token.length > 0 ? search.token : undefined,
+  }),
+  component: ResetPasswordPage,
 })
 
 const appLayoutRoute = createRoute({
@@ -144,6 +161,8 @@ const logoutRoute = createRoute({
 
 const routeTree = rootRoute.addChildren([
   loginRoute,
+  forgotPasswordRoute,
+  resetPasswordRoute,
   appLayoutRoute.addChildren([
     statistikaRoute,
     calendarRoute,

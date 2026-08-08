@@ -1,7 +1,8 @@
 import { useLayoutEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion"
-import { CalendarDays } from "lucide-react"
+import { Calendar03Icon, StickyNote02Icon } from "@hugeicons/core-free-icons"
+import { Icon } from "@/components/ui/icon"
 import { cn } from "@/lib/utils"
 import { nightsBetween } from "./geometry"
 import type { CalendarTooltipState } from "./use-calendar-tooltip"
@@ -119,7 +120,7 @@ export function CalendarBarTooltip({ state, labels, statusConfig }: CalendarBarT
 
           {}
           <div className="flex items-center gap-1.5 px-3 pt-2.5 text-xs text-neutral-600">
-            <CalendarDays className="size-3.5 shrink-0 text-neutral-400" />
+            <Icon icon={Calendar03Icon} className="size-3.5 shrink-0 text-neutral-400" />
             <span className="tabular-nums">
               {fmtDay(b.start, labels)} – {fmtDay(b.end, labels)}
             </span>
@@ -164,6 +165,21 @@ export function CalendarBarTooltip({ state, labels, statusConfig }: CalendarBarT
             </div>
           ) : (
             <div className="pb-3" />
+          )}
+
+          {/* Eslatma — bor bo'lsa alohida bo'lim. `line-clamp-5`: eslatma erkin matn, uzuni
+              tooltip'ni ekran bo'yi cho'zib yuborardi (founder, 2026-08-07: 5-6 qator yetadi) —
+              to'lig'i detal oynasida. `whitespace-pre-line` — xodim yozgan qator bo'linishlari
+              saqlanadi va klamp ularni ham hisoblaydi. */}
+          {b.note && (
+            <div className="border-t border-neutral-100 px-3 py-2.5">
+              <div className="flex items-start gap-1.5">
+                <Icon icon={StickyNote02Icon} className="mt-px size-3.5 shrink-0 text-neutral-400" />
+                <p className="line-clamp-5 min-w-0 text-xs leading-snug break-words whitespace-pre-line text-neutral-600">
+                  {b.note}
+                </p>
+              </div>
+            </div>
           )}
         </motion.div>
       )}

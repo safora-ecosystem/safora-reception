@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { Link, useSearch } from "@tanstack/react-router"
-import { Archive, Search, UserRound } from "lucide-react"
+import { Archive02Icon, Search01Icon, UserCircleIcon } from "@hugeicons/core-free-icons"
+import { Icon } from "@/components/ui/icon"
 import { PageLayout } from "@/components/layout/page-layout"
 import { RangeToggle } from "@/components/shared/charts"
 import { EmptyState } from "@/components/shared/empty-state"
@@ -63,7 +64,7 @@ export function GuestsPage() {
       actions={
         <Button variant="outline" size="xl" asChild>
           <Link to="/guests/archive">
-            <Archive strokeWidth={1.75} />
+            <Icon icon={Archive02Icon} strokeWidth={1.75} />
             {t("guests.archive")}
           </Link>
         </Button>
@@ -79,7 +80,7 @@ export function GuestsPage() {
             <Card className="gap-0 p-0">
               <div className="flex flex-wrap items-center justify-between gap-3 p-4">
                 <Skeleton className="h-9 w-64 rounded-control" />
-                <Skeleton className="h-9 w-56 rounded-control" />
+                <Skeleton className="h-9 w-56 rounded-full" />
               </div>
               <SkeletonTable rows={7} cols={6} />
             </Card>
@@ -114,7 +115,7 @@ export function GuestsPage() {
         <Card className="gap-0 p-0">
           <div className="flex flex-wrap items-center justify-between gap-3 p-4">
             <div className="relative min-w-56 flex-1 sm:max-w-72">
-              <Search
+              <Icon icon={Search01Icon}
                 className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-neutral-400"
                 strokeWidth={1.75}
               />
@@ -137,7 +138,7 @@ export function GuestsPage() {
           <CardContent className="p-0">
             {rows.length === 0 ? (
               <EmptyState
-                icon={UserRound}
+                icon={UserCircleIcon}
                 title={all.length === 0 ? t("guests.emptyNone") : t("guests.emptyFiltered")}
                 hint={all.length === 0 ? t("guests.emptyNoneHint") : t("guests.emptyFilteredHint")}
               />

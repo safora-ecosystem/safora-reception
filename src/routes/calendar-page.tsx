@@ -2,19 +2,27 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
 import { useQuery } from "@tanstack/react-query"
 import { useNavigate } from "@tanstack/react-router"
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react"
-import { ArrowExpandDiagonal01Icon, ArrowShrink01Icon } from "@hugeicons/core-free-icons"
+import { ArrowLeft01Icon, ArrowRight01Icon, PlusSignIcon } from "@hugeicons/core-free-icons"
+import {
+  ArrowExpandDiagonal01Icon,
+  ArrowShrink01Icon,
+  SlidersHorizontalIcon,
+} from "@hugeicons/core-free-icons"
 import { Icon } from "@/components/ui/icon"
 import {
+  CalendarViewSettings,
   ReservationCalendar,
   addDays,
   calendarLabels,
+  cancelledRevealed,
   useCalendarMetrics,
   type CalendarLabels,
   type CalendarRange,
   type ReservationCalendarHandle,
 } from "@/components/calendar"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { useApiCalendarData, useMockCalendarData } from "@/lib/calendar-data"
+import { useCalendarPrefs } from "@/lib/calendar-prefs"
 import { getHotelBranding } from "@/lib/api"
 import { InvoiceDialog } from "@/components/invoice/invoice-dialog"
 import { ErrorState } from "@/components/shared/error-state"
@@ -40,8 +48,11 @@ type ViewKey = (typeof VIEW_MODES)[number]["key"]
 const RANGE_BACK = 60
 const RANGE_DAYS = 600
 
+const DENSITY_FACTOR = { compact: 0.85, default: 1, roomy: 1.15 } as const
+
 const STATUS_OPTIONS = ["booked", "checked_in", "checked_out"] as const
-type StatusFilter = "all" | (typeof STATUS_OPTIONS)[number]
+const MODE_OPTIONS = ["cancelled", "split"] as const
+type StatusFilter = "all" | (typeof STATUS_OPTIONS)[number] | (typeof MODE_OPTIONS)[number]
 
 function todayIso(): string {
   return new Date().toLocaleDateString("en-CA")
@@ -70,7 +81,7 @@ export function CalendarPage() {
     t("nav.calendar"),
     canEdit ? (
       <Button size="xl" onClick={() => calRef.current?.openCreate()}>
-        <Plus strokeWidth={2} />
+        <Icon icon={PlusSignIcon} strokeWidth={2} />
         {t("calendar.newBooking")}
       </Button>
     ) : undefined,
@@ -85,11 +96,26 @@ export function CalendarPage() {
   const metrics = useCalendarMetrics(panelRef)
   const baseDayWidth = (VIEW_MODES.find((v) => v.key === view) ?? VIEW_MODES[1]).dayWidth
   const dayWidth = Math.round(baseDayWidth * metrics.dayScale)
+  const { prefs, update: updatePrefs, reset: resetPrefs } = useCalendarPrefs()
+  const rowHeight = Math.round(metrics.rowHeight * DENSITY_FACTOR[prefs.density])
   const range = useMemo<CalendarRange>(() => ({ start: addDays(todayIso(), -RANGE_BACK), days: RANGE_DAYS }), [])
 
   const mock = useMockCalendarData(mockRooms)
   const apiData = useApiCalendarData(range, { enabled: !mockMode })
   const data = mockMode ? mock : apiData
+
+  const splitIds = useMemo(() => {
+    const byLink = new Map<string, string[]>()
+    for (const b of data.bookings) {
+      if (!b.linkId || b.status === "cancelled") continue
+      const arr = byLink.get(b.linkId)
+      if (arr) arr.push(b.id)
+      else byLink.set(b.linkId, [b.id])
+    }
+    const ids = new Set<string>()
+    for (const part of byLink.values()) if (part.length > 1) for (const id of part) ids.add(id)
+    return ids
+  }, [data.bookings])
 
   const filterActive = query.trim().length > 0 || statusFilter !== "all"
   const matchIds = useMemo(() => {
@@ -97,12 +123,19 @@ export function CalendarPage() {
     const q = query.trim().toLowerCase()
     const ids = new Set<string>()
     for (const b of data.bookings) {
-      if (statusFilter !== "all" && b.status !== statusFilter) continue
+      if (statusFilter === "split") {
+        if (!splitIds.has(b.id)) continue
+      } else if (statusFilter !== "all" && b.status !== statusFilter) continue
       if (q && !b.label.toLowerCase().includes(q) && !(b.sublabel ?? "").toLowerCase().includes(q)) continue
       ids.add(b.id)
     }
     return ids
-  }, [filterActive, query, statusFilter, data.bookings])
+  }, [filterActive, query, statusFilter, splitIds, data.bookings])
+
+  const statusConfig = useMemo(
+    () => (statusFilter === "cancelled" ? { cancelled: cancelledRevealed } : undefined),
+    [statusFilter],
+  )
 
   const todayOps = useMemo(() => {
     const t = todayIso()
@@ -151,10 +184,12 @@ export function CalendarPage() {
               value={statusFilter}
               onChange={setStatusFilter}
               aria-label={t("calendar.filterStatus")}
-              triggerClassName="w-40"
+              triggerClassName="h-11 w-40"
               options={[
                 { value: "all", label: t("calendar.allStatuses") },
                 ...STATUS_OPTIONS.map((s) => ({ value: s, label: calendarLabels().statusText[s] })),
+                { value: "cancelled", label: calendarLabels().statusText.cancelled },
+                { value: "split", label: t("calendar.splitOnly") },
               ]}
             />
 
@@ -175,7 +210,9 @@ export function CalendarPage() {
                   {todayOps.overdue > 0 && (
                     <>
                       {(todayOps.arrivals > 0 || todayOps.departures > 0) && " · "}
-                      <span className="font-medium text-warning">{todayOps.overdue} kechikkan</span>
+                      <span className="font-medium text-warning">
+                        {t("calendarToast.overdue", { count: todayOps.overdue })}
+                      </span>
                     </>
                   )}
                 </span>
@@ -183,9 +220,10 @@ export function CalendarPage() {
             )}
           </div>
 
+          {}
           <div className="flex flex-wrap items-center gap-2">
             {}
-            <div className="flex h-9 items-center gap-0.5 rounded-xl bg-neutral-100 p-1">
+            <div className="flex h-11 items-center gap-0.5 rounded-full bg-neutral-100 p-1">
               {VIEW_MODES.map((v) => (
                 <button
                   key={v.key}
@@ -193,7 +231,7 @@ export function CalendarPage() {
                   onClick={() => setView(v.key)}
                   aria-pressed={view === v.key}
                   className={cn(
-                    "inline-flex h-7 items-center rounded-lg px-3 text-sm font-medium transition-colors",
+                    "inline-flex h-9 items-center rounded-full px-3.5 text-sm font-medium transition-colors",
                     view === v.key
                       ? "bg-white text-neutral-900 shadow-xs"
                       : "text-neutral-500 hover:text-neutral-800",
@@ -208,37 +246,50 @@ export function CalendarPage() {
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
-                size="icon"
-                className="size-9 rounded-lg"
+                size="icon-xl"
                 onClick={() => calRef.current?.scrollByViewport(-1)}
                 aria-label="Oldingi"
               >
-                <ChevronLeft />
+                <Icon icon={ArrowLeft01Icon} />
               </Button>
               <Button
                 variant="outline"
-                className="h-9 rounded-lg px-4 text-sm"
+                size="xl"
                 onClick={() => calRef.current?.scrollToday()}
               >
-                Bugun
+                {t("common.today")}
               </Button>
               <Button
                 variant="outline"
-                size="icon"
-                className="size-9 rounded-lg"
+                size="icon-xl"
                 onClick={() => calRef.current?.scrollByViewport(1)}
                 aria-label="Keyingi"
               >
-                <ChevronRight />
+                <Icon icon={ArrowRight01Icon} />
               </Button>
             </div>
 
             {}
-            <div className="mx-0.5 h-5 w-px bg-neutral-200" aria-hidden />
+            <div className="mx-0.5 h-6 w-px bg-neutral-200" aria-hidden />
+            {}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon-xl"
+                  aria-label={t("calendar.view.settings")}
+                  title={t("calendar.view.settings")}
+                >
+                  <Icon icon={SlidersHorizontalIcon} className="size-5" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" sideOffset={8} className="w-80 p-3.5">
+                <CalendarViewSettings prefs={prefs} onChange={updatePrefs} onReset={resetPrefs} />
+              </PopoverContent>
+            </Popover>
             <Button
               variant="outline"
-              size="icon"
-              className="size-11 rounded-xl"
+              size="icon-xl"
               onClick={toggle}
               aria-pressed={expanded}
               aria-label={expanded ? t("calendar.exitFullscreen") : t("calendar.fullscreen")}
@@ -270,10 +321,17 @@ export function CalendarPage() {
               range={range}
               dayWidth={dayWidth}
               railWidth={metrics.railWidth}
-              rowHeight={metrics.rowHeight}
+              rowHeight={rowHeight}
               headerHeight={metrics.headerHeight}
               labels={labels}
               matchIds={matchIds}
+              statusConfig={statusConfig}
+              splitTraces={statusFilter === "split" ? "always" : "hover"}
+              barMoney={prefs.barMoney}
+              showGuestCountBadge={prefs.guestBadge}
+              showCleaningBadge={prefs.cleaningBadge}
+              weekendTint={prefs.weekendTint}
+              entryAnimations={prefs.animations}
               onCreateBooking={data.createBooking}
               onCheckIn={data.checkIn}
               onCheckOut={data.checkOut}

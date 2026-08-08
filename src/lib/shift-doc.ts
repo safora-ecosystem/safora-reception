@@ -211,42 +211,50 @@ function roomsTable(report: ShiftReport): string {
 }
 
 // ── 3. Kassa harakati — smena JURNALI ────────────────────────────────────────
-// Kirish va chiqish uchun ALOHIDA jadval yo'q (founder, 2026-08-01): resepshn varag'ida
-// ham pastki blok bitta. Har qator mehmonning kelish/ketish sanalarini olib yuradi —
-// setkadagi bilan bir xil uchlik, ya'ni rahbar solishtirish uchun orqaga qaytmaydi.
+//
+// FAQAT PUL (founder, 2026-08-04). Ilgari bu jadvalga kirish va chiqish hodisalari ham
+// tushardi — ular summasiz qator bo'lib turardi va jurnalni ikki barobar uzaytirib,
+// "qancha pul o'tdi" degan savolni ko'mib tashlardi. Kim kirdi-chiqdi degan savolga
+// XONALAR SETKASI javob beradi (Check In / Check Out ustunlari), kim nima o'zgartirdi
+// degan savolga esa TIZIM JURNALI.
+//
+// Shu sababdan kelish/ketish sanalari ustunlari ham olib tashlandi: ular pul emas.
+// O'rniga KIM QABUL QILDI va IZOH keldi — nazoratning birinchi ikki savoli aynan shu.
 
 const EVENT_COLS: Col[] = [
-  { head: "Harakat vaqti", width: "12%" },
-  { head: "№", width: "4%" },
-  { head: "Mehmon", width: "18%" },
-  { head: "Check In", width: "7.5%" },
-  { head: "Vaqt", width: "5%" },
-  { head: "Check Out", width: "7.5%" },
-  { head: "Tushum", width: "11%" },
-  { head: "Chiqim", width: "9.5%" },
-  { head: "Usul", width: "7.5%" },
+  { head: "Vaqt", width: "11%" },
+  { head: "№", width: "5%" },
+  { head: "Mehmon", width: "20%" },
+  { head: "Tushum", width: "12%" },
+  { head: "Chiqim", width: "11%" },
+  { head: "Usul", width: "9%" },
+  { head: "Qabul qildi", width: "14%" },
   { head: "Izoh", width: "18%" },
 ]
 
+/** Kassa jurnaliga TUSHADIGAN qator — faqat pul harakati. Kirish/chiqish bu yerda emas. */
+const isMoney = (e: ShiftReport["sheet"]["events"][number]) => e.amount !== 0
+
 function eventsTable(report: ShiftReport): string {
-  const { events, totals: t } = report.sheet
-  if (events.length === 0) return `<p class="empty">Smena davomida harakat qayd etilmagan.</p>`
+  const { totals: t } = report.sheet
+  const events = report.sheet.events.filter(isMoney)
+  if (events.length === 0) return `<p class="empty">Smena davomida pul harakati qayd etilmagan.</p>`
 
   const body = events
     .map((e) => {
       const label = EVENT_TEXT[e.kind] ?? e.kind
+      // Izoh bo'lsa AYNAN u ko'rsatiladi: resepshn yozgan gap ("qolganini ertaga to'laydi")
+      // "To'lov" degan yorliqdan ancha ko'p narsa aytadi.
       const note = e.reason ? `${label} · ${e.reason}` : label
       return (
         `<tr>` +
         `<td class="c">${esc(e.atText)}</td>` +
         `<td class="rn">${esc(e.roomNumber)}</td>` +
         `<td class="name">${esc(e.guestName)}</td>` +
-        `<td class="c">${shortYmd(e.checkInDate)}</td>` +
-        `<td class="c">${esc(e.checkInTime ?? "")}</td>` +
-        `<td class="c">${shortYmd(e.checkOutDate)}</td>` +
         `<td class="n">${e.amount > 0 ? cell(e.amount) : ""}</td>` +
         `<td class="n debt">${e.amount < 0 ? cell(-e.amount) : ""}</td>` +
         `<td class="c">${esc(e.method ? (METHOD_TEXT[e.method] ?? e.method) : "")}</td>` +
+        `<td class="name">${esc(e.approvedBy ?? "—")}</td>` +
         `<td class="note">${esc(note)}</td>` +
         `</tr>`
       )
@@ -258,17 +266,17 @@ function eventsTable(report: ShiftReport): string {
     `<tbody>${body}</tbody>` +
     `<tfoot>` +
     `<tr class="sum">` +
-    `<td colspan="6">Jami · ${t.checkIns} ta kirish · ${t.checkOuts} ta chiqish</td>` +
+    `<td colspan="3">Jami · ${events.length} ta pul harakati</td>` +
     `<td class="n">${sum(t.income)}</td>` +
     `<td class="n">${cell(t.expense)}</td>` +
-    `<td colspan="2" class="note">naqd ${sum(t.cash)} · terminal ${sum(t.card)} · o'tkazma ${sum(t.transfer)}</td>` +
+    `<td colspan="3" class="note">naqd ${sum(t.cash)} · terminal ${sum(t.card)} · o'tkazma ${sum(t.transfer)}</td>` +
     `</tr>` +
     // Yakuniy summa TUSHUM ustunida turadi — birlashtirilgan katakda u o'ng chekkaga,
     // ya'ni "Chiqim" ustuni tagiga tushib, teskari o'qilardi.
     `<tr class="sum strong">` +
-    `<td colspan="6">Kassaga tushdi (tushum − chiqim)</td>` +
+    `<td colspan="3">Kassaga tushdi (tushum − chiqim)</td>` +
     `<td class="n">${sum(t.income - t.expense)}</td>` +
-    `<td colspan="3"></td>` +
+    `<td colspan="4"></td>` +
     `</tr>` +
     `</tfoot></table>`
   )

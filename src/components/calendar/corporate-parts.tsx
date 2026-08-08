@@ -1,6 +1,7 @@
 import { memo, useMemo, useRef, useState } from "react"
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion"
-import { Building2, Check, ChevronDown, Plus, Search, X } from "lucide-react"
+import { ArrowDown01Icon, Building03Icon, Cancel01Icon, PlusSignIcon, Search01Icon, Tick02Icon } from "@hugeicons/core-free-icons"
+import { Icon } from "@/components/ui/icon"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { PhoneInput } from "@/components/ui/phone-input"
@@ -65,21 +66,21 @@ export const OrganizationPicker = memo(function OrganizationPicker({
           type="button"
           className={cn(
             "flex h-9 w-full items-center gap-2 rounded-control border px-2.5 text-left text-sm transition-colors outline-none",
-            "focus-visible:border-brand-400 focus-visible:ring-3 focus-visible:ring-ring/15",
+            "focus-visible:border-neutral-400 focus-visible:ring-3 focus-visible:ring-neutral-400/20",
             selected
               ? "border-neutral-200 bg-white text-neutral-900 hover:border-neutral-300"
               : "border-neutral-200 bg-white text-neutral-400 hover:border-neutral-300",
           )}
         >
-          <Building2 className="size-4 shrink-0 text-neutral-400" />
+          <Icon icon={Building03Icon} className="size-4 shrink-0 text-neutral-400" />
           <span className="min-w-0 flex-1 truncate">{selected ? selected.name : labels.organizationPick}</span>
-          <ChevronDown className="size-4 shrink-0 text-neutral-400" />
+          <Icon icon={ArrowDown01Icon} className="size-4 shrink-0 text-neutral-400" />
         </button>
       </PopoverTrigger>
 
       <PopoverContent align="start" className="w-[min(26rem,calc(100vw-2rem))] p-0">
         <div className="hairline-b flex items-center gap-2 px-2.5 py-2">
-          <Search className="size-4 shrink-0 text-neutral-400" />
+          <Icon icon={Search01Icon} className="size-4 shrink-0 text-neutral-400" />
           <input
             autoFocus
             value={query}
@@ -125,7 +126,7 @@ export const OrganizationPicker = memo(function OrganizationPicker({
                         .join(" · ") || (o.inn ? `STIR ${o.inn}` : "")}
                     </p>
                   </div>
-                  {active && <Check className="size-4 shrink-0 text-brand-500" />}
+                  {active && <Icon icon={Tick02Icon} className="size-4 shrink-0" />}
                 </button>
               )
             })
@@ -323,7 +324,7 @@ const RoomCard = memo(function RoomCard({
                   onClick={() => onChange(room.id, guests.filter((x) => x.key !== g.key))}
                   className="mt-1"
                 >
-                  <X />
+                  <Icon icon={Cancel01Icon} />
                 </Button>
               </div>
             </motion.div>
@@ -337,7 +338,7 @@ const RoomCard = memo(function RoomCard({
           className="self-start text-neutral-500"
           onClick={() => onChange(room.id, [...guests, newRoomingGuest()])}
         >
-          <Plus /> {labels.addGuest}
+          <Icon icon={PlusSignIcon} /> {labels.addGuest}
         </Button>
       </div>
     </div>

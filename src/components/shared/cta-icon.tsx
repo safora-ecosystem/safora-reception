@@ -1,7 +1,7 @@
-import type { LucideIcon } from "lucide-react"
+import { Icon, type IconData } from "@/components/ui/icon"
 import { cn } from "@/lib/utils"
 
-export function CtaIcon({ icon: Icon, className }: { icon: LucideIcon; className?: string }) {
+export function CtaIcon({ icon, className }: { icon: IconData; className?: string }) {
   return (
     <span
       className={cn(
@@ -9,7 +9,7 @@ export function CtaIcon({ icon: Icon, className }: { icon: LucideIcon; className
         className,
       )}
     >
-      <Icon className="size-3.5" strokeWidth={3} />
+      <Icon icon={icon} className="size-3.5" strokeWidth={3} />
     </span>
   )
 }

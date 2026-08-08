@@ -1,6 +1,6 @@
 import { memo, useState } from "react"
 import { motion } from "framer-motion"
-import { CleanIcon } from "@hugeicons/core-free-icons"
+import { CleanIcon, StickyNote02Icon } from "@hugeicons/core-free-icons"
 import { Icon } from "@/components/ui/icon"
 import { cn } from "@/lib/utils"
 import {
@@ -12,7 +12,13 @@ import {
 } from "./geometry"
 import type { CalendarMoveHandlers } from "./use-calendar-move"
 import type { CalendarTooltipHandlers } from "./use-calendar-tooltip"
-import type { CalendarBooking, CalendarLabels, CalendarPayment, StatusVisual } from "./types"
+import type {
+  CalendarBarMoney,
+  CalendarBooking,
+  CalendarLabels,
+  CalendarPayment,
+  StatusVisual,
+} from "./types"
 
 
 interface CalendarBarProps {
@@ -30,6 +36,8 @@ interface CalendarBarProps {
   cleaning?: "dirty" | "in_progress" | "clean" | null
   move?: CalendarMoveHandlers
   tooltip?: CalendarTooltipHandlers
+  barMoney?: CalendarBarMoney
+  showGuestCount?: boolean
   enterDelay?: number | null
 }
 
@@ -71,6 +79,44 @@ function PaymentGlyph({ payment }: { payment: CalendarPayment }) {
 }
 
 /**
+ * To'lov MATN ko'rinishi — `$` glifi o'rniga haqiqiy summa, qisqartirilgan ("1,2 mln").
+ *
+ * Ba'zi mehmonxonalar glifni emas, raqamni o'qiydi (founder, 2026-08-07) — bu ko'rinish
+ * SOZLAMASI, default emas. Rang tili glif bilan BIR XIL qoladi: to'liq = yashil, qisman =
+ * amber, to'lanmagan = meros rang xiraroq — xodim rejim almashtirsa ham signalni qayta
+ * o'rganmaydi. `remaining` rejimida qiymat = qoldiq (amber "hali so'raladigan pul");
+ * qoldiq nol bo'lgan bron bu funksiyaga KELMAYDI — u yashil glifga qaytadi (chaqiruvchida).
+ */
+function PaymentText({
+  payment,
+  mode,
+  labels,
+}: {
+  payment: CalendarPayment
+  mode: "total" | "remaining"
+  labels: CalendarLabels
+}) {
+  const ratio = paymentRatio(payment)
+  const value = mode === "remaining" ? Math.max(0, payment.total - payment.paid) : payment.total
+  const tone =
+    mode === "remaining"
+      ? "text-warning"
+      : ratio >= 1
+        ? "text-success"
+        : ratio > 0
+          ? "text-warning"
+          : "opacity-60"
+  return (
+    <span
+      aria-hidden
+      className={cn("shrink-0 text-[0.6875rem] leading-none font-semibold tabular-nums", tone)}
+    >
+      {labels.moneyShort(value)}
+    </span>
+  )
+}
+
+/**
  * Korporativ bron belgisi — to'lov glifining O'RNIGA chiqadi.
  *
  * Sabab operatsion, bezak emas: korporativ bronda `paid = 0` va `$` glifi bo'sh turardi, ya'ni
@@ -103,6 +149,8 @@ function CalendarBarImpl({
   cleaning = null,
   move,
   tooltip,
+  barMoney = "glyph",
+  showGuestCount = true,
   enterDelay = null,
 }: CalendarBarProps) {
   // Kirish MOUNT'da muzlatiladi. Ota qayta render bo'lganda (culling bandi almashsa, tanlov yoki
@@ -114,8 +162,15 @@ function CalendarBarImpl({
   const nights = nightsBetween(booking.start, booking.end)
   const barHeight = rowHeight - 2 * BAR_VPAD
   const corporate = booking.organization != null
-  const showPayment = booking.payment != null && !corporate && rect.width >= PAYMENT_MIN_PX
+  const showPayment =
+    booking.payment != null && !corporate && barMoney !== "hidden" && rect.width >= PAYMENT_MIN_PX
   const showCorporate = corporate && rect.width >= PAYMENT_MIN_PX
+  // `remaining` rejimida qoldiqsiz bron yashil glifga QAYTADI: bo'sh joy "ma'lumot yo'q" deb
+  // o'qilardi, to'liq yashil `$` esa "qarz yo'q" tasdig'i — xodim pul so'ramaydigan bar'ni
+  // bir qarashda ajratadi.
+  const remaining = booking.payment ? Math.max(0, booking.payment.total - booking.payment.paid) : 0
+  const paymentAsText =
+    barMoney === "total" || (barMoney === "remaining" && remaining > 0)
 
   // Kontur qalinligi tanlanganda ikki barobar — ichki radius konsentrik qoladi
   // (tashqi radius − stroke), aks holda kontur burchaklarda yo'g'onlashib ko'rinardi.
@@ -213,7 +268,17 @@ function CalendarBarImpl({
       >
         <span className={cn("min-w-0 truncate", visual.labelClass)}>{booking.label}</span>
         {showCorporate && <CorporateGlyph />}
-        {showPayment && booking.payment && <PaymentGlyph payment={booking.payment} />}
+        {showPayment &&
+          booking.payment &&
+          (paymentAsText ? (
+            <PaymentText
+              payment={booking.payment}
+              mode={barMoney as "total" | "remaining"}
+              labels={labels}
+            />
+          ) : (
+            <PaymentGlyph payment={booking.payment} />
+          ))}
       </span>
       {/* Burchak badge'lari — ichki span'dan KEYIN (uning overflow-hidden'i kesmasin, ustida
           chizilsin). Oynadan kesilgan uchda chizilmaydi (clippedEnd/clippedStart): burchakning
@@ -232,13 +297,25 @@ function CalendarBarImpl({
           <Icon icon={CleanIcon} className={cn("size-3 shrink-0", cleaning !== "clean" && "cal-sweep")} />
         </span>
       )}
-      {(booking.guestCount ?? 0) > 1 && !rect.clippedStart && (
+      {showGuestCount && (booking.guestCount ?? 0) > 1 && !rect.clippedStart && (
         <span
           aria-hidden
           className="pointer-events-none absolute flex items-center justify-center rounded-full bg-foreground text-[0.625rem] leading-none font-semibold text-background tabular-nums"
           style={{ width: CORNER_BADGE_PX, height: CORNER_BADGE_PX, top: -7, left: -5 }}
         >
           {booking.guestCount}
+        </span>
+      )}
+      {/* Eslatma belgisi — o'ng-QUYI burchak (yuqori-o'ng tozalashniki, ikkalasi birga
+          sig'adi). Kesilgan uchda chizilmaydi — burchakning o'zi oynadan tashqarida. */}
+      {!!booking.note && !rect.clippedEnd && (
+        <span
+          aria-hidden
+          data-note-badge
+          className="pointer-events-none absolute flex items-center justify-center rounded-full bg-foreground text-background"
+          style={{ width: CORNER_BADGE_PX, height: CORNER_BADGE_PX, bottom: -7, right: -5 }}
+        >
+          <Icon icon={StickyNote02Icon} className="size-2.5 shrink-0" />
         </span>
       )}
     </motion.button>

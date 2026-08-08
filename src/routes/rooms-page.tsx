@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { BedDouble, CalendarCheck2, DoorOpen, QrCode, Search, Wrench } from "lucide-react"
+import { BedDoubleIcon, CalendarCheckIn01Icon, Door01Icon, QrCodeIcon, Search01Icon, Wrench01Icon } from "@hugeicons/core-free-icons"
+import { Icon } from "@/components/ui/icon"
 import { toast } from "sonner"
 import { PageLayout } from "@/components/layout/page-layout"
 import { RangeToggle } from "@/components/shared/charts"
@@ -146,7 +147,7 @@ export function RoomsPage() {
             <Card className="gap-0 p-0">
               <div className="flex flex-wrap items-center justify-between gap-3 p-4">
                 <Skeleton className="h-9 w-64 rounded-control" />
-                <Skeleton className="h-9 w-40 rounded-control" />
+                <Skeleton className="h-9 w-40 rounded-full" />
               </div>
               <div className="grid grid-cols-[repeat(auto-fill,minmax(6.5rem,1fr))] gap-2 px-4 pb-4">
                 {Array.from({ length: 18 }).map((_, i) => (
@@ -188,7 +189,7 @@ export function RoomsPage() {
         <Card className="gap-0 p-0">
           <div className="flex flex-wrap items-center justify-between gap-3 p-4">
             <div className="relative min-w-56 flex-1 sm:max-w-72">
-              <Search
+              <Icon icon={Search01Icon}
                 className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-neutral-400"
                 strokeWidth={1.75}
               />
@@ -208,7 +209,7 @@ export function RoomsPage() {
           <CardContent className="p-0">
             {shown.length === 0 ? (
               <EmptyState
-                icon={DoorOpen}
+                icon={Door01Icon}
                 title={total === 0 ? t("rooms.emptyNone") : t("rooms.emptyFiltered")}
                 hint={total === 0 ? t("rooms.emptyNoneHint") : t("rooms.emptyFilteredHint")}
               />
@@ -343,9 +344,9 @@ function RoomDialog({
                 <div className="rounded-card border border-border p-3">
                   <p className="flex items-center gap-2 text-sm font-medium text-neutral-900">
                     {view.state === "occupied" ? (
-                      <BedDouble className="size-4 text-neutral-400" strokeWidth={1.75} />
+                      <Icon icon={BedDoubleIcon} className="size-4 text-neutral-400" strokeWidth={1.75} />
                     ) : (
-                      <CalendarCheck2 className="size-4 text-neutral-400" strokeWidth={1.75} />
+                      <Icon icon={CalendarCheckIn01Icon} className="size-4 text-neutral-400" strokeWidth={1.75} />
                     )}
                     {view.booking.guestName}
                   </p>
@@ -359,7 +360,7 @@ function RoomDialog({
               {view.block && (
                 <div className="rounded-card border border-border p-3">
                   <p className="flex items-center gap-2 text-sm font-medium text-neutral-900">
-                    <Wrench className="size-4 text-neutral-400" strokeWidth={1.75} />
+                    <Icon icon={Wrench01Icon} className="size-4 text-neutral-400" strokeWidth={1.75} />
                     {t(BLOCK_KIND[view.block.kind])}
                   </p>
                   <p className="mt-1 text-xs text-neutral-500">
@@ -377,7 +378,7 @@ function RoomDialog({
 
               {room.scanUrl && (
                 <Button variant="outline" className="w-full" onClick={() => copyScanUrl(room.scanUrl!)}>
-                  <QrCode strokeWidth={1.75} />
+                  <Icon icon={QrCodeIcon} strokeWidth={1.75} />
                   {t("rooms.copyQr")}
                 </Button>
               )}

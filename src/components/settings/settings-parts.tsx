@@ -1,5 +1,6 @@
 import type { ReactNode } from "react"
-import { Check, Loader2, Monitor, Moon, Smartphone, Sun } from "lucide-react"
+import { ComputerIcon, Loading03Icon, Moon02Icon, SmartPhone01Icon, Sun03Icon, Tick02Icon } from "@hugeicons/core-free-icons"
+import { Icon } from "@/components/ui/icon"
 import { toast } from "sonner"
 import { LocaleFlag } from "@/components/shared/locale-flag"
 import { Badge } from "@/components/ui/badge"
@@ -28,12 +29,13 @@ export function Section({
 }) {
   return (
     <Card className={cn("gap-0 p-0", className)}>
-      <div className="flex flex-wrap items-start justify-between gap-3 px-4 pt-4 pb-3">
-        <div className="min-w-0">
+      {}
+      <div className="flex items-center justify-between gap-3 px-4 pt-4 pb-3">
+        <div className="min-w-0 flex-1">
           <h2 className="text-sm font-medium text-neutral-900">{title}</h2>
           {hint && <p className="mt-0.5 text-xs text-neutral-500">{hint}</p>}
         </div>
-        {action}
+        {action && <div className="shrink-0">{action}</div>}
       </div>
       <div className="hairline-t">{children}</div>
     </Card>
@@ -81,7 +83,7 @@ function PickIndicator({ on }: { on: boolean }) {
         on ? "border-primary bg-primary text-primary-foreground" : "border-border",
       )}
     >
-      {on && <Check className="size-2.5" strokeWidth={3} />}
+      {on && <Icon icon={Tick02Icon} className="size-2.5" strokeWidth={3} />}
     </span>
   )
 }
@@ -130,7 +132,7 @@ export function TonePicker<T extends ToneId | AlertToneId>({
 }) {
   const t = useT()
   return (
-    <div className="flex gap-1 rounded-control bg-neutral-100 p-1">
+    <div className="flex gap-1 rounded-full bg-neutral-100 p-1">
       {tones.map((tone) => (
         <button
           key={tone.id}
@@ -142,7 +144,7 @@ export function TonePicker<T extends ToneId | AlertToneId>({
             previewTone(tone.id)
           }}
           className={cn(
-            "rounded-[0.625rem] px-3 py-1.5 text-[0.8125rem] font-medium transition-colors",
+            "rounded-full px-3 py-1.5 text-[0.8125rem] font-medium transition-colors",
             value === tone.id
               ? "bg-white text-neutral-900 shadow-xs"
               : "text-neutral-500 hover:text-neutral-800",
@@ -166,15 +168,15 @@ function ThemeTile({ mode }: { mode: ThemePref }) {
         style={{ border: "1px solid #d6d3d1" }}
       >
         <span className="flex flex-1 items-center justify-center" style={{ background: "#ffffff" }}>
-          <Sun className="size-6" style={{ color: SUN_GOLD }} strokeWidth={1.75} />
+          <Icon icon={Sun03Icon} className="size-6" style={{ color: SUN_GOLD }} strokeWidth={1.75} />
         </span>
-        <span className="flex flex-1 items-center justify-center" style={{ background: "#181410" }}>
-          <Moon className="size-6" style={{ color: SUN_GOLD }} strokeWidth={1.75} />
+        <span className="flex flex-1 items-center justify-center" style={{ background: "#0f0e0d" }}>
+          <Icon icon={Moon02Icon} className="size-6" style={{ color: SUN_GOLD }} strokeWidth={1.75} />
         </span>
       </span>
     )
   }
-  const Glyph = mode === "light" ? Sun : Moon
+  const glyph = mode === "light" ? Sun03Icon : Moon02Icon
   return (
     <span
       aria-hidden
@@ -182,10 +184,10 @@ function ThemeTile({ mode }: { mode: ThemePref }) {
       style={
         mode === "light"
           ? { background: "#ffffff", border: "1px solid #e7e5e4" }
-          : { background: "#181410", border: "1px solid #38312b" }
+          : { background: "#0f0e0d", border: "1px solid #262524" }
       }
     >
-      <Glyph className="size-7" style={{ color: SUN_GOLD }} strokeWidth={1.75} />
+      <Icon icon={glyph} className="size-7" style={{ color: SUN_GOLD }} strokeWidth={1.75} />
     </span>
   )
 }
@@ -252,7 +254,7 @@ export function LanguageSection() {
                 )}
               >
                 {busy ? (
-                  <Loader2 className="size-5 animate-spin text-neutral-400" strokeWidth={2} />
+                  <Icon icon={Loading03Icon} className="size-5 animate-spin text-neutral-400" strokeWidth={2} />
                 ) : (
                   // Bayroq HAR DOIM to'liq rangda: tanlovni ramka + belgi aytadi. Susaytirish
                   // (opacity) bayroqlarni "o'chgan"dek ko'rsatib yuborar edi.
@@ -283,11 +285,11 @@ export function SessionRow({
   revoking: boolean
 }) {
   const t = useT()
-  const Icon = /iOS|Android/i.test(session.device) ? Smartphone : Monitor
+  const deviceIcon = /iOS|Android/i.test(session.device) ? SmartPhone01Icon : ComputerIcon
   return (
     <div className="flex items-center gap-3 px-4 py-3">
       <div className="grid size-9 shrink-0 place-items-center rounded-full bg-neutral-100 text-neutral-500">
-        <Icon className="size-[1.125rem]" strokeWidth={1.75} />
+        <Icon icon={deviceIcon} className="size-[1.125rem]" />
       </div>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
@@ -320,7 +322,7 @@ export function Loading() {
   const t = useT()
   return (
     <div className="flex items-center gap-2 px-4 py-6 text-sm text-neutral-500">
-      <Loader2 className="size-4 animate-spin" /> {t("common.loading")}
+      <Icon icon={Loading03Icon} className="size-4 animate-spin" /> {t("common.loading")}
     </div>
   )
 }

@@ -1,4 +1,5 @@
-import { ArrowUpRight } from "lucide-react"
+import { ArrowUpRight01Icon } from "@hugeicons/core-free-icons"
+import { Icon } from "@/components/ui/icon"
 import { Children, type ReactNode } from "react"
 import { motion, useReducedMotion } from "framer-motion"
 import { RollingNumber } from "@/components/shared/rolling-number"
@@ -28,7 +29,7 @@ export function StatCard({
         "relative flex flex-col overflow-hidden rounded-card",
         compact ? "gap-1 px-4 py-3" : "gap-1.5 px-5 py-3.5",
         hero
-          ? "sheen-brand border border-transparent bg-hero text-hero-foreground"
+          ? "surface-dark border border-transparent text-on-fill"
           : "border border-border bg-card text-neutral-900"
       )}
     >
@@ -50,7 +51,7 @@ export function StatCard({
             hero ? "border-white/25 text-hero-foreground" : "border-border text-neutral-400"
           )}
         >
-          <ArrowUpRight className={compact ? "size-3" : "size-3.5"} strokeWidth={2} />
+          <Icon icon={ArrowUpRight01Icon} className={compact ? "size-3" : "size-3.5"} strokeWidth={2} />
         </span>
       </div>
 

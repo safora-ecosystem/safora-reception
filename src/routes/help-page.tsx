@@ -1,14 +1,14 @@
 import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 import {
-  BookOpen,
-  CalendarDays,
-  MessageCircle,
-  Send,
-  Sparkles,
-  UserRound,
-  type LucideIcon,
-} from "lucide-react"
+  BookOpen01Icon,
+  Calendar03Icon,
+  Message02Icon,
+  SparklesIcon,
+  TelegramIcon,
+  UserCircleIcon,
+} from "@hugeicons/core-free-icons"
+import { Icon, type IconData } from "@/components/ui/icon"
 import { PageLayout } from "@/components/layout/page-layout"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -20,7 +20,7 @@ const SUPPORT_TELEGRAM = "https://t.me/safora_support"
 const SUPPORT_EMAIL = "yordam@safora.uz"
 
 type Step = {
-  icon: LucideIcon
+  icon: IconData
   titleKey: TKey
   bodyKey: TKey
   to?: string
@@ -29,28 +29,28 @@ type Step = {
 
 const STEPS: Step[] = [
   {
-    icon: CalendarDays,
+    icon: Calendar03Icon,
     titleKey: "help.steps.bookingTitle",
     bodyKey: "help.steps.bookingBody",
     to: "/calendar",
     linkKey: "help.steps.bookingLink",
   },
   {
-    icon: UserRound,
+    icon: UserCircleIcon,
     titleKey: "help.steps.guestTitle",
     bodyKey: "help.steps.guestBody",
     to: "/guests",
     linkKey: "help.steps.guestLink",
   },
   {
-    icon: Sparkles,
+    icon: SparklesIcon,
     titleKey: "help.steps.serviceTitle",
     bodyKey: "help.steps.serviceBody",
     to: "/requests",
     linkKey: "help.steps.serviceLink",
   },
   {
-    icon: MessageCircle,
+    icon: Message02Icon,
     titleKey: "help.steps.chatTitle",
     bodyKey: "help.steps.chatBody",
     to: "/chat",
@@ -73,22 +73,26 @@ export function HelpPage() {
   return (
     <PageLayout title={t("nav.help")}>
       <div className="flex flex-col gap-4">
-        <Card className="sheen-brand border-transparent bg-hero text-hero-foreground">
+        {}
+        <Card className="surface-dark border-transparent text-on-fill">
           <CardContent className="flex flex-wrap items-center justify-between gap-4">
             <div className="min-w-56 max-w-lg">
               <p className="text-lg font-semibold">{t("panel.guideTitle")}</p>
-              <p className="mt-1 text-sm text-hero-foreground/85">
+              <p className="mt-1 text-sm text-on-fill-70">
                 {hotel.data?.name ? `${hotel.data.name} — ` : ""}
                 {t("help.heroBody")}
               </p>
             </div>
             <div className="flex gap-2">
-              <Button variant="secondary" asChild>
-                <a href={SUPPORT_TELEGRAM} target="_blank" rel="noreferrer">
-                  <Send className="size-4" strokeWidth={2} />
-                  Telegram
-                </a>
-              </Button>
+              <a
+                href={SUPPORT_TELEGRAM}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex h-9 items-center gap-1.5 rounded-full bg-white/16 px-3.5 text-sm font-medium text-on-fill ring-1 ring-white/12 ring-inset transition-colors outline-none hover:bg-white/22 hover:ring-white/18 focus-visible:ring-2 focus-visible:ring-white/40 active:bg-white/26"
+              >
+                <Icon icon={TelegramIcon} className="size-4" />
+                Telegram
+              </a>
             </div>
           </CardContent>
         </Card>
@@ -98,7 +102,7 @@ export function HelpPage() {
             <Card key={step.titleKey}>
               <CardContent className="flex gap-3.5">
                 <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-accent text-accent-foreground">
-                  <step.icon className="size-5" strokeWidth={1.75} />
+                  <Icon icon={step.icon} className="size-5" />
                 </span>
                 <div className="min-w-0">
                   <p className="font-medium text-neutral-900">{t(step.titleKey)}</p>
@@ -117,7 +121,7 @@ export function HelpPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <BookOpen className="size-4 text-neutral-400" strokeWidth={1.75} />
+              <Icon icon={BookOpen01Icon} className="size-4 text-neutral-400" />
               {t("help.faqTitle")}
             </CardTitle>
           </CardHeader>

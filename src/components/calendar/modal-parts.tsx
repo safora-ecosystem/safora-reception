@@ -1,4 +1,5 @@
-import { ArrowRight } from "lucide-react"
+import { ArrowRight02Icon } from "@hugeicons/core-free-icons"
+import { Icon } from "@/components/ui/icon"
 import { cn } from "@/lib/utils"
 
 
@@ -69,7 +70,7 @@ export function StayCard({
           <span className="text-base font-semibold text-neutral-900 tabular-nums">{arrival}</span>
           <span className="text-xs text-neutral-500 tabular-nums">{arrivalTime}</span>
         </div>
-        <ArrowRight className="size-4 shrink-0 text-neutral-300" />
+        <Icon icon={ArrowRight02Icon} className="size-4 shrink-0 text-neutral-300" />
         <div className="flex flex-1 flex-col items-end gap-0.5 text-right">
           <span className="text-xs font-medium tracking-wide text-neutral-400 uppercase">
             {departureLabel}

@@ -26,6 +26,7 @@ export type ColumnDatum = {
   values: Record<string, number>
   planned?: boolean
   emphasis?: boolean
+  color?: string
 }
 
 type ColumnChartProps = {
@@ -162,7 +163,7 @@ export function ColumnChart({
                             // berilmaydi, aks holda tekstura yuvilib, "amalda"dan farqi yo'qoladi.
                             backgroundImage: datum.planned
                               ? undefined
-                              : barFill(s.color ?? seriesColor(si)),
+                              : barFill(datum.color ?? s.color ?? seriesColor(si)),
                           }}
                         />
                       )
@@ -193,7 +194,7 @@ export function ColumnChart({
                         rows={series.map<TooltipRow>((s, si) => ({
                           label: s.label,
                           value: format(datum.values[s.key] ?? 0),
-                          color: s.color ?? seriesColor(si),
+                          color: datum.color ?? s.color ?? seriesColor(si),
                           hatch: datum.planned,
                         }))}
                       />

@@ -1,5 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { Check, Search, X } from "lucide-react"
+import { Cancel01Icon, Search01Icon, Tick02Icon } from "@hugeicons/core-free-icons"
+import { Icon } from "@/components/ui/icon"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 import { compareRooms } from "./geometry"
@@ -173,7 +174,7 @@ export const RoomPicker = memo(function RoomPicker({
       <div className="flex flex-wrap items-center gap-2">
         {rooms.length > SEARCH_THRESHOLD && (
           <div className="relative min-w-52 flex-1">
-            <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-neutral-400" />
+            <Icon icon={Search01Icon} className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-neutral-400" />
             <Input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
@@ -196,7 +197,7 @@ export const RoomPicker = memo(function RoomPicker({
             onClick={() => onChange(() => [])}
             className="inline-flex h-9 items-center gap-1 rounded-control px-2.5 text-xs font-medium text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-800"
           >
-            <X className="size-3.5" />
+            <Icon icon={Cancel01Icon} className="size-3.5" />
             {labels.roomsClear}
           </button>
         )}
@@ -350,7 +351,7 @@ const RoomTile = memo(function RoomTile({
                   : "bg-brand-500 text-on-fill",
             )}
           >
-            <Check className="size-3" strokeWidth={3} />
+            <Icon icon={Tick02Icon} className="size-3" strokeWidth={3} />
           </span>
         )}
       </span>

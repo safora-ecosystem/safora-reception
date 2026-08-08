@@ -20,6 +20,23 @@ export function barFill(color: string, direction: "to top" | "to right" = "to to
   return `linear-gradient(${direction}, ${color} 0%, color-mix(in oklab, ${color}, white 16%) 100%)`
 }
 
+/**
+ * Halqa (donut) ohangi — `barFill` ning SVG'dagi egizagi. Ustunlarda gradient CSS fon bilan
+ * beriladi, halqada esa `stroke` bo'yaladi, ya'ni `<linearGradient>` kerak: bu funksiya
+ * uning ikki to'xtash rangini qaytaradi.
+ *
+ * Yo'nalish HAR BO'LAK UCHUN BIR XIL — tepadan pastga, yorug'i tepada. Har bo'lakka o'z
+ * yoyi bo'ylab alohida gradient berilsa halqa konfet lentasiga o'xshab qolardi va kichik
+ * bo'laklarda yo'nalish vektori nolga tushib buzilardi. Bitta yo'nalish esa bitta yorug'lik
+ * manbai bo'lib o'qiladi — shakl hajm oladi, ma'no o'zgarmaydi.
+ *
+ * Farq `barFill` bilan bir xil — 16%. Kuchliroq aralashma halqani ikki xil rangdek
+ * ko'rsatadi va qo'shni bo'lakning tag rangiga yaqinlashib, identifikatsiyani buzadi.
+ */
+export function arcTint(color: string): { light: string; base: string } {
+  return { light: `color-mix(in oklab, ${color}, white 16%)`, base: color }
+}
+
 /** Setka/o'q — yuzadan bir qadam, ingichka va yaxlit (punktir emas: u ma'lumot bilan raqobatlashadi). */
 export const CHART_GRID = "var(--color-neutral-200)"
 /** Yuza rangi — belgilarni ajratuvchi 2px tirqish va nuqta halqasi shu rangda. */

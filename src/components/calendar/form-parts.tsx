@@ -46,7 +46,7 @@ function SegmentedImpl({
   return (
     <div
       className={cn(
-        "flex shrink-0 rounded-control bg-neutral-100 p-[3px]",
+        "flex shrink-0 rounded-full bg-neutral-100 p-[3px]",
         size === "sm" ? "h-9" : "h-10",
         className,
       )}
@@ -61,12 +61,12 @@ function SegmentedImpl({
             onClick={() => onChange(o.value)}
             aria-pressed={active}
             className={cn(
-              "relative inline-flex flex-1 items-center justify-center rounded-[calc(var(--radius-control)-3px)] font-medium whitespace-nowrap transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/30",
+              "relative inline-flex flex-1 items-center justify-center rounded-full font-medium whitespace-nowrap transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/30",
               size === "sm" ? "px-2.5 text-[0.8125rem]" : "px-3.5 text-sm",
               active
                 ? tone === "slate"
                   ? "text-cal-block-foreground"
-                  : "text-brand-700"
+                  : "text-neutral-900"
                 : "text-neutral-500 hover:text-neutral-800",
             )}
           >
@@ -76,7 +76,7 @@ function SegmentedImpl({
                 transition={
                   reduce ? { duration: 0 } : { type: "spring", stiffness: 420, damping: 34, mass: 0.7 }
                 }
-                className="absolute inset-0 rounded-[calc(var(--radius-control)-3px)] bg-white shadow-xs ring-1 ring-neutral-200/70"
+                className="absolute inset-0 rounded-full bg-white shadow-xs ring-1 ring-neutral-200/70"
               />
             )}
             {}

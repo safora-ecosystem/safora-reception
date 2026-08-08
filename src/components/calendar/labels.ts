@@ -1,6 +1,7 @@
 import { getLocale, t as translate, type Locale, type TFunc } from "@/lib/i18n"
 import {
   money as formatMoney,
+  moneyShort as formatMoneyShort,
   monthsFull,
   nightsLabel,
   shortDate,
@@ -21,6 +22,7 @@ function build(t: TFunc): CalendarLabels {
     formatDay: (iso) => shortDate(iso),
     nights: (n) => nightsLabel(n),
     money: (amount) => formatMoney(amount),
+    moneyShort: (amount) => formatMoneyShort(amount, { unit: false }),
     statusText: {
       booked: t("calendar.status.booked"),
       checked_in: t("calendar.status.checkedIn"),
@@ -58,6 +60,12 @@ function build(t: TFunc): CalendarLabels {
     paid: t("payment.paid"),
     remaining: t("payment.remaining"),
     conflict: t("calendar.conflict"),
+
+    moveConfirmTitle: t("calendar.moveConfirmTitle"),
+    moveConfirmHint: t("calendar.moveConfirmHint"),
+    moveConfirmAction: t("calendar.moveConfirmAction"),
+    moveFrom: t("calendar.moveFrom"),
+    moveTo: t("calendar.moveTo"),
 
     edit: t("common.edit"),
     discard: t("common.cancel"),
@@ -114,6 +122,7 @@ function build(t: TFunc): CalendarLabels {
     blockHint: t("calendar.blockHint"),
 
     companions: t("calendar.companions"),
+    roomGuests: t("calendar.roomGuests"),
     addGuest: t("calendar.addGuest"),
     removeGuest: t("common.delete"),
     primaryGuest: t("calendar.primaryGuest"),
@@ -237,6 +246,22 @@ function build(t: TFunc): CalendarLabels {
     roomingRoomEmpty: t("calendar.roomingRoomEmpty"),
     needOrganization: t("calendar.organizationPick"),
     needRoomingName: t("calendar.needRoomingName"),
+
+    viewSettings: t("calendar.view.settings"),
+    viewBarMoney: t("calendar.view.barMoney"),
+    viewBarMoneyGlyph: t("calendar.view.barMoneyGlyph"),
+    viewBarMoneyTotal: t("calendar.view.barMoneyTotal"),
+    viewBarMoneyRemaining: t("calendar.view.barMoneyRemaining"),
+    viewBarMoneyHidden: t("calendar.view.barMoneyHidden"),
+    viewDensity: t("calendar.view.density"),
+    viewDensityCompact: t("calendar.view.densityCompact"),
+    viewDensityDefault: t("calendar.view.densityDefault"),
+    viewDensityRoomy: t("calendar.view.densityRoomy"),
+    viewGuestBadge: t("calendar.view.guestBadge"),
+    viewCleaningBadge: t("calendar.view.cleaningBadge"),
+    viewWeekendTint: t("calendar.view.weekendTint"),
+    viewAnimations: t("calendar.view.animations"),
+    viewReset: t("calendar.view.reset"),
 
     debtOnCheckOut: (remaining) => t("calendar.debtOnCheckOut", { amount: formatMoney(remaining) }),
     checkOutAnyway: t("calendar.checkOutAnyway"),

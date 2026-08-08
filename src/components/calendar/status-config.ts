@@ -1,4 +1,4 @@
-import type { StatusConfig } from "./types"
+import type { StatusConfig, StatusVisual } from "./types"
 
 
 export const defaultStatusConfig: StatusConfig = {
@@ -31,6 +31,14 @@ export const defaultStatusConfig: StatusConfig = {
     border: "bg-cal-block-border",
     strip: "bg-cal-block-foreground",
   },
+}
+
+export const cancelledRevealed: StatusVisual = {
+  bar: "bg-destructive-surface hover:brightness-[0.98]",
+  text: "text-destructive-surface-foreground",
+  labelClass: "line-through",
+  border: "bg-destructive/35 z-[9]",
+  strip: "bg-destructive",
 }
 
 export function resolveStatusConfig(partial?: Partial<StatusConfig>): StatusConfig {

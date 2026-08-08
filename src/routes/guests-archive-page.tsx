@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react"
 import { keepPreviousData, useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
-import { ArrowLeft, Search, UserRound } from "lucide-react"
+import { ArrowLeft02Icon, Search01Icon, UserCircleIcon } from "@hugeicons/core-free-icons"
+import { Icon } from "@/components/ui/icon"
 import { PageLayout } from "@/components/layout/page-layout"
 import { EmptyState } from "@/components/shared/empty-state"
 import { GuestDialog, GuestTable } from "@/components/shared/guest-table"
@@ -54,7 +55,7 @@ export function GuestsArchivePage() {
       actions={
         <Button variant="outline" size="xl" asChild>
           <Link to="/guests">
-            <ArrowLeft strokeWidth={1.75} />
+            <Icon icon={ArrowLeft02Icon} strokeWidth={1.75} />
             {t("nav.guests")}
           </Link>
         </Button>
@@ -106,7 +107,7 @@ export function GuestsArchivePage() {
         <Card className="gap-0 p-0">
           <div className="flex flex-wrap items-center justify-between gap-3 p-4">
             <div className="relative min-w-56 flex-1 sm:max-w-72">
-              <Search
+              <Icon icon={Search01Icon}
                 className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-neutral-400"
                 strokeWidth={1.75}
               />
@@ -131,7 +132,7 @@ export function GuestsArchivePage() {
           >
             {rows.length === 0 ? (
               <EmptyState
-                icon={UserRound}
+                icon={UserCircleIcon}
                 title={search ? t("archive.emptyFiltered") : t("archive.empty")}
                 hint={search ? t("archive.searchHint") : t("archive.emptyHint")}
               />
