@@ -86,6 +86,11 @@ function PaymentGlyph({ payment }: { payment: CalendarPayment }) {
  * amber, to'lanmagan = meros rang xiraroq — xodim rejim almashtirsa ham signalni qayta
  * o'rganmaydi. `remaining` rejimida qiymat = qoldiq (amber "hali so'raladigan pul");
  * qoldiq nol bo'lgan bron bu funksiyaga KELMAYDI — u yashil glifga qaytadi (chaqiruvchida).
+ *
+ * Qoldiq MANFIY belgi bilan chiziladi ("−640 ming"). Bu arifmetik minus emas: ikki rejim
+ * yonma-yon bir xil raqamday o'qilardi va xodim "640 ming to'langan"mi yoki "640 ming
+ * qolgan"mi ekanini rejimni eslab turmasa ajratolmasdi. Minus — "hali shuncha olinadi"
+ * signali (founder, 2026-08-08).
  */
 function PaymentText({
   payment,
@@ -111,6 +116,7 @@ function PaymentText({
       aria-hidden
       className={cn("shrink-0 text-[0.6875rem] leading-none font-semibold tabular-nums", tone)}
     >
+      {mode === "remaining" ? "−" : ""}
       {labels.moneyShort(value)}
     </span>
   )
