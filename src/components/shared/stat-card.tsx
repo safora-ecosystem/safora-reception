@@ -1,6 +1,7 @@
 import { ArrowUpRight01Icon } from "@hugeicons/core-free-icons"
 import { Icon } from "@/components/ui/icon"
 import { Children, type ReactNode } from "react"
+import { Link } from "@tanstack/react-router"
 import { motion, useReducedMotion } from "framer-motion"
 import { RollingNumber } from "@/components/shared/rolling-number"
 import { fadeInUp, staggerContainer } from "@/lib/motion-presets"
@@ -12,6 +13,8 @@ type StatCardProps = {
   unit?: string
   hint?: string
   hero?: boolean
+  to?: string
+  linkTitle?: string
   compact?: boolean
 }
 
@@ -22,17 +25,11 @@ export function StatCard({
   hint,
   hero = false,
   compact = false,
+  to,
+  linkTitle,
 }: StatCardProps) {
-  return (
-    <div
-      className={cn(
-        "relative flex flex-col overflow-hidden rounded-card",
-        compact ? "gap-1 px-4 py-3" : "gap-1.5 px-5 py-3.5",
-        hero
-          ? "surface-dark border border-transparent text-on-fill"
-          : "border border-border bg-card text-neutral-900"
-      )}
-    >
+  const body = (
+    <>
       <div className="flex items-center justify-between gap-3">
         <span
           className={cn(
@@ -88,7 +85,31 @@ export function StatCard({
           </span>
         )}
       </div>
-    </div>
+    </>
+  )
+
+  const shell = cn(
+    "relative flex flex-col overflow-hidden rounded-card",
+    compact ? "gap-1 px-4 py-3" : "gap-1.5 px-5 py-3.5",
+    hero
+      ? "surface-dark border border-transparent text-on-fill"
+      : "border border-border bg-card text-neutral-900"
+  )
+
+  if (!to) return <div className={shell}>{body}</div>
+
+  return (
+    <Link
+      to={to}
+      title={linkTitle}
+      className={cn(
+        shell,
+        "transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/40",
+        hero ? "hover:brightness-110" : "hover:bg-accent/40"
+      )}
+    >
+      {body}
+    </Link>
   )
 }
 
