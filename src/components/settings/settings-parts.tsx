@@ -1,5 +1,5 @@
 import type { ReactNode } from "react"
-import { ComputerIcon, Loading03Icon, Moon02Icon, SmartPhone01Icon, Sun03Icon, Tick02Icon } from "@hugeicons/core-free-icons"
+import { ComputerIcon, Loading03Icon, Moon02Icon, SmartPhone01Icon, Sun03Icon } from "@hugeicons/core-free-icons"
 import { Icon } from "@/components/ui/icon"
 import { toast } from "sonner"
 import { LocaleFlag } from "@/components/shared/locale-flag"
@@ -74,52 +74,57 @@ export function Toggle({
   return <Switch checked={checked} onCheckedChange={onChange} aria-label={label} />
 }
 
-function PickIndicator({ on }: { on: boolean }) {
-  return (
-    <span
-      aria-hidden
-      className={cn(
-        "flex size-4 shrink-0 items-center justify-center rounded-full border",
-        on ? "border-primary bg-primary text-primary-foreground" : "border-border",
-      )}
-    >
-      {on && <Icon icon={Tick02Icon} className="size-2.5" strokeWidth={3} />}
-    </span>
-  )
-}
+const THEMES: Array<{ value: ThemePref; labelKey: "auto" | "light" | "dark"; icon: typeof Sun03Icon }> = [
+  { value: "auto", labelKey: "auto", icon: ComputerIcon },
+  { value: "light", labelKey: "light", icon: Sun03Icon },
+  { value: "dark", labelKey: "dark", icon: Moon02Icon },
+]
 
-function PickCard({
-  on,
+function Segmented<T extends string>({
+  options,
+  value,
+  busy,
   disabled,
-  onClick,
-  children,
+  onSelect,
+  grow = false,
 }: {
-  on: boolean
+  options: ReadonlyArray<{ id: T; label: string; icon?: ReactNode; title?: string }>
+  value: T
+  busy?: T | null
   disabled?: boolean
-  onClick: () => void
-  children: ReactNode
+  onSelect: (id: T) => void
+  grow?: boolean
 }) {
   return (
-    <button
-      type="button"
-      aria-pressed={on}
-      disabled={disabled}
-      onClick={onClick}
-      className={cn(
-        "flex flex-col gap-2 rounded-card border p-2 text-left transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/40 disabled:opacity-60",
-        on ? "border-primary bg-accent/40" : "border-border hover:bg-neutral-50",
-      )}
-    >
-      {children}
-    </button>
+    <div role="group" className={cn("flex gap-1 rounded-full bg-neutral-100 p-1", grow && "w-full")}>
+      {options.map((option) => {
+        const on = value === option.id
+        return (
+          <button
+            key={option.id}
+            type="button"
+            aria-pressed={on}
+            disabled={disabled}
+            title={option.title}
+            onClick={() => onSelect(option.id)}
+            className={cn(
+              "flex items-center justify-center gap-1.5 rounded-full px-3 py-1.5 text-[0.8125rem] font-medium transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/40 disabled:opacity-60",
+              grow && "min-w-0 flex-1",
+              on ? "bg-popover text-neutral-900 shadow-xs" : "text-neutral-500 hover:text-neutral-800",
+            )}
+          >
+            {busy === option.id ? (
+              <Icon icon={Loading03Icon} className="size-4 shrink-0 animate-spin" strokeWidth={2} />
+            ) : (
+              option.icon
+            )}
+            <span className="truncate">{option.label}</span>
+          </button>
+        )
+      })}
+    </div>
   )
 }
-
-const THEMES: Array<{ value: ThemePref; labelKey: "auto" | "light" | "dark" }> = [
-  { value: "auto", labelKey: "auto" },
-  { value: "light", labelKey: "light" },
-  { value: "dark", labelKey: "dark" },
-]
 
 export function TonePicker<T extends ToneId | AlertToneId>({
   tones,
@@ -132,63 +137,18 @@ export function TonePicker<T extends ToneId | AlertToneId>({
 }) {
   const t = useT()
   return (
-    <div className="flex gap-1 rounded-full bg-neutral-100 p-1">
-      {tones.map((tone) => (
-        <button
-          key={tone.id}
-          type="button"
-          aria-pressed={value === tone.id}
-          title={t(tone.hintKey)}
-          onClick={() => {
-            onChange(tone.id)
-            previewTone(tone.id)
-          }}
-          className={cn(
-            "rounded-full px-3 py-1.5 text-[0.8125rem] font-medium transition-colors",
-            value === tone.id
-              ? "bg-white text-neutral-900 shadow-xs"
-              : "text-neutral-500 hover:text-neutral-800",
-          )}
-        >
-          {t(tone.labelKey)}
-        </button>
-      ))}
-    </div>
-  )
-}
-
-const SUN_GOLD = "#f59e0b"
-
-function ThemeTile({ mode }: { mode: ThemePref }) {
-  if (mode === "auto") {
-    return (
-      <span
-        aria-hidden
-        className="flex h-14 w-full overflow-hidden rounded-lg"
-        style={{ border: "1px solid #d6d3d1" }}
-      >
-        <span className="flex flex-1 items-center justify-center" style={{ background: "#ffffff" }}>
-          <Icon icon={Sun03Icon} className="size-6" style={{ color: SUN_GOLD }} strokeWidth={1.75} />
-        </span>
-        <span className="flex flex-1 items-center justify-center" style={{ background: "#0f0e0d" }}>
-          <Icon icon={Moon02Icon} className="size-6" style={{ color: SUN_GOLD }} strokeWidth={1.75} />
-        </span>
-      </span>
-    )
-  }
-  const glyph = mode === "light" ? Sun03Icon : Moon02Icon
-  return (
-    <span
-      aria-hidden
-      className="flex h-14 w-full items-center justify-center rounded-lg"
-      style={
-        mode === "light"
-          ? { background: "#ffffff", border: "1px solid #e7e5e4" }
-          : { background: "#0f0e0d", border: "1px solid #262524" }
-      }
-    >
-      <Icon icon={glyph} className="size-7" style={{ color: SUN_GOLD }} strokeWidth={1.75} />
-    </span>
+    <Segmented
+      options={tones.map((tone) => ({
+        id: tone.id,
+        label: t(tone.labelKey),
+        title: t(tone.hintKey),
+      }))}
+      value={value}
+      onSelect={(id) => {
+        onChange(id)
+        previewTone(id)
+      }}
+    />
   )
 }
 
@@ -197,38 +157,33 @@ export function ThemeSection() {
   const { pref, setPref } = useTheme()
   return (
     <Section title={t("settings.appearance.title")} hint={t("settings.appearance.hint")}>
-      <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-3">
-        {THEMES.map((theme) => {
-          const on = pref === theme.value
-          return (
-            <PickCard key={theme.value} on={on} onClick={() => setPref(theme.value)}>
-              <ThemeTile mode={theme.value} />
-              <span className="flex items-center gap-1.5 px-1 pb-0.5">
-                <PickIndicator on={on} />
-                <span className="truncate text-sm font-medium text-neutral-900">
-                  {t(`settings.appearance.${theme.labelKey}`)}
-                </span>
-              </span>
-            </PickCard>
-          )
-        })}
+      <div className="p-4">
+        <Segmented
+          grow
+          value={pref}
+          onSelect={setPref}
+          options={THEMES.map((theme) => ({
+            id: theme.value,
+            label: t(`settings.appearance.${theme.labelKey}`),
+            icon: <Icon icon={theme.icon} className="size-4 shrink-0" strokeWidth={1.75} />,
+          }))}
+        />
       </div>
     </Section>
   )
 }
 
 /**
- * Panel tili. Ataylab MAVZU BILAN BITTA SHAKLDA: ikkisi ham "shu qurilmada saqlanadigan
- * ko'rinish sozlamasi" va sozlamalar sahifasida yonma-yon turadi — bir xil karta, bir xil
- * tanlov belgisi.
+ * Panel tili — MAVZU BILAN BITTA SHAKLDA: ikkisi ham "shu qurilmada saqlanadigan ko'rinish
+ * sozlamasi" va sozlamalar sahifasida yonma-yon turadi.
  *
- * Mavzuda karta ichida kichik maket bor (tanlov nima qilishini ko'rinish aytadi); tilda esa
- * ko'rsatiladigan "maket" yo'q, shuning uchun o'rnida til KODI katta shriftda turadi va nomi
- * HAR DOIM O'Z TILIDA yoziladi — ruscha bilgan xodim "Ruscha" emas, «Русский» ni izlaydi.
+ * Nom HAR DOIM O'Z TILIDA yoziladi — ruscha bilgan xodim "Ruscha" emas, «Русский» ni izlaydi.
+ * Bayroq segment ichida 16px: u tilni tanishtiradi, lekin yorliqning o'rnini bosmaydi (o'zi
+ * yolg'iz turganda "qaysi bayroq qaysi til" jumbog'iga aylanardi).
  *
- * Tanlash — asinxron: `ru`/`en` lug'ati alohida chunk (`i18n/core.tsx`). Yuklanayotgan kartada
- * spinner turadi va boshqa kartalar shu payt o'chiriladi — ikki tilni ketma-ket bosib qo'yish
- * holatini yaratmaslik uchun.
+ * Tanlash — asinxron: `ru`/`en` lug'ati alohida chunk (`i18n/core.tsx`). Yuklanayotgan segmentda
+ * bayroq o'rnida spinner turadi va butun guruh shu payt o'chiriladi — ikki tilni ketma-ket bosib
+ * qo'yish holatini yaratmaslik uchun.
  */
 export function LanguageSection() {
   const t = useT()
@@ -240,36 +195,21 @@ export function LanguageSection() {
 
   return (
     <Section title={t("settings.language.title")} hint={t("settings.language.hint")}>
-      <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-3">
-        {LOCALES.map((code) => {
-          const on = locale === code
-          const busy = pending === code
-          return (
-            <PickCard key={code} on={on} disabled={pending !== null} onClick={() => pick(code)}>
-              <span
-                aria-hidden
-                className={cn(
-                  "flex h-14 w-full items-center justify-center rounded-lg border",
-                  on ? "border-primary/30 bg-white" : "border-border bg-neutral-50",
-                )}
-              >
-                {busy ? (
-                  <Icon icon={Loading03Icon} className="size-5 animate-spin text-neutral-400" strokeWidth={2} />
-                ) : (
-                  // Bayroq HAR DOIM to'liq rangda: tanlovni ramka + belgi aytadi. Susaytirish
-                  // (opacity) bayroqlarni "o'chgan"dek ko'rsatib yuborar edi.
-                  <LocaleFlag locale={code} className="w-12" />
-                )}
-              </span>
-              <span className="flex items-center gap-1.5 px-1 pb-0.5">
-                <PickIndicator on={on} />
-                <span className="truncate text-sm font-medium text-neutral-900">
-                  {LOCALE_LABEL[code]}
-                </span>
-              </span>
-            </PickCard>
-          )
-        })}
+      <div className="p-4">
+        <Segmented
+          grow
+          value={locale}
+          busy={pending}
+          disabled={pending !== null}
+          onSelect={pick}
+          options={LOCALES.map((code) => ({
+            id: code,
+            label: LOCALE_LABEL[code],
+            // Bayroq HAR DOIM to'liq rangda: tanlovni segmentning yuzasi aytadi. Susaytirish
+            // (opacity) bayroqlarni "o'chgan"dek ko'rsatib yuborar edi.
+            icon: <LocaleFlag locale={code} className="w-4 shrink-0" />,
+          }))}
+        />
       </div>
     </Section>
   )

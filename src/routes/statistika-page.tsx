@@ -139,11 +139,11 @@ export function StatistikaPage() {
       <QueryState
         queries={[rooms, bookings]}
         variant="page"
-        className="flex grow flex-col"
+        className="flex min-h-0 grow flex-col"
         skeleton={
-          <div className="flex grow flex-col gap-4">
+          <div className="flex min-h-0 grow flex-col gap-4">
             <SkeletonStatGrid />
-            <div className="grid grid-cols-1 gap-4 xl:max-h-[30rem] xl:min-h-[21rem] xl:grow xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)] xl:grid-rows-1 xl:[&>*]:min-h-0">
+            <div className="grid min-h-0 grid-cols-1 gap-4 xl:flex-1 xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)] xl:grid-rows-1 xl:[&>*]:min-h-0">
               <Card className="gap-4 p-5">
                 <Skeleton className="h-4 w-36" />
                 <SkeletonChart bars={7} className="h-48" />
@@ -160,7 +160,7 @@ export function StatistikaPage() {
           </div>
         }
       >
-      <div className="flex grow flex-col gap-4">
+      <div className="flex min-h-0 grow flex-col gap-4">
         <StatGrid>
           {snapshot.map((s) => (
             <StatCard
@@ -182,7 +182,7 @@ export function StatistikaPage() {
             ya'ni KONTENTIDAN kichrayolmaydi. Band kunda "Bugungi harakat" ro'yxati uzun bo'lib
             butun qatorni cho'zib yuborardi (yonidagi bandlik grafigi ekran bo'yiga sudralardi),
             ro'yxatning o'z ichki scroll'i esa hech qachon ishga tushmasdi. */}
-        <div className="grid grid-cols-1 gap-4 xl:max-h-[30rem] xl:min-h-[21rem] xl:grow xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)] xl:grid-rows-1 xl:[&>*]:min-h-0">
+        <div className="grid min-h-0 grid-cols-1 gap-4 xl:flex-1 xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)] xl:grid-rows-1 xl:[&>*]:min-h-0">
           <WeeklyOccupancy days={week.days} todayIndex={week.todayIndex} />
 
           <ChatPanel />
