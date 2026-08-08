@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion"
-import { Calendar03Icon, StickyNote02Icon } from "@hugeicons/core-free-icons"
+import { Calendar03Icon, Note01Icon } from "@hugeicons/core-free-icons"
 import { Icon } from "@/components/ui/icon"
 import { cn } from "@/lib/utils"
 import { nightsBetween } from "./geometry"
@@ -174,7 +174,7 @@ export function CalendarBarTooltip({ state, labels, statusConfig }: CalendarBarT
           {b.note && (
             <div className="border-t border-neutral-100 px-3 py-2.5">
               <div className="flex items-start gap-1.5">
-                <Icon icon={StickyNote02Icon} className="mt-px size-3.5 shrink-0 text-neutral-400" />
+                <Icon icon={Note01Icon} className="mt-px size-3.5 shrink-0 text-neutral-400" />
                 <p className="line-clamp-5 min-w-0 text-xs leading-snug break-words whitespace-pre-line text-neutral-600">
                   {b.note}
                 </p>

@@ -1,6 +1,6 @@
-import { memo, useState } from "react"
+import { memo, useState, type ReactNode } from "react"
 import { motion } from "framer-motion"
-import { CleanIcon, StickyNote02Icon } from "@hugeicons/core-free-icons"
+import { CleanIcon, Note01Icon } from "@hugeicons/core-free-icons"
 import { Icon } from "@/components/ui/icon"
 import { cn } from "@/lib/utils"
 import {
@@ -47,12 +47,45 @@ const BAR_ENTER_DURATION = 0.28
 
 const PAYMENT_MIN_PX = 108
 
-const CORNER_BADGE_PX = 17
+const CORNER_BADGE_PX = 16
+const CORNER_BADGE_OUT = BAR_VPAD
+const BADGE_PAIR_MIN_PX = 2 * CORNER_BADGE_PX - 2 * CORNER_BADGE_OUT + 6
 const CLEANING_LOOK = {
   dirty: "bg-warning",
   in_progress: "bg-brand-500",
   clean: "bg-success",
 } as const
+
+function CornerBadge({
+  corner,
+  className,
+  children,
+}: {
+  corner: "tl" | "tr" | "br"
+  className?: string
+  children: ReactNode
+}) {
+  const top = corner !== "br"
+  return (
+    <span
+      aria-hidden
+      className={cn(
+        "pointer-events-none absolute flex items-center justify-center rounded-full ring-[1.5px] ring-card",
+        className,
+      )}
+      style={{
+        minWidth: CORNER_BADGE_PX,
+        height: CORNER_BADGE_PX,
+        top: top ? -CORNER_BADGE_OUT : undefined,
+        bottom: top ? undefined : -CORNER_BADGE_OUT,
+        left: corner === "tl" ? -CORNER_BADGE_OUT : undefined,
+        right: corner === "tl" ? undefined : -CORNER_BADGE_OUT,
+      }}
+    >
+      {children}
+    </span>
+  )
+}
 
 function fmtDay(iso: string, labels: CalendarLabels): string {
   return labels.formatDay(iso)
@@ -290,39 +323,31 @@ function CalendarBarImpl({
           chizilsin). Oynadan kesilgan uchda chizilmaydi (clippedEnd/clippedStart): burchakning
           o'zi diapazon chegarasidan tashqarida — belgi yolg'on joyda suzardi. */}
       {cleaning && !rect.clippedEnd && (
-        <span
-          aria-hidden
-          className={cn(
-            "text-on-fill pointer-events-none absolute flex items-center justify-center rounded-full",
-            CLEANING_LOOK[cleaning],
-          )}
-          style={{ width: CORNER_BADGE_PX, height: CORNER_BADGE_PX, top: -7, right: -5 }}
-        >
+        <CornerBadge corner="tr" className={cn("text-on-fill", CLEANING_LOOK[cleaning])}>
           {/* Ikonka = Hugeicons CleanIcon, sayt standarti stroke 1.5 (founder tanlovi,
               2026-08-01: hugeicons.com'dan ko'rsatib berdi — qo'lda chizilgan supurgilar bekor). */}
-          <Icon icon={CleanIcon} className={cn("size-3 shrink-0", cleaning !== "clean" && "cal-sweep")} />
-        </span>
+          <Icon icon={CleanIcon} className={cn("size-2.5 shrink-0", cleaning !== "clean" && "cal-sweep")} />
+        </CornerBadge>
       )}
-      {showGuestCount && (booking.guestCount ?? 0) > 1 && !rect.clippedStart && (
-        <span
-          aria-hidden
-          className="pointer-events-none absolute flex items-center justify-center rounded-full bg-foreground text-[0.625rem] leading-none font-semibold text-background tabular-nums"
-          style={{ width: CORNER_BADGE_PX, height: CORNER_BADGE_PX, top: -7, left: -5 }}
-        >
-          {booking.guestCount}
-        </span>
-      )}
+      {/* Mehmon soni — ikki xonali bo'lsa doira tabletkaga cho'ziladi (yon padding + minWidth),
+          aks holda "12" doiradan chiqib ketardi. */}
+      {showGuestCount &&
+        (booking.guestCount ?? 0) > 1 &&
+        !rect.clippedStart &&
+        rect.width >= BADGE_PAIR_MIN_PX && (
+          <CornerBadge
+            corner="tl"
+            className="bg-foreground text-background px-1 text-[0.625rem] leading-none font-semibold tabular-nums"
+          >
+            {booking.guestCount}
+          </CornerBadge>
+        )}
       {/* Eslatma belgisi — o'ng-QUYI burchak (yuqori-o'ng tozalashniki, ikkalasi birga
           sig'adi). Kesilgan uchda chizilmaydi — burchakning o'zi oynadan tashqarida. */}
       {!!booking.note && !rect.clippedEnd && (
-        <span
-          aria-hidden
-          data-note-badge
-          className="pointer-events-none absolute flex items-center justify-center rounded-full bg-foreground text-background"
-          style={{ width: CORNER_BADGE_PX, height: CORNER_BADGE_PX, bottom: -7, right: -5 }}
-        >
-          <Icon icon={StickyNote02Icon} className="size-2.5 shrink-0" />
-        </span>
+        <CornerBadge corner="br" className="bg-foreground text-background">
+          <Icon icon={Note01Icon} className="size-3 shrink-0" strokeWidth={2} />
+        </CornerBadge>
       )}
     </motion.button>
   )

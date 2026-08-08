@@ -18,7 +18,7 @@ import {
   PlusSignIcon,
   Scissor01Icon,
   StarIcon,
-  StickyNote02Icon,
+  Note01Icon,
   Tick02Icon,
   User02Icon,
   UserAdd01Icon,
@@ -1028,7 +1028,7 @@ function DetailBody({
             )}
 
             <ThreadSection
-              icon={<Icon icon={StickyNote02Icon} className="size-3.5" />}
+              icon={<Icon icon={Note01Icon} className="size-3.5" />}
               title={labels.note}
               last
             >

@@ -6,7 +6,7 @@ import {
   Cancel01Icon,
   Door01Icon,
   PlusSignIcon,
-  StickyNote02Icon,
+  Note01Icon,
   User02Icon,
   UserMultiple02Icon,
   Wallet02Icon,
@@ -734,7 +734,7 @@ function CreateForm({
             )}
 
             {!isBlock && (
-              <Section icon={<Icon icon={StickyNote02Icon} className="size-3.5" />} title={labels.note}>
+              <Section icon={<Icon icon={Note01Icon} className="size-3.5" />} title={labels.note}>
                 <Textarea
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
