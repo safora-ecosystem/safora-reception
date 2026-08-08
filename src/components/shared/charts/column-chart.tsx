@@ -37,12 +37,17 @@ type ColumnChartProps = {
   labelEvery?: number
   showEmphasisValue?: boolean
   maxValue?: number
+  reference?: { value: number; label: string }
   emptyLabel?: string
   className?: string
   ariaLabel?: string
 }
 
-const MAX_BAR = 36
+function maxBarFor(count: number): number {
+  if (count <= 8) return 56
+  if (count <= 14) return 44
+  return 36
+}
 const MIN_BAR_HEIGHT = 10
 const TICKS = 4
 
@@ -58,6 +63,7 @@ export function ColumnChart({
   labelEvery,
   showEmphasisValue = false,
   maxValue,
+  reference,
   emptyLabel,
   className,
   ariaLabel,
@@ -74,7 +80,7 @@ export function ColumnChart({
     ...data.flatMap((d) => series.map((s) => d.values[s.key] ?? 0)),
     maxValue ?? 0,
   )
-  const { top, ticks } = niceScale(maxValue ?? peak, TICKS)
+  const { top, ticks } = niceScale(maxValue ?? Math.max(peak, reference?.value ?? 0), TICKS)
   const tickLabels = ticks.map(tickFormat)
   const axisWidth = axisWidthFor(tickLabels)
 
@@ -113,6 +119,24 @@ export function ColumnChart({
               style={{ bottom: `${(tick / top) * 100}%`, borderColor: CHART_GRID }}
             />
           ))}
+
+          {reference && reference.value > 0 && (
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-x-0 flex items-center"
+              style={{ bottom: `${(reference.value / top) * 100}%` }}
+            >
+              <div
+                className="h-0 flex-1 border-t border-dashed"
+                style={{ borderColor: "var(--color-neutral-400)" }}
+              />
+              {/* Yorliq chiziqning USTIDA, o'ng chekkada: chiziq ustida yotsa oxirgi ustunlarni
+                  yopardi, ostida yotsa 0 chizig'iga yaqin holatda o'q belgilariga tegardi. */}
+              <span className="ml-2 -translate-y-1/2 rounded bg-card/85 px-1 text-[0.6875rem] whitespace-nowrap text-neutral-500 tabular-nums">
+                {reference.label}
+              </span>
+            </div>
+          )}
 
           <div className="absolute inset-0 flex">
             {data.map((datum, index) => {
@@ -153,7 +177,7 @@ export function ColumnChart({
                             isActive && "brightness-95",
                           )}
                           style={{
-                            maxWidth: MAX_BAR,
+                            maxWidth: maxBarFor(data.length),
                             height: `${value > 0 ? Math.max(pct, 1.5) : 0}%`,
                             // Nolga teng bo'lmagan qiymat KO'RINISHI shart: pill'ning eng kichik
                             // o'qiladigan shakli — doira. Undan pastda ustun chiziqqa aylanib,
