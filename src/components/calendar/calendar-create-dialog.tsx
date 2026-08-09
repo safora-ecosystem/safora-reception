@@ -47,6 +47,7 @@ import type {
   CalendarOrganization,
   CalendarRoom,
 } from "./types"
+import { localIso } from "@/lib/format"
 
 
 interface CalendarCreateDialogProps {
@@ -92,7 +93,6 @@ function saveExtraRate(v: string): void {
 }
 
 const isoToDate = (iso: string) => new Date(`${iso}T00:00:00`)
-const dateToIso = (d: Date) => d.toLocaleDateString("en-CA")
 
 function fmtDay(iso: string, labels: CalendarLabels): string {
   return labels.formatDay(iso)
@@ -853,8 +853,8 @@ const StayBlock = memo(function StayBlock({
   const [open, setOpen] = useState(false)
 
   const pickRange = (from: Date, to?: Date) => {
-    const s = dateToIso(from)
-    const e = to ? dateToIso(to) : ""
+    const s = localIso(from)
+    const e = to ? localIso(to) : ""
     // Bir marta bosilganda (yoki kirish = chiqish) 1 kecha — forma hech qachon 0 kechada turmaydi.
     onChange(s, e && e !== s ? e : addDays(s, 1))
     if (e && e !== s) setOpen(false)

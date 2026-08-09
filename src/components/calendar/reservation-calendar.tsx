@@ -45,6 +45,7 @@ import { useCalendarMove } from "./use-calendar-move"
 import { useCalendarTooltip } from "./use-calendar-tooltip"
 import { useBookingIndex, useLanes } from "./use-lanes"
 import type { CalendarBooking, CalendarDraft, ReservationCalendarProps } from "./types"
+import { localIso } from "@/lib/format"
 
 const PAST_DAYS_IN_VIEW = 4
 
@@ -115,7 +116,7 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
     } = props
 
     const today = useMemo(
-      () => props.today ?? new Date().toLocaleDateString("en-CA"),
+      () => props.today ?? localIso(),
       [props.today],
     )
     const labels = useMemo(() => resolveLabels(props.labels), [props.labels])
@@ -206,7 +207,7 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
         if (hk !== "dirty" && hk !== "in_progress" && hk !== "clean") continue
         const b = latest.get(room.id)
         if (!b?.checkedOutAt) continue
-        if (hk === "clean" && new Date(b.checkedOutAt).toLocaleDateString("en-CA") !== today) continue
+        if (hk === "clean" && localIso(new Date(b.checkedOutAt)) !== today) continue
         map.set(b.id, hk)
       }
       return map

@@ -75,6 +75,7 @@ import type {
   CalendarRoom,
   CalendarStatus,
 } from "./types";
+import { localIso } from "@/lib/format"
 
 
 interface CalendarDetailModalProps {
@@ -137,7 +138,6 @@ const STATUS_CHIP: Record<CalendarStatus, string> = {
 };
 
 const isoToDate = (iso: string) => new Date(`${iso}T00:00:00`);
-const dateToIso = (d: Date) => d.toLocaleDateString("en-CA");
 
 function fmtLongDate(iso: string, labels: CalendarLabels): string {
   const [y, m, d] = iso.slice(0, 10).split("-").map(Number);
@@ -890,11 +890,11 @@ function DetailBody({
                           }}
                           onSelect={(range) => {
                             if (!range?.from) return;
-                            const s = dateToIso(range.from);
-                            const e = range.to ? dateToIso(range.to) : s;
+                            const s = localIso(range.from);
+                            const e = range.to ? localIso(range.to) : s;
                             setStart(s);
                             setEnd(e !== s ? e : addDays(s, 1));
-                            if (range.to && dateToIso(range.to) !== s)
+                            if (range.to && localIso(range.to) !== s)
                               setPickerOpen(false);
                           }}
                         />
@@ -931,7 +931,7 @@ function DetailBody({
                             }}
                             onSelect={(d) => {
                               if (!d) return;
-                              setEnd(dateToIso(d));
+                              setEnd(localIso(d));
                               setPickerOpen(false);
                             }}
                           />

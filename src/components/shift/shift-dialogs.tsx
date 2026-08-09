@@ -24,7 +24,7 @@ import {
   type ShiftSession,
 } from "@/lib/api"
 import { getSession } from "@/lib/auth"
-import { money } from "@/lib/format"
+import { dateTime, money } from "@/lib/format"
 import { useT } from "@/lib/i18n"
 import { usePermissions } from "@/lib/permissions"
 import { quoteOfTheDay } from "@/lib/motivation"
@@ -489,7 +489,7 @@ export function ShiftNoteReminder() {
         <DialogTitle>{t("shiftSession.prevNote")}</DialogTitle>
         <DialogDescription>
           {prev?.user.name ?? "—"}
-          {prev?.closedAt ? ` · ${new Date(prev.closedAt).toLocaleString()}` : ""}
+          {prev?.closedAt ? ` · ${dateTime(prev.closedAt)}` : ""}
         </DialogDescription>
         <p className="rounded-card bg-warning-surface p-4 text-base leading-relaxed text-warning-surface-foreground">
           {note}

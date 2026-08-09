@@ -58,6 +58,7 @@ import {
   type UpdateBookingBody,
 } from "@/lib/api"
 import { getSession } from "@/lib/auth"
+import { localIso } from "@/lib/format"
 
 const BLOCK_PREFIX = "block:"
 export const isBlockId = (id: string) => id.startsWith(BLOCK_PREFIX)
@@ -569,7 +570,7 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
 
   // Bronlar — 90 kunlik bo'laklar (yuqoridagi izohga qara). `range` container'da bir marta
   // memo qilinadi, shuning uchun bo'laklar ro'yxati ham mount davomida barqaror.
-  const chunks = useMemo(() => bookingChunks(range, new Date().toLocaleDateString("en-CA")), [range])
+  const chunks = useMemo(() => bookingChunks(range, localIso()), [range])
   const [openCount, setOpenCount] = useState(1)
   const bookingsQ = useQueries({
     queries: chunks.map((c, i) => ({

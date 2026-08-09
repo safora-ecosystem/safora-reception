@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils"
 import { addDays, epochDay, hasConflict, nightsBetween } from "./geometry"
 import { Field } from "./modal-parts"
 import type { CalendarBooking, CalendarLabels, CalendarRoom, CalendarSplitInput } from "./types"
+import { localIso } from "@/lib/format"
 
 
 export type SplitPreview = {
@@ -39,7 +40,6 @@ interface CalendarSplitDialogProps {
 }
 
 const isoToDate = (iso: string) => new Date(`${iso}T00:00:00`)
-const dateToIso = (d: Date) => d.toLocaleDateString("en-CA")
 const maxIso = (a: string, b: string) => (epochDay(a) >= epochDay(b) ? a : b)
 
 function fmtDay(iso: string, labels: CalendarLabels): string {
@@ -212,7 +212,7 @@ function SplitBody({
                     disabled={{ before: isoToDate(minDate), after: isoToDate(maxDate) }}
                     onSelect={(d) => {
                       if (!d) return
-                      setSplitDate(dateToIso(d))
+                      setSplitDate(localIso(d))
                       setPickerOpen(false)
                     }}
                   />

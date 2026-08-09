@@ -36,6 +36,7 @@ import { useReadOnlyCalendar } from "@/lib/calendar-guard"
 import { useTopbarSearch } from "@/lib/topbar-search"
 import { useT, type TKey } from "@/lib/i18n"
 import { cn } from "@/lib/utils"
+import { localIso } from "@/lib/format"
 
 
 const VIEW_MODES = [
@@ -55,7 +56,7 @@ const MODE_OPTIONS = ["cancelled", "split"] as const
 type StatusFilter = "all" | (typeof STATUS_OPTIONS)[number] | (typeof MODE_OPTIONS)[number]
 
 function todayIso(): string {
-  return new Date().toLocaleDateString("en-CA")
+  return localIso()
 }
 
 function useMockParams(): { mock: boolean; rooms: number } {

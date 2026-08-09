@@ -1,5 +1,6 @@
 import { epochDay, isoFromEpochDay } from "./geometry"
 import type { CalendarBooking, CalendarRoom, CalendarStatus } from "./types"
+import { localIso } from "@/lib/format"
 
 
 function mulberry32(seed: number): () => number {
@@ -49,7 +50,7 @@ export function generateMockData(opts: MockOptions = {}): {
 } {
   const roomCount = opts.rooms ?? 24
   const perFloor = opts.roomsPerFloor ?? 12
-  const today = opts.today ?? new Date().toLocaleDateString("en-CA")
+  const today = opts.today ?? localIso()
   const rnd = mulberry32(opts.seed ?? (0x51af0 ^ roomCount))
   const pick = <T,>(arr: T[]): T => arr[Math.floor(rnd() * arr.length)]
 

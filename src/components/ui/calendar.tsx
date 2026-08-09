@@ -1,3 +1,4 @@
+import { format as formatDate } from "date-fns"
 import * as React from "react"
 import {
   DayPicker,
@@ -36,11 +37,7 @@ function Calendar({
       )}
       captionLayout={captionLayout}
       locale={locale}
-      formatters={{
-        formatMonthDropdown: (date) =>
-          date.toLocaleString(locale?.code, { month: "short" }),
-        ...formatters,
-      }}
+      formatters={formatters}
       classNames={{
         root: cn("w-fit", defaultClassNames.root),
         months: cn(
@@ -197,7 +194,7 @@ function CalendarDayButton({
       ref={ref}
       variant="ghost"
       size="icon"
-      data-day={day.date.toLocaleDateString(locale?.code)}
+      data-day={formatDate(day.date, "yyyy-MM-dd")}
       data-selected-single={
         modifiers.selected &&
         !modifiers.range_start &&

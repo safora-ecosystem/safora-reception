@@ -1,3 +1,4 @@
+import { differenceInCalendarDays, format } from "date-fns"
 import { dateNames, getLocale, numberNames, t } from "./i18n"
 import type { Locale } from "./i18n"
 
@@ -88,11 +89,13 @@ function localDecimal(fixed: string): string {
 
 /** Lokal kalendar kuni "YYYY-MM-DD" (UTC emas — front-desk uchun "bugun" lokal kun).
 
-    `en-CA` — ISO tartibini beradigan lokal va u FOYDALANUVCHI TILIGA BOG'LIQ EMAS: bu qiymat
-    ekranga chiqmaydi, API parametri va React kaliti sifatida ishlatiladi. Til bo'yicha
-    o'zgartirilsa kalendar kalitlari buzilardi. */
+    Bu qiymat ekranga CHIQMAYDI: u API parametri va React kaliti. Ilgari bu yerda
+    `toLocaleDateString("en-CA")` turardi — ISO tartibini beradigan lokal tanlash hiylasi.
+    U ishlaydi, lekin mashina kalitini LOKALGA bog'lab qo'yadi: chiqishi brauzer ICU'siga
+    tayanadi va bir kun boshqacha ajratgich bilan qaytsa kalendar kalitlari jimgina
+    buzilardi. `date-fns` naqshi bunday shubha qoldirmaydi. */
 export function localIso(d: Date = new Date()): string {
-  return d.toLocaleDateString("en-CA")
+  return format(d, "yyyy-MM-dd")
 }
 
 /** ISO (YYYY-MM-DD) → "8-iyul, 2026" / "8 июля 2026" / "8 July 2026". */
@@ -136,13 +139,21 @@ export function clock(iso: string): string {
 
 /** `Date` → "13:41". */
 export function clockOf(d: Date): string {
-  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`
+  return format(d, "HH:mm")
+}
+
+/** ISO → "8 iyul, 13:41". Aniq PAYT kerak bo'lganda (jurnal qatori, smena kartasi):
+    sana va soat ikki joyda qo'lda yopishtirilardi va ular ajralib ketishi mumkin edi. */
+export function dateTime(iso: string): string {
+  return `${shortDate(iso)}, ${clock(iso)}`
 }
 
 export function nightsBetween(startIso: string, endIso: string): number {
-  const from = new Date(`${startIso.slice(0, 10)}T00:00:00Z`).getTime()
-  const to = new Date(`${endIso.slice(0, 10)}T00:00:00Z`).getTime()
-  return Math.max(0, Math.round((to - from) / 86_400_000))
+  // Kalendar KUNI bo'yicha, ms bo'lishdan farqli o'laroq: yozgi vaqt siljishi bo'lgan
+  // o'lkada 24 soatdan qisqa/uzun kun yig'indini bir kechaga adashtirardi.
+  const from = new Date(`${startIso.slice(0, 10)}T00:00:00Z`)
+  const to = new Date(`${endIso.slice(0, 10)}T00:00:00Z`)
+  return Math.max(0, differenceInCalendarDays(to, from))
 }
 
 /** "5 kecha" / "5 ночей" / "5 nights" — ko'plik shakli tildan keladi. */
