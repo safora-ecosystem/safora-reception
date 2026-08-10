@@ -67,6 +67,7 @@ export const ru: Dictionary<"ru"> = {
     chat: "Чат",
     settings: "Настройки",
     help: "Помощь",
+    groupSystem: "Система",
   },
 
   topbar: {
@@ -687,6 +688,7 @@ export const ru: Dictionary<"ru"> = {
     resolvedAs: "Возвращена · {name}",
     resolveFail: "Не удалось отметить — попробуйте ещё раз",
     emptyRange: "За этот период записей уборки нет",
+    emptyRangeHint: "Выберите другой период — записи приходят из приложения уборки.",
     photoAlt: "Фото уборки",
   },
 

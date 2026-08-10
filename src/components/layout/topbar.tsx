@@ -32,7 +32,7 @@ export function Topbar() {
   const t = useT()
   const user = getSession()?.user
 
-  const { actions } = usePageHeader()
+  const { title, actions } = usePageHeader()
 
   const { query, setQuery } = useTopbarSearch()
   const chatBadge = useChatBadge()
@@ -69,7 +69,16 @@ export function Topbar() {
   }, [])
 
   return (
-    <header className="flex h-[4.5rem] shrink-0 items-center gap-3 rounded-panel border border-border bg-white px-4 sm:px-5">
+    <header className="flex h-16 shrink-0 items-center gap-3 rounded-panel border border-border bg-white px-4 sm:px-5">
+      {}
+      {typeof title === "string" && title ? (
+        <>
+          <h1 className="hidden max-w-[11rem] shrink-0 truncate text-[0.9375rem] font-semibold tracking-tight text-neutral-900 md:block">
+            {title}
+          </h1>
+          <span className="mx-0.5 hidden h-6 w-px shrink-0 bg-border md:block" aria-hidden />
+        </>
+      ) : null}
       {}
       {}
       <div className="relative w-full min-w-0 max-w-[21rem]">

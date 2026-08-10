@@ -101,7 +101,6 @@ export function StatistikaPage() {
       value: String(occupiedNow),
       unit: `/ ${totalRooms}`,
       hint: t("stats.occupancyHint", { pct: occupancyPct }),
-      hero: true,
     },
     {
       label: t("stats.arrivalsToday"),
@@ -161,16 +160,12 @@ export function StatistikaPage() {
         }
       >
       <div className="flex grow flex-col gap-4">
+        {/* Bu sahifa MAVZUSI raqam — shuning uchun kartalar qatori qoladi (yo'lakcha emas).
+            `hero` esa YO'Q: resepshnda yon ustundagi smena kartasi HAR sahifada turadi, ya'ni
+            fokal (`.surface-dark`) yuza allaqachon band (design.md §4 — ekranda bitta). */}
         <StatGrid>
           {snapshot.map((s) => (
-            <StatCard
-              key={s.label}
-              label={s.label}
-              value={s.value}
-              unit={s.unit}
-              hint={s.hint}
-              hero={s.hero}
-            />
+            <StatCard key={s.label} label={s.label} value={s.value} unit={s.unit} hint={s.hint} />
           ))}
         </StatGrid>
 

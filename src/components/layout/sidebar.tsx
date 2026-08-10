@@ -23,7 +23,7 @@ function BrandLogo() {
   const longLogo = !failed && data?.longLogoUrl ? data.longLogoUrl : null
 
   return (
-    <div className="flex h-15 items-center justify-center">
+    <div className="flex h-12 items-center justify-center">
       <svg aria-hidden className="absolute size-0">
         <filter id="logo-sharpen" colorInterpolationFilters="sRGB">
           <feConvolveMatrix
@@ -81,7 +81,7 @@ function NavRow({ item, active }: { item: NavItem; active: boolean }) {
     </>
   )
 
-  const base = "flex items-center gap-3 rounded-full px-3 py-3 text-[0.9375rem] transition-colors"
+  const base = "flex items-center gap-2.5 rounded-full px-3 py-2 text-sm transition-colors"
 
   return (
     <Link
@@ -114,7 +114,7 @@ export function Sidebar() {
     <aside className="flex w-60 shrink-0 flex-col overflow-hidden rounded-panel border border-border bg-white">
       {}
       <div className="relative min-h-0 flex-1">
-        <div ref={nav.ref} className="h-full overflow-y-auto px-3 pt-26">
+        <div ref={nav.ref} className="h-full overflow-y-auto px-3 pt-19 pb-2">
           {}
           <nav className="flex flex-col gap-0.5">
             {navItems.filter(visible).map((item) => (
@@ -123,6 +123,9 @@ export function Sidebar() {
           </nav>
 
           <nav className="flex flex-col gap-0.5">
+            <span className="px-3 pt-2.5 pb-0.5 text-[0.6875rem] font-medium tracking-wider text-neutral-400 uppercase">
+              {t("nav.groupSystem")}
+            </span>
             {systemNavItems.filter(visible).map((item) => (
               <NavRow key={item.to} item={item} active={isActive(item.to)} />
             ))}
@@ -130,7 +133,7 @@ export function Sidebar() {
         </div>
 
         {}
-        <div className="logo-veil pointer-events-none absolute inset-x-0 top-0 z-10 px-4 pt-6 pb-5">
+        <div className="logo-veil pointer-events-none absolute inset-x-0 top-0 z-10 px-4 pt-4 pb-3">
           <Link
             to="/"
             aria-label={t("nav.stats")}
@@ -150,7 +153,7 @@ export function Sidebar() {
       </div>
 
       {}
-      <div className="shrink-0 p-3">
+      <div className="shrink-0 px-3 pt-1 pb-3">
         <ShiftCard />
       </div>
     </aside>

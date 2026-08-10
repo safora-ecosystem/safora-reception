@@ -74,26 +74,21 @@ export function HelpPage() {
     <PageLayout title={t("nav.help")}>
       <div className="flex flex-col gap-4">
         {}
-        <Card className="surface-dark border-transparent text-on-fill">
+        <Card>
           <CardContent className="flex flex-wrap items-center justify-between gap-4">
             <div className="min-w-56 max-w-lg">
-              <p className="text-lg font-semibold">{t("panel.guideTitle")}</p>
-              <p className="mt-1 text-sm text-on-fill-70">
+              <p className="font-medium text-neutral-900">{t("panel.guideTitle")}</p>
+              <p className="mt-1 text-sm leading-relaxed text-neutral-600">
                 {hotel.data?.name ? `${hotel.data.name} — ` : ""}
                 {t("help.heroBody")}
               </p>
             </div>
-            <div className="flex gap-2">
-              <a
-                href={SUPPORT_TELEGRAM}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex h-9 items-center gap-1.5 rounded-full bg-white/16 px-3.5 text-sm font-medium text-on-fill ring-1 ring-white/12 ring-inset transition-colors outline-none hover:bg-white/22 hover:ring-white/18 focus-visible:ring-2 focus-visible:ring-white/40 active:bg-white/26"
-              >
+            <Button variant="outline" asChild>
+              <a href={SUPPORT_TELEGRAM} target="_blank" rel="noreferrer">
                 <Icon icon={TelegramIcon} className="size-4" />
                 Telegram
               </a>
-            </div>
+            </Button>
           </CardContent>
         </Card>
 

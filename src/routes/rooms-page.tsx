@@ -7,9 +7,9 @@ import { PageLayout } from "@/components/layout/page-layout"
 import { RangeToggle } from "@/components/shared/charts"
 import { EmptyState } from "@/components/shared/empty-state"
 import { QueryState } from "@/components/shared/query-state"
-import { SkeletonStatGrid } from "@/components/shared/skeletons"
+import { SkeletonStatBar } from "@/components/shared/skeletons"
 import { Skeleton } from "@/components/ui/skeleton"
-import { StatCard, StatGrid } from "@/components/shared/stat-card"
+import { StatBar, StatBarItem } from "@/components/shared/stat-card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -143,7 +143,7 @@ export function RoomsPage() {
         variant="page"
         skeleton={
           <div className="flex flex-col gap-4">
-            <SkeletonStatGrid />
+            <SkeletonStatBar />
             <Card className="gap-0 p-0">
               <div className="flex flex-wrap items-center justify-between gap-3 p-4">
                 <Skeleton className="h-9 w-64 rounded-control" />
@@ -159,32 +159,36 @@ export function RoomsPage() {
         }
       >
       <div className="flex flex-col gap-4">
-        <StatGrid>
-          <StatCard
-            label={t("stats.occupiedRooms")}
-            value={String(occupied)}
-            unit={`/ ${total}`}
-            hint={t("stats.occupancyHint", {
-              pct: total > 0 ? Math.round((occupied / total) * 100) : 0,
-            })}
-            hero
-          />
-          <StatCard
-            label={t("stats.freeRooms")}
-            value={String(free)}
-            hint={t("rooms.freeHint")}
-          />
-          <StatCard
-            label={t("rooms.freeingToday")}
-            value={String(departing)}
-            hint={t("rooms.freeingHint")}
-          />
-          <StatCard
-            label={t("roomStatus.cleaningWaiting")}
-            value={String(dirty)}
-            hint={cleaning > 0 ? t("rooms.cleaningCount", { count: cleaning }) : t("rooms.allClean")}
-          />
-        </StatGrid>
+        {}
+        {total > 0 && (
+          <StatBar>
+            <StatBarItem
+              label={t("stats.occupiedRooms")}
+              value={String(occupied)}
+              unit={`/ ${total}`}
+              hint={t("stats.occupancyHint", {
+                pct: Math.round((occupied / total) * 100),
+              })}
+            />
+            <StatBarItem
+              label={t("stats.freeRooms")}
+              value={String(free)}
+              hint={t("rooms.freeHint")}
+            />
+            <StatBarItem
+              label={t("rooms.freeingToday")}
+              value={String(departing)}
+              hint={t("rooms.freeingHint")}
+            />
+            <StatBarItem
+              label={t("roomStatus.cleaningWaiting")}
+              value={String(dirty)}
+              hint={
+                cleaning > 0 ? t("rooms.cleaningCount", { count: cleaning }) : t("rooms.allClean")
+              }
+            />
+          </StatBar>
+        )}
 
         <Card className="gap-0 p-0">
           <div className="flex flex-wrap items-center justify-between gap-3 p-4">
@@ -212,6 +216,7 @@ export function RoomsPage() {
                 icon={Door01Icon}
                 title={total === 0 ? t("rooms.emptyNone") : t("rooms.emptyFiltered")}
                 hint={total === 0 ? t("rooms.emptyNoneHint") : t("rooms.emptyFilteredHint")}
+                className="min-h-64"
               />
             ) : (
               <div className="grid grid-cols-[repeat(auto-fill,minmax(6.5rem,1fr))] gap-2 px-4 pb-4">

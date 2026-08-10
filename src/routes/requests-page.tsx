@@ -6,7 +6,8 @@ import { REQUESTS_KEY, STATS_KEY } from "@/components/services/service-meta"
 import { CreateRequestDialog } from "@/components/services/service-dialogs"
 import { CtaButton } from "@/components/shared/cta-button"
 import { QueryState } from "@/components/shared/query-state"
-import { StatCard, StatGrid } from "@/components/shared/stat-card"
+import { SkeletonStatBar } from "@/components/shared/skeletons"
+import { StatBar, StatBarItem } from "@/components/shared/stat-card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { getServiceRequestStats, listServiceRequests } from "@/lib/api"
 import { currencyUnit, money } from "@/lib/format"
@@ -55,11 +56,7 @@ export function RequestsPage() {
         className="flex grow flex-col"
         skeleton={
           <div className="flex grow flex-col gap-4">
-            <StatGrid animate={false}>
-              {[0, 1, 2, 3].map((i) => (
-                <Skeleton key={i} className="h-[6.5rem] rounded-card" />
-              ))}
-            </StatGrid>
+            <SkeletonStatBar />
             <div className="grid grid-cols-1 gap-4 lg:min-h-0 lg:flex-1 lg:grid-cols-3">
               {[0, 1, 2].map((i) => (
                 <Skeleton key={i} className="min-h-64 rounded-panel" />
@@ -69,30 +66,32 @@ export function RequestsPage() {
         }
       >
         <div className="flex grow flex-col gap-4">
-          <StatGrid>
-            <StatCard
-              label={t("services.newService")}
-              value={String(stats?.counts.new ?? 0)}
-              hint={t("services.newHint")}
-              hero
-            />
-            <StatCard
-              label={t("services.status.inProgress")}
-              value={String(stats?.counts.in_progress ?? 0)}
-              hint={t("services.inProgressHint")}
-            />
-            <StatCard
-              label={t("services.status.done")}
-              value={String(stats?.counts.done ?? 0)}
-              hint={t("services.doneHint")}
-            />
-            <StatCard
-              label={t("services.revenue")}
-              value={money(stats?.revenue ?? 0, { unit: false })}
-              unit={currencyUnit()}
-              hint={t("services.revenueHint")}
-            />
-          </StatGrid>
+          {}
+          {all.length > 0 && (
+            <StatBar>
+              <StatBarItem
+                label={t("services.newService")}
+                value={String(stats?.counts.new ?? 0)}
+                hint={t("services.newHint")}
+              />
+              <StatBarItem
+                label={t("services.status.inProgress")}
+                value={String(stats?.counts.in_progress ?? 0)}
+                hint={t("services.inProgressHint")}
+              />
+              <StatBarItem
+                label={t("services.status.done")}
+                value={String(stats?.counts.done ?? 0)}
+                hint={t("services.doneHint")}
+              />
+              <StatBarItem
+                label={t("services.revenue")}
+                value={money(stats?.revenue ?? 0, { unit: false })}
+                unit={currencyUnit()}
+                hint={t("services.revenueHint")}
+              />
+            </StatBar>
+          )}
 
           <ServiceBoard requests={all} />
         </div>

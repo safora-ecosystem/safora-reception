@@ -8,9 +8,9 @@ import { RangeToggle } from "@/components/shared/charts"
 import { EmptyState } from "@/components/shared/empty-state"
 import { GuestDialog, GuestTable } from "@/components/shared/guest-table"
 import { QueryState } from "@/components/shared/query-state"
-import { SkeletonStatGrid, SkeletonTable } from "@/components/shared/skeletons"
+import { SkeletonStatBar, SkeletonTable } from "@/components/shared/skeletons"
 import { Skeleton } from "@/components/ui/skeleton"
-import { StatCard, StatGrid } from "@/components/shared/stat-card"
+import { StatBar, StatBarItem } from "@/components/shared/stat-card"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -76,7 +76,7 @@ export function GuestsPage() {
         variant="page"
         skeleton={
           <div className="flex flex-col gap-4">
-            <SkeletonStatGrid />
+            <SkeletonStatBar />
             <Card className="gap-0 p-0">
               <div className="flex flex-wrap items-center justify-between gap-3 p-4">
                 <Skeleton className="h-9 w-64 rounded-control" />
@@ -88,29 +88,31 @@ export function GuestsPage() {
         }
       >
       <div className="flex flex-col gap-4">
-        <StatGrid>
-          <StatCard
-            label={t("guests.inHouseNow")}
-            value={String(counts.inHouse)}
-            hint={t("guests.inHouseHint")}
-            hero
-          />
-          <StatCard
-            label={t("guestStatus.waiting")}
-            value={String(counts.arriving)}
-            hint={t("guests.arrivingHint")}
-          />
-          <StatCard
-            label={t("guests.leavingToday")}
-            value={String(counts.leavingToday)}
-            hint={t("guests.leavingHint")}
-          />
-          <StatCard
-            label={t("guests.returning")}
-            value={String(counts.returning)}
-            hint={t("guests.returningHint")}
-          />
-        </StatGrid>
+        {}
+        {all.length > 0 && (
+          <StatBar>
+            <StatBarItem
+              label={t("guests.inHouseNow")}
+              value={String(counts.inHouse)}
+              hint={t("guests.inHouseHint")}
+            />
+            <StatBarItem
+              label={t("guestStatus.waiting")}
+              value={String(counts.arriving)}
+              hint={t("guests.arrivingHint")}
+            />
+            <StatBarItem
+              label={t("guests.leavingToday")}
+              value={String(counts.leavingToday)}
+              hint={t("guests.leavingHint")}
+            />
+            <StatBarItem
+              label={t("guests.returning")}
+              value={String(counts.returning)}
+              hint={t("guests.returningHint")}
+            />
+          </StatBar>
+        )}
 
         <Card className="gap-0 p-0">
           <div className="flex flex-wrap items-center justify-between gap-3 p-4">
@@ -141,6 +143,7 @@ export function GuestsPage() {
                 icon={UserCircleIcon}
                 title={all.length === 0 ? t("guests.emptyNone") : t("guests.emptyFiltered")}
                 hint={all.length === 0 ? t("guests.emptyNoneHint") : t("guests.emptyFilteredHint")}
+                className="min-h-64"
               />
             ) : (
               <GuestTable rows={rows} onSelect={setSelected} />

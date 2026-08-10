@@ -2,6 +2,7 @@ import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { PageLayout } from "@/components/layout/page-layout"
 import { Button } from "@/components/ui/button"
+import { Card } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
 import { EmptyState } from "@/components/shared/empty-state"
 import { QueryState } from "@/components/shared/query-state"
@@ -32,7 +33,7 @@ function SessionRow({ s, onOpen }: { s: ShiftSession; onOpen: () => void }) {
       <button
         type="button"
         onClick={onOpen}
-        className="flex w-full items-center gap-3 rounded-control px-3 py-2.5 text-left transition-colors hover:bg-neutral-50"
+        className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-neutral-50"
       >
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium text-neutral-900 tabular-nums">
@@ -166,13 +167,21 @@ export function MyShiftsPage() {
         queries={q}
         skeleton={<SkeletonList rows={6} />}
         isEmpty={q.data?.items.length === 0}
-        empty={<EmptyState title={t("shiftSession.myShiftsEmpty")} />}
+        empty={
+          <Card className="p-0">
+            <EmptyState title={t("shiftSession.myShiftsEmpty")} className="min-h-64" />
+          </Card>
+        }
       >
-        <ol className="divide-hairline flex flex-col rounded-card bg-white ring-1 ring-neutral-200/70">
-          {q.data?.items.map((s) => (
-            <SessionRow key={s.id} s={s} onOpen={() => setSelected(s.id)} />
-          ))}
-        </ol>
+        {/* Ro'yxat KARTA yuzasida turadi (`bg-white` + qo'lda halqa emas): qorong'i mavzuda
+            `--color-white` korpus rangiga ag'darilib, ro'yxat fondan ajralmay qolardi. */}
+        <Card className="gap-0 p-0">
+          <ol className="divide-hairline flex flex-col">
+            {q.data?.items.map((s) => (
+              <SessionRow key={s.id} s={s} onOpen={() => setSelected(s.id)} />
+            ))}
+          </ol>
+        </Card>
       </QueryState>
       {selected && <ReportDialog sessionId={selected} onClose={() => setSelected(null)} />}
     </PageLayout>

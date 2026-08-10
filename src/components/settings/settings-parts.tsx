@@ -249,7 +249,9 @@ export function SessionRow({
           size="sm"
           onClick={onRevoke}
           disabled={revoking}
-          className="shrink-0 text-destructive hover:text-destructive"
+          // Takrorlanadigan destruktiv amal ro'yxatda TINCH turadi: har qatorda qizil
+          // so'z bo'lsa qizil "diqqat" degan ma'nosini yo'qotadi. Rang — hoverda.
+          className="shrink-0 text-neutral-500 hover:text-destructive"
         >
           {t("settings.sessions.revoke")}
         </Button>

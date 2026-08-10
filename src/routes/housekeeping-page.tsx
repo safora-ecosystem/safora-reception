@@ -5,8 +5,8 @@ import { PageLayout } from "@/components/layout/page-layout"
 import { EmptyState } from "@/components/shared/empty-state"
 import { QueryState } from "@/components/shared/query-state"
 import { RangeToggle } from "@/components/shared/charts"
-import { SkeletonList, SkeletonStatGrid } from "@/components/shared/skeletons"
-import { StatCard, StatGrid } from "@/components/shared/stat-card"
+import { SkeletonList, SkeletonStatBar } from "@/components/shared/skeletons"
+import { StatBar, StatBarItem } from "@/components/shared/stat-card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -82,27 +82,35 @@ export function HousekeepingPage() {
         queries={[reportQ]}
         skeleton={
           <div className="flex flex-col gap-4">
-            <SkeletonStatGrid />
+            <SkeletonStatBar />
             <SkeletonList rows={6} />
           </div>
         }
         isEmpty={
           !!report && report.sessions.length === 0 && report.lostItems.length === 0
         }
-        empty={<EmptyState title={t("hk.emptyRange")} />}
+        empty={
+          <Card className="p-0">
+            <EmptyState
+              title={t("hk.emptyRange")}
+              hint={t("hk.emptyRangeHint")}
+              className="min-h-64"
+            />
+          </Card>
+        }
       >
         {report && (
           <div className="flex flex-col gap-4">
-            <StatGrid>
-              <StatCard hero label={t("hk.statDone")} value={String(report.summary.done)} />
-              <StatCard
+            <StatBar>
+              <StatBarItem label={t("hk.statDone")} value={String(report.summary.done)} />
+              <StatBarItem
                 label={t("hk.statAvg")}
                 value={report.summary.avgMinutes != null ? String(report.summary.avgMinutes) : "—"}
                 unit={report.summary.avgMinutes != null ? t("hk.minuteUnit") : undefined}
               />
-              <StatCard label={t("hk.statActive")} value={String(report.summary.activeNow)} />
-              <StatCard label={t("hk.statLost")} value={String(openLost)} />
-            </StatGrid>
+              <StatBarItem label={t("hk.statActive")} value={String(report.summary.activeNow)} />
+              <StatBarItem label={t("hk.statLost")} value={String(openLost)} />
+            </StatBar>
 
             {report.summary.byCleaner.length > 0 && (
               <Card>
@@ -133,13 +141,13 @@ export function HousekeepingPage() {
                     {t("hk.sessionsTitle")}
                   </h2>
                   {report.sessions.map((s) => (
-                    <div key={s.id} className="flex items-center gap-4 py-3">
-                      <span className="w-14 shrink-0 text-lg font-semibold tabular-nums">
+                    <div key={s.id} className="flex items-center gap-3 py-2.5">
+                      <span className="w-12 shrink-0 text-[1.0625rem] leading-none font-semibold tabular-nums">
                         {s.roomNumber}
                       </span>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate font-medium text-neutral-900">{s.cleaner}</p>
-                        <p className="truncate text-sm text-neutral-500 tabular-nums">
+                        <p className="truncate text-sm font-medium text-neutral-900">{s.cleaner}</p>
+                        <p className="truncate text-xs text-neutral-500 tabular-nums">
                           {shortDate(s.startedAt)} · {clock(s.startedAt)}
                           {s.finishedAt && `–${clock(s.finishedAt)}`}
                           {s.minutes != null && ` · ${s.minutes} ${t("hk.minuteUnit")}`}
@@ -158,7 +166,7 @@ export function HousekeepingPage() {
                                 src={hkFileUrl(p)}
                                 alt={t("hk.photoAlt")}
                                 loading="lazy"
-                                className="size-10 rounded-md border border-border object-cover"
+                                className="size-8 rounded-control border border-border object-cover"
                               />
                             </a>
                           ))}
@@ -206,25 +214,28 @@ function LostItemRow({
 }) {
   const t = useT()
   return (
-    <div className="flex items-center gap-4 py-3">
+    <div className="flex items-center gap-3 py-2.5">
       {item.photoUrl ? (
         <a href={hkFileUrl(item.photoUrl)} target="_blank" rel="noreferrer" className="shrink-0">
           <img
             src={hkFileUrl(item.photoUrl)}
             alt={item.itemName}
             loading="lazy"
-            className="size-10 rounded-md border border-border object-cover"
+            className="size-8 rounded-control border border-border object-cover"
           />
         </a>
       ) : (
-        <span className="size-10 shrink-0 rounded-md border border-dashed border-border" aria-hidden />
+        <span
+          className="size-8 shrink-0 rounded-control border border-dashed border-border"
+          aria-hidden
+        />
       )}
       <div className="min-w-0 flex-1">
-        <p className="truncate font-medium text-neutral-900">
+        <p className="truncate text-sm font-medium text-neutral-900">
           {item.itemName}
           <span className="text-neutral-500"> · {item.place}</span>
         </p>
-        <p className="truncate text-sm text-neutral-500">
+        <p className="truncate text-xs text-neutral-500">
           <span className="tabular-nums">{item.roomNumber}</span>
           {" · "}
           {t("hk.foundBy", { name: item.reportedBy })}

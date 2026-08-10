@@ -1,6 +1,6 @@
 import { Card } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
-import { StatGrid } from "@/components/shared/stat-card"
+import { StatBar, StatGrid } from "@/components/shared/stat-card"
 import { cn } from "@/lib/utils"
 
 
@@ -39,6 +39,24 @@ export function SkeletonStatGrid({ count = 4, cols = 4 }: { count?: number; cols
         <SkeletonStatCard key={i} />
       ))}
     </StatGrid>
+  )
+}
+
+export function SkeletonStatBar({ count = 4 }: { count?: number }) {
+  return (
+    <StatBar>
+      {Array.from({ length: count }).map((_, i) => (
+        <div
+          key={i}
+          aria-hidden
+          className="flex min-w-0 flex-1 flex-col justify-center gap-1.5 border-t border-border px-5 py-3 first:border-t-0 sm:border-t-0 sm:border-l sm:first:border-l-0"
+        >
+          <Skeleton className="h-3 w-20" />
+          <Skeleton className="h-6 w-24" />
+          <Skeleton className="h-2.5 w-28" />
+        </div>
+      ))}
+    </StatBar>
   )
 }
 
@@ -192,7 +210,7 @@ export function SkeletonThread({ className }: { className?: string }) {
 export function SkeletonPage() {
   return (
     <div aria-busy="true" className="p-4 sm:p-5">
-      <div className="mx-auto flex w-full max-w-[1760px] flex-col gap-4">
+      <div className="mx-auto flex w-full max-w-[120rem] flex-col gap-4">
         <SkeletonStatGrid />
         <Card className="gap-4 p-5">
           <Skeleton className="h-4 w-40" />

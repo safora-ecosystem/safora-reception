@@ -7,9 +7,9 @@ import { PageLayout } from "@/components/layout/page-layout"
 import { EmptyState } from "@/components/shared/empty-state"
 import { GuestDialog, GuestTable } from "@/components/shared/guest-table"
 import { QueryState } from "@/components/shared/query-state"
-import { SkeletonStatGrid, SkeletonTable } from "@/components/shared/skeletons"
+import { SkeletonStatBar, SkeletonTable } from "@/components/shared/skeletons"
 import { Skeleton } from "@/components/ui/skeleton"
-import { StatCard, StatGrid } from "@/components/shared/stat-card"
+import { StatBar, StatBarItem } from "@/components/shared/stat-card"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -67,7 +67,7 @@ export function GuestsArchivePage() {
         variant="page"
         skeleton={
           <div className="flex flex-col gap-4">
-            <SkeletonStatGrid />
+            <SkeletonStatBar />
             <Card className="gap-0 p-0">
               <div className="flex flex-wrap items-center justify-between gap-3 p-4">
                 <Skeleton className="h-9 w-64 rounded-control" />
@@ -79,30 +79,32 @@ export function GuestsArchivePage() {
         }
       >
       <div className="flex flex-col gap-4">
-        <StatGrid>
-          <StatCard
-            label={t("archive.count")}
-            value={String(rows.length)}
-            hint={search ? t("archive.countHintSearch") : t("archive.countHintDefault")}
-            hero
-          />
-          <StatCard
-            label={t("guests.returning")}
-            value={String(totals.returning)}
-            hint={t("archive.returningHint")}
-          />
-          <StatCard
-            label={t("archive.nightsTotal")}
-            value={nightsLabel(totals.nights)}
-            hint={t("archive.nightsHint")}
-          />
-          <StatCard
-            label={t("guests.totalPaid")}
-            value={moneyShort(totals.paid, { unit: false })}
-            unit={currencyUnit()}
-            hint={t("archive.nightsHint")}
-          />
-        </StatGrid>
+        {}
+        {rows.length > 0 && (
+          <StatBar>
+            <StatBarItem
+              label={t("archive.count")}
+              value={String(rows.length)}
+              hint={search ? t("archive.countHintSearch") : t("archive.countHintDefault")}
+            />
+            <StatBarItem
+              label={t("guests.returning")}
+              value={String(totals.returning)}
+              hint={t("archive.returningHint")}
+            />
+            <StatBarItem
+              label={t("archive.nightsTotal")}
+              value={nightsLabel(totals.nights)}
+              hint={t("archive.nightsHint")}
+            />
+            <StatBarItem
+              label={t("guests.totalPaid")}
+              value={moneyShort(totals.paid, { unit: false })}
+              unit={currencyUnit()}
+              hint={t("archive.nightsHint")}
+            />
+          </StatBar>
+        )}
 
         <Card className="gap-0 p-0">
           <div className="flex flex-wrap items-center justify-between gap-3 p-4">
@@ -135,6 +137,7 @@ export function GuestsArchivePage() {
                 icon={UserCircleIcon}
                 title={search ? t("archive.emptyFiltered") : t("archive.empty")}
                 hint={search ? t("archive.searchHint") : t("archive.emptyHint")}
+                className="min-h-64"
               />
             ) : (
               <GuestTable rows={rows} onSelect={setSelected} archive />

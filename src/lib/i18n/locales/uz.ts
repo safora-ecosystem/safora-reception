@@ -67,6 +67,7 @@ export const uz = {
     chat: "Suhbat",
     settings: "Sozlamalar",
     help: "Yordam",
+    groupSystem: "Tizim",
   },
 
   topbar: {
@@ -634,6 +635,7 @@ export const uz = {
     resolvedAs: "Qaytarildi · {name}",
     resolveFail: "Belgilanmadi — qayta urinib ko'ring",
     emptyRange: "Bu davrda tozalash yozuvlari yo'q",
+    emptyRangeHint: "Boshqa davrni tanlang — yozuvlar tozalash ilovasidan tushadi.",
     photoAlt: "Tozalash rasmi",
   },
 

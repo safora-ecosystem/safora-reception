@@ -67,6 +67,7 @@ export const en: Dictionary<"en"> = {
     chat: "Chat",
     settings: "Settings",
     help: "Help",
+    groupSystem: "System",
   },
 
   topbar: {
@@ -636,6 +637,7 @@ export const en: Dictionary<"en"> = {
     resolvedAs: "Returned · {name}",
     resolveFail: "Could not mark — try again",
     emptyRange: "No cleaning records in this period",
+    emptyRangeHint: "Pick another period — records arrive from the housekeeping app.",
     photoAlt: "Cleaning photo",
   },
 

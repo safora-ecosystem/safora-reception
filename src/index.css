@@ -76,6 +76,23 @@
   --color-neutral-800: #292524;
   --color-neutral-900: #1c1917;
   --color-neutral-950: #0c0a09;
+
+  
+  --breakpoint-3xl: 1920px;
+  --breakpoint-4xl: 2560px;
+}
+
+
+@media (min-width: 2200px) {
+  :root {
+    font-size: 17px;
+  }
+}
+@media (min-width: 2800px) {
+  :root {
+    font-size: 18px;
+  }
+}
 }
 
 
