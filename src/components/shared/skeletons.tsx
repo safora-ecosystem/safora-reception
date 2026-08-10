@@ -42,7 +42,7 @@ export function SkeletonStatGrid({ count = 4, cols = 4 }: { count?: number; cols
   )
 }
 
-export function SkeletonStatBar({ count = 4 }: { count?: number }) {
+export function SkeletonStatBar({ count = 4, hint = true }: { count?: number; hint?: boolean }) {
   return (
     <StatBar>
       {Array.from({ length: count }).map((_, i) => (
@@ -53,7 +53,7 @@ export function SkeletonStatBar({ count = 4 }: { count?: number }) {
         >
           <Skeleton className="h-3 w-20" />
           <Skeleton className="h-6 w-24" />
-          <Skeleton className="h-2.5 w-28" />
+          {hint && <Skeleton className="h-2.5 w-28" />}
         </div>
       ))}
     </StatBar>

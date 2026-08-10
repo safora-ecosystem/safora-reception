@@ -566,6 +566,7 @@ export const uz = {
     newService: "Yangi xizmat",
     newHint: "hali qabul qilinmagan",
     inProgressHint: "ishda",
+    doneLabel30: "Bajarildi · 30 kun",
     doneHint: "oxirgi 30 kun",
     revenue: "Tushum",
     revenueHint: "bajarilgan xizmatlar",

@@ -614,6 +614,7 @@ export const ru: Dictionary<"ru"> = {
     newService: "Новая услуга",
     newHint: "ещё не принято",
     inProgressHint: "в работе",
+    doneLabel30: "Выполнено · 30 дней",
     doneHint: "последние 30 дней",
     revenue: "Выручка",
     revenueHint: "выполненные услуги",

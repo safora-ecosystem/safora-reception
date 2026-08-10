@@ -80,7 +80,7 @@ export function RequestsPage() {
                 hint={t("services.inProgressHint")}
               />
               <StatBarItem
-                label={t("services.status.done")}
+                label={t("services.doneLabel30")}
                 value={String(stats?.counts.done ?? 0)}
                 hint={t("services.doneHint")}
               />

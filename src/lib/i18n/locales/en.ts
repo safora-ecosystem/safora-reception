@@ -568,6 +568,7 @@ export const en: Dictionary<"en"> = {
     newService: "New service",
     newHint: "not accepted yet",
     inProgressHint: "in work",
+    doneLabel30: "Done · 30 days",
     doneHint: "last 30 days",
     revenue: "Revenue",
     revenueHint: "completed services",

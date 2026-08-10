@@ -26,7 +26,7 @@ export function EmptyState({
   const text = hint ?? description
   const Local = typeof icon === "function" ? icon : null
   return (
-    <div className={cn("flex flex-col items-center justify-center gap-2 py-10 text-center", className)}>
+    <div className={cn("flex min-h-64 flex-col items-center justify-center gap-2 py-10 text-center", className)}>
       <span className="flex size-10 items-center justify-center rounded-full bg-neutral-100 text-neutral-400">
         {Local ? (
           <Local className="size-5" strokeWidth={1.75} />

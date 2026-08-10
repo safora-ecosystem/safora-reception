@@ -82,7 +82,7 @@ export function HousekeepingPage() {
         queries={[reportQ]}
         skeleton={
           <div className="flex flex-col gap-4">
-            <SkeletonStatBar />
+            <SkeletonStatBar hint={false} />
             <SkeletonList rows={6} />
           </div>
         }
@@ -166,7 +166,7 @@ export function HousekeepingPage() {
                                 src={hkFileUrl(p)}
                                 alt={t("hk.photoAlt")}
                                 loading="lazy"
-                                className="size-8 rounded-control border border-border object-cover"
+                                className="size-8 rounded-lg border border-border object-cover"
                               />
                             </a>
                           ))}
@@ -221,7 +221,7 @@ function LostItemRow({
             src={hkFileUrl(item.photoUrl)}
             alt={item.itemName}
             loading="lazy"
-            className="size-8 rounded-control border border-border object-cover"
+            className="size-8 rounded-lg border border-border object-cover"
           />
         </a>
       ) : (

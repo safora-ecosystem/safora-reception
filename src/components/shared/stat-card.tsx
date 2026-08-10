@@ -46,16 +46,19 @@ export function StatCard({
           {info && <MetricInfo text={info} hero={hero} compact={compact} />}
           {label}
         </span>
-        <span
-          aria-hidden
-          className={cn(
-            "flex shrink-0 items-center justify-center rounded-full border",
-            compact ? "size-6" : "size-7",
-            hero ? "border-white/25 text-hero-foreground" : "border-border text-neutral-400"
-          )}
-        >
-          <Icon icon={ArrowUpRight01Icon} className={compact ? "size-3" : "size-3.5"} strokeWidth={2} />
-        </span>
+        {}
+        {to && (
+          <span
+            aria-hidden
+            className={cn(
+              "flex shrink-0 items-center justify-center rounded-full border",
+              compact ? "size-6" : "size-7",
+              hero ? "border-white/25 text-hero-foreground" : "border-border text-neutral-400"
+            )}
+          >
+            <Icon icon={ArrowUpRight01Icon} className={compact ? "size-3" : "size-3.5"} strokeWidth={2} />
+          </span>
+        )}
       </div>
 
       <div className="flex flex-col gap-0.5">

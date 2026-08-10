@@ -68,10 +68,10 @@ export function GuestTable({
               onKeyDown={(e) => e.key === "Enter" && onSelect(guest)}
               className="cursor-pointer transition-colors hover:bg-neutral-50 focus-visible:bg-neutral-50 focus-visible:outline-none"
             >
-              <td className="px-4 py-3">
+              <td className="px-4 py-2.5">
                 <div className="flex items-center gap-3">
                   <PersonAvatar
-                    className="size-9 shrink-0"
+                    className="size-8 shrink-0"
                     id={guest.key}
                     name={guest.fullName}
                   />
@@ -84,30 +84,30 @@ export function GuestTable({
                 </div>
               </td>
               {showState && (
-                <td className="px-3 py-3">
+                <td className="px-3 py-2.5">
                   <Badge variant={STATE_VARIANT[guest.state]}>
                     {t(STATE_KEY[guest.state])}
                   </Badge>
                 </td>
               )}
               {showState && (
-                <td className="px-3 py-3 whitespace-nowrap text-neutral-700 tabular-nums">
+                <td className="px-3 py-2.5 whitespace-nowrap text-neutral-700 tabular-nums">
                   {guest.currentRoom ?? "—"}
                 </td>
               )}
               <td
                 className={cn(
-                  "px-3 py-3 text-right tabular-nums",
+                  "px-3 py-2.5 text-right tabular-nums",
                   guest.stays > 1 ? "font-semibold text-neutral-900" : "text-neutral-600",
                 )}
               >
                 {guest.stays}
               </td>
-              <td className="px-3 py-3 text-right text-neutral-600 tabular-nums">{guest.nights}</td>
-              <td className="px-3 py-3 whitespace-nowrap text-neutral-500">
+              <td className="px-3 py-2.5 text-right text-neutral-600 tabular-nums">{guest.nights}</td>
+              <td className="px-3 py-2.5 whitespace-nowrap text-neutral-500">
                 {shortDate(guest.lastStay)}
               </td>
-              <td className="px-4 py-3 text-right whitespace-nowrap text-neutral-900 tabular-nums">
+              <td className="px-4 py-2.5 text-right whitespace-nowrap text-neutral-900 tabular-nums">
                 {money(guest.totalPaid, { unit: false })}
               </td>
             </tr>
@@ -128,7 +128,7 @@ export function GuestDialog({
   const t = useT()
   return (
     <Dialog open={guest !== null} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-2xl">
         {guest && (
           <>
             <DialogHeader>
