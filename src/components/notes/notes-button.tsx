@@ -33,7 +33,7 @@ export function NotesButton() {
         aria-label={t("notes.title")}
       >
         <Icon icon={StickyNote01Icon} />
-        <span className="hidden lg:inline">{t("notes.title")}</span>
+        <span className="hidden @5xl:inline">{t("notes.title")}</span>
         {}
         {overdue > 0 ? (
           <span className="absolute -top-1 -right-1 flex h-[1.125rem] min-w-[1.125rem] items-center justify-center rounded-full bg-warning px-1 text-[0.625rem] font-semibold text-on-fill ring-2 ring-white tabular-nums">

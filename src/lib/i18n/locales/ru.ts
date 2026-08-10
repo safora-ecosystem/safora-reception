@@ -138,6 +138,7 @@ export const ru: Dictionary<"ru"> = {
     ownedByMe: "Текущая смена",
     ownedBy: "Смена: {name}",
     finish: "Завершить смену",
+    railAnchor: "Управление сменой",
     lastClosed: "Последняя: {name}",
     openTitle: "Начать смену",
     openSubtitle: "Примите кассу — ответственность переходит к вам.",
@@ -352,6 +353,11 @@ export const ru: Dictionary<"ru"> = {
     peak: "Самый занятый — {day} ({pct}%)",
   },
 
+  ui: {
+    expandNav: "Развернуть боковое меню",
+    toggleNav: "Свернуть боковое меню",
+  },
+
   settings: {
     title: "Настройки",
     profile: {
@@ -381,6 +387,20 @@ export const ru: Dictionary<"ru"> = {
       auto: "Авто",
       light: "Светлая",
       dark: "Тёмная",
+    },
+    layout: {
+      title: "Макет",
+      hint: "Ширина бокового меню и плотность интерфейса — сохраняются на этом устройстве.",
+      nav: "Боковое меню",
+      navRail: "Свёрнуто",
+      navCozy: "Стандарт",
+      navWide: "Широко",
+      navHint: "В свёрнутом виде остаются только значки, название появляется при наведении.",
+      density: "Плотность",
+      densityCompact: "Плотно",
+      densityCozy: "Стандарт",
+      densityRoomy: "Просторно",
+      densityHint: "Внутренние отступы всего интерфейса — больше строк за раз или больше воздуха.",
     },
     language: {
       title: "Язык",

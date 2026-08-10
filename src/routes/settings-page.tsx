@@ -10,6 +10,7 @@ import { ErrorState } from "@/components/shared/error-state"
 import { SkeletonList } from "@/components/shared/skeletons"
 import {
   LanguageSection,
+  LayoutSection,
   Row,
   Section,
   SessionRow,
@@ -158,6 +159,7 @@ export function SettingsPage() {
 
         <div className="flex flex-col gap-4">
           <ThemeSection />
+          <LayoutSection />
           <LanguageSection />
 
           <Section

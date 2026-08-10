@@ -138,6 +138,7 @@ export const uz = {
     ownedByMe: "Joriy smena",
     ownedBy: "{name} smenasi",
     finish: "Smenani yakunlash",
+    railAnchor: "Smenani boshqarish",
     lastClosed: "Oxirgi: {name}",
     openTitle: "Smenani boshlash",
     openSubtitle: "Kassani qabul qilib oling — javobgarlik sizga o'tadi.",
@@ -349,6 +350,11 @@ export const uz = {
     peak: "Eng gavjum — {day} ({pct}%)",
   },
 
+  ui: {
+    expandNav: "Yon menyuni ochish",
+    toggleNav: "Yon menyuni yig'ish",
+  },
+
   settings: {
     title: "Sozlamalar",
     profile: {
@@ -378,6 +384,20 @@ export const uz = {
       auto: "Avto",
       light: "Yorug'",
       dark: "Qorong'i",
+    },
+    layout: {
+      title: "Maket",
+      hint: "Yon menyu kengligi va interfeys zichligi — shu qurilmada saqlanadi.",
+      nav: "Yon menyu",
+      navRail: "Yig'ilgan",
+      navCozy: "Standart",
+      navWide: "Keng",
+      navHint: "Yig'ilganda faqat ikonkalar qoladi, nom sichqoncha ostida chiqadi.",
+      density: "Zichlik",
+      densityCompact: "Zich",
+      densityCozy: "Standart",
+      densityRoomy: "Keng",
+      densityHint: "Butun interfeysning ichki bo'shliqlari — bir qarashda ko'proq qator yoki ko'proq havo.",
     },
     language: {
       title: "Til",

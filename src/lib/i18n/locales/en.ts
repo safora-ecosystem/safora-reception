@@ -138,6 +138,7 @@ export const en: Dictionary<"en"> = {
     ownedByMe: "Current shift",
     ownedBy: "{name}'s shift",
     finish: "End shift",
+    railAnchor: "Manage shift",
     lastClosed: "Last: {name}",
     openTitle: "Start shift",
     openSubtitle: "Take over the drawer — responsibility passes to you.",
@@ -348,6 +349,11 @@ export const en: Dictionary<"en"> = {
     peak: "Busiest — {day} ({pct}%)",
   },
 
+  ui: {
+    expandNav: "Expand sidebar",
+    toggleNav: "Collapse sidebar",
+  },
+
   settings: {
     title: "Settings",
     profile: {
@@ -377,6 +383,20 @@ export const en: Dictionary<"en"> = {
       auto: "Auto",
       light: "Light",
       dark: "Dark",
+    },
+    layout: {
+      title: "Layout",
+      hint: "Sidebar width and interface density — saved on this device.",
+      nav: "Sidebar",
+      navRail: "Collapsed",
+      navCozy: "Standard",
+      navWide: "Wide",
+      navHint: "Collapsed leaves icons only; the name appears on hover.",
+      density: "Density",
+      densityCompact: "Compact",
+      densityCozy: "Standard",
+      densityRoomy: "Roomy",
+      densityHint: "Inner spacing across the whole interface — more rows at a glance, or more air.",
     },
     language: {
       title: "Language",

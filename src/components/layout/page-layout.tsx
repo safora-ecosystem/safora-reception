@@ -18,7 +18,8 @@ export function PageLayout({ title, actions, fill = false, children }: PageLayou
         fill ? "flex grow flex-col p-4" : "p-4 sm:p-5",
       )}
     >
-      <div className={cn("mx-auto w-full max-w-[120rem]", fill && "flex grow flex-col")}>
+      {}
+      <div className={cn("@container mx-auto w-full max-w-[120rem]", fill && "flex grow flex-col")}>
         {children}
       </div>
     </div>

@@ -8,12 +8,14 @@ import { ChatRealtimeProvider } from "@/lib/chat-realtime"
 import { LocaleBoundary } from "@/lib/i18n"
 import { PageHeaderProvider } from "@/lib/page-header"
 import { TopbarSearchProvider } from "@/lib/topbar-search"
+import { UiPrefsProvider } from "@/lib/ui-prefs"
 import { cn } from "@/lib/utils"
 
 export function RootLayout() {
   const barePanel = useLocation({ select: (l) => l.pathname }) === "/chat"
 
   return (
+    <UiPrefsProvider>
     <PageHeaderProvider>
       <ChatRealtimeProvider>
       <TopbarSearchProvider>
@@ -47,5 +49,6 @@ export function RootLayout() {
       </TopbarSearchProvider>
       </ChatRealtimeProvider>
     </PageHeaderProvider>
+    </UiPrefsProvider>
   )
 }

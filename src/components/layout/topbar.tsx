@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react"
-import { BellIcon, BellOffIcon, BubbleChatIcon, Search01Icon } from "@hugeicons/core-free-icons"
+import { BellIcon, BellOffIcon, BubbleChatIcon, LayoutLeftIcon, Search01Icon } from "@hugeicons/core-free-icons"
 import { Button } from "@/components/ui/button"
 import { Icon } from "@/components/ui/icon"
 import { Input } from "@/components/ui/input"
@@ -27,6 +27,7 @@ import { useT } from "@/lib/i18n"
 import { useNotices } from "@/lib/notices"
 import { usePageHeader } from "@/lib/page-header"
 import { useTopbarSearch } from "@/lib/topbar-search"
+import { useUiPrefs } from "@/lib/ui-prefs"
 
 export function Topbar() {
   const t = useT()
@@ -39,6 +40,7 @@ export function Topbar() {
   const notices = useNotices()
   const inputRef = useRef<HTMLInputElement>(null)
   const navigate = useNavigate()
+  const { nav, toggleNav } = useUiPrefs()
 
   const shiftQ = useQuery({
     queryKey: shiftKeys.current,
@@ -69,19 +71,31 @@ export function Topbar() {
   }, [])
 
   return (
-    <header className="flex h-16 shrink-0 items-center gap-3 rounded-panel border border-border bg-white px-4 sm:px-5">
+    <header className="@container flex h-16 shrink-0 items-center gap-3 rounded-panel border border-border bg-white px-4 sm:px-5">
       {}
+      {}
+      <button
+        type="button"
+        onClick={toggleNav}
+        aria-label={nav === "rail" ? t("ui.expandNav") : t("ui.toggleNav")}
+        title={nav === "rail" ? t("ui.expandNav") : t("ui.toggleNav")}
+        className="grid size-9 shrink-0 place-items-center rounded-control text-neutral-500 transition-colors outline-none hover:bg-neutral-100 hover:text-neutral-900 focus-visible:ring-3 focus-visible:ring-ring/40"
+      >
+        <Icon icon={LayoutLeftIcon} className="size-[1.125rem]" strokeWidth={1.75} />
+      </button>
+
       {typeof title === "string" && title ? (
         <>
-          <h1 className="hidden max-w-[11rem] shrink-0 truncate text-[0.9375rem] font-semibold tracking-tight text-neutral-900 md:block">
+          <h1 className="hidden max-w-[13rem] shrink-0 truncate text-[0.9375rem] font-semibold tracking-tight text-neutral-900 @4xl:block">
             {title}
           </h1>
-          <span className="mx-0.5 hidden h-6 w-px shrink-0 bg-border md:block" aria-hidden />
+          <span className="mx-0.5 hidden h-6 w-px shrink-0 bg-border @4xl:block" aria-hidden />
         </>
       ) : null}
       {}
       {}
-      <div className="relative w-full min-w-0 max-w-[21rem]">
+      {}
+      <div className="relative hidden w-full min-w-[8.5rem] max-w-[21rem] shrink @4xl:block">
         <Icon
           icon={Search01Icon}
           className="pointer-events-none absolute top-1/2 left-4 size-[1.125rem] -translate-y-1/2 text-neutral-400"
@@ -92,10 +106,10 @@ export function Topbar() {
           onChange={(e) => setQuery(e.target.value)}
           placeholder={t("topbar.searchPlaceholder")}
           aria-label={t("topbar.search")}
-          className="h-11 rounded-panel border border-border bg-card pr-16 pl-11 text-[0.9375rem]"
+          className="h-11 rounded-panel border border-border bg-card pr-3 pl-11 text-[0.9375rem] xl:pr-16"
         />
         {}
-        <kbd className="pointer-events-none absolute top-1/2 right-2.5 hidden h-7 -translate-y-1/2 items-center gap-1 rounded-full border border-border bg-white px-2 font-medium text-neutral-500 shadow-xs sm:flex">
+        <kbd className="pointer-events-none absolute top-1/2 right-2.5 hidden h-7 -translate-y-1/2 items-center gap-1 rounded-full border border-border bg-white px-2 font-medium text-neutral-500 shadow-xs xl:flex">
           <span className="text-[0.9375rem] leading-none">⌘</span>
           <span className="text-xs leading-none">K</span>
         </kbd>
@@ -210,11 +224,11 @@ export function Topbar() {
               name={user?.name ?? t("topbar.staff")}
               avatarUrl={user?.avatarUrl}
             />
-            <div className="hidden leading-tight text-left lg:block">
+            <div className="hidden leading-tight text-left @4xl:block">
               <p className="text-[0.9375rem] font-medium text-neutral-900">{user?.name ?? t("topbar.staff")}</p>
               <p className="text-sm text-neutral-500">{user ? t(ROLE_KEY[user.role]) : ""}</p>
             </div>
-            <Icon icon={ArrowDown01Icon} className="hidden size-4 shrink-0 text-neutral-400 lg:block" strokeWidth={2} />
+            <Icon icon={ArrowDown01Icon} className="hidden size-4 shrink-0 text-neutral-400 @4xl:block" strokeWidth={2} />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuLabel className="flex flex-col gap-0.5">

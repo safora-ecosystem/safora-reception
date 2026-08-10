@@ -9,9 +9,11 @@ import { initI18n } from "./lib/i18n"
 import { queryClient } from "./lib/query-client"
 import { initScrollbarAutohide } from "./lib/scrollbar"
 import { initTheme } from "./lib/theme"
+import { initUiPrefs } from "./lib/ui-prefs"
 
 initScrollbarAutohide()
 initTheme()
+initUiPrefs()
 
 void initI18n().then(() => {
   createRoot(document.getElementById("root")!).render(

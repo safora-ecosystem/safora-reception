@@ -12,6 +12,7 @@ import { relativeTime } from "@/lib/format"
 import { LOCALES, LOCALE_LABEL, useLocale, useT, type Locale, type TKey } from "@/lib/i18n"
 import { previewTone, type AlertToneId, type ToneId } from "@/lib/notify"
 import { useTheme, type ThemePref } from "@/lib/theme"
+import { useUiPrefs } from "@/lib/ui-prefs"
 import { cn } from "@/lib/utils"
 
 export function Section({
@@ -96,7 +97,10 @@ function Segmented<T extends string>({
   grow?: boolean
 }) {
   return (
-    <div role="group" className={cn("flex gap-1 rounded-full bg-neutral-100 p-1", grow && "w-full")}>
+    <div
+      role="group"
+      className={cn("flex gap-1 rounded-full bg-neutral-100 p-1", grow && "w-full max-w-xl")}
+    >
       {options.map((option) => {
         const on = value === option.id
         return (
@@ -168,6 +172,52 @@ export function ThemeSection() {
             icon: <Icon icon={theme.icon} className="size-4 shrink-0" strokeWidth={1.75} />,
           }))}
         />
+      </div>
+    </Section>
+  )
+}
+
+/**
+ * MAKET — yon menyu kengligi va interfeys zichligi. Mavzu/til bilan bir oilada: qurilmada
+ * saqlanadi, serverga bormaydi (bir xodim ish stolida keng, noutbukda zich ishlashi mumkin).
+ *
+ * Ikkalasi ham `Segmented` — sozlamalar sahifasidagi mavzu va til tanlagichi bilan AYNAN
+ * bir shakl. Yangi boshqaruv o'ylab topilmadi: bu sahifada segment allaqachon "shu
+ * qurilmadagi ko'rinish sozlamasi" degan ma'noni tashiydi.
+ */
+export function LayoutSection() {
+  const t = useT()
+  const { nav, density, setNav, setDensity } = useUiPrefs()
+  return (
+    <Section title={t("settings.layout.title")} hint={t("settings.layout.hint")}>
+      <div className="flex flex-col gap-1.5 p-4">
+        <p className="text-sm font-medium text-neutral-800">{t("settings.layout.nav")}</p>
+        <Segmented
+          grow
+          value={nav}
+          onSelect={setNav}
+          options={[
+            { id: "rail" as const, label: t("settings.layout.navRail") },
+            { id: "cozy" as const, label: t("settings.layout.navCozy") },
+            { id: "wide" as const, label: t("settings.layout.navWide") },
+          ]}
+        />
+        <p className="text-xs text-neutral-500">{t("settings.layout.navHint")}</p>
+      </div>
+
+      <div className="hairline-t flex flex-col gap-1.5 p-4">
+        <p className="text-sm font-medium text-neutral-800">{t("settings.layout.density")}</p>
+        <Segmented
+          grow
+          value={density}
+          onSelect={setDensity}
+          options={[
+            { id: "compact" as const, label: t("settings.layout.densityCompact") },
+            { id: "cozy" as const, label: t("settings.layout.densityCozy") },
+            { id: "roomy" as const, label: t("settings.layout.densityRoomy") },
+          ]}
+        />
+        <p className="text-xs text-neutral-500">{t("settings.layout.densityHint")}</p>
       </div>
     </Section>
   )

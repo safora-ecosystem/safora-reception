@@ -49,7 +49,7 @@ export function SkeletonStatBar({ count = 4, hint = true }: { count?: number; hi
         <div
           key={i}
           aria-hidden
-          className="flex min-w-0 flex-1 flex-col justify-center gap-1.5 border-t border-border px-5 py-3 first:border-t-0 sm:border-t-0 sm:border-l sm:first:border-l-0"
+          className="flex min-w-0 flex-1 flex-col justify-center gap-1.5 border-t border-border px-5 py-3 first:border-t-0 @2xl:border-t-0 @2xl:border-l @2xl:first:border-l-0"
         >
           <Skeleton className="h-3 w-20" />
           <Skeleton className="h-6 w-24" />

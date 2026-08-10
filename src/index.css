@@ -95,6 +95,24 @@
 }
 
 
+:root {
+  --sidebar-w: 15rem;
+}
+:root[data-nav="rail"] {
+  --sidebar-w: 4.5rem;
+}
+:root[data-nav="wide"] {
+  --sidebar-w: 17.5rem;
+}
+
+:root[data-density="compact"] {
+  --spacing: 0.225rem;
+}
+:root[data-density="roomy"] {
+  --spacing: 0.28rem;
+}
+
+
 @theme inline {
   
   --color-sidebar-ring: var(--sidebar-ring);

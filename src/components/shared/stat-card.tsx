@@ -182,8 +182,14 @@ export function StatGrid({
   const span = Math.min(cols, Math.max(items.length, 1))
   const gridClass = cn(
     "grid grid-cols-1 gap-4",
-    items.length > 1 && "sm:grid-cols-2",
-    span >= 5 ? "lg:grid-cols-5" : span === 4 ? "lg:grid-cols-4" : span === 3 ? "lg:grid-cols-3" : ""
+    items.length > 1 && "@2xl:grid-cols-2",
+    span >= 5
+      ? "@6xl:grid-cols-5"
+      : span === 4
+        ? "@5xl:grid-cols-4"
+        : span === 3
+          ? "@4xl:grid-cols-3"
+          : ""
   )
 
   if (!animate || reduceMotion) return <div className={gridClass}>{children}</div>
@@ -201,7 +207,7 @@ export function StatGrid({
 
 export function StatBar({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <Card className={cn("flex-col gap-0 p-0 sm:flex-row sm:items-stretch", className)}>
+    <Card className={cn("flex-col gap-0 p-0 @2xl:flex-row @2xl:items-stretch", className)}>
       {children}
     </Card>
   )
@@ -221,7 +227,7 @@ export function StatBarItem({ label, value, unit, hint, info, to, linkTitle }: S
   const infoId = useId()
   const cell = cn(
     "flex min-w-0 flex-1 flex-col justify-center gap-0.5 px-5 py-3",
-    "border-t border-border first:border-t-0 sm:border-t-0 sm:border-l sm:first:border-l-0"
+    "border-t border-border first:border-t-0 @2xl:border-t-0 @2xl:border-l @2xl:first:border-l-0"
   )
   const body = (
     <>
