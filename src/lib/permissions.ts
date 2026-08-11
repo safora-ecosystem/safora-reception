@@ -16,7 +16,7 @@ export function usePermissions() {
   return {
     loading: !q.isSuccess && !q.isError,
     role: q.data?.role,
-    backdateDays: q.data ? (q.data.backdateDays ?? 0) : 0,
+    backdateDays: q.data?.backdateDays === undefined ? 0 : q.data.backdateDays,
     can: (key: string) => (granted ? granted.includes(key) : true),
   }
 }

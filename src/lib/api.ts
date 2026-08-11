@@ -1005,7 +1005,7 @@ export type PermissionCatalog = {
 }
 
 export const getMyPermissions = () =>
-  api<{ role: string; granted: string[]; backdateDays: number | null }>("/permissions/me")
+  api<{ role: string; granted: string[]; backdateDays?: number | null }>("/permissions/me")
 
 // ── Web push (FCM qurilma tokeni) ────────────────────────────────────────────
 
