@@ -28,7 +28,7 @@ function BrandLogo({ rail }: { rail: boolean }) {
   const src = rail ? markLogo : longLogo
 
   return (
-    <div className="flex h-12 items-center justify-center">
+    <div className={cn("mx-auto flex items-center justify-center", rail ? "size-[2.125rem] overflow-hidden rounded-xl" : "h-12")}>
       <svg aria-hidden className="absolute size-0">
         <filter id="logo-sharpen" colorInterpolationFilters="sRGB">
           <feConvolveMatrix
@@ -83,7 +83,7 @@ function NavRow({ item, active, rail }: { item: NavItem; active: boolean; rail: 
             <span
               aria-hidden
               className={cn(
-                "absolute top-1.5 right-1.5 size-2 rounded-full ring-2",
+                "absolute top-1 right-1 size-2 rounded-full ring-2",
                 active ? "bg-primary ring-neutral-950" : "bg-primary ring-white",
               )}
             />
@@ -105,7 +105,7 @@ function NavRow({ item, active, rail }: { item: NavItem; active: boolean; rail: 
 
   const base = cn(
     "relative flex items-center rounded-full py-2 text-sm transition-colors",
-    rail ? "justify-center px-0" : "gap-2.5 px-3",
+    rail ? "mx-auto w-[2.125rem] justify-center px-0" : "gap-2.5 px-3",
   )
 
   const link = (
@@ -149,14 +149,14 @@ function ShiftRailAnchor() {
 
   const label = t("shiftSession.railAnchor")
   return (
-    <div className="shrink-0 px-2.5 pt-1 pb-3">
+    <div className="shrink-0 px-2 pt-1 pb-3">
       <Tooltip>
         <TooltipTrigger asChild>
           <button
             type="button"
             onClick={() => setNav("cozy")}
             aria-label={label}
-            className="surface-dark grid h-9 w-full place-items-center rounded-control text-on-fill transition-opacity outline-none hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            className="surface-dark mx-auto grid size-[2.125rem] place-items-center rounded-full text-on-fill transition-opacity outline-none hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           >
             <Icon icon={TimeScheduleIcon} className="size-[1.125rem]" />
           </button>
@@ -193,7 +193,7 @@ export function Sidebar() {
     >
       {}
       <div className="relative min-h-0 flex-1">
-        <div ref={nav.ref} className={cn("h-full overflow-y-auto pt-19 pb-2", rail ? "px-2.5" : "px-3")}>
+        <div ref={nav.ref} className={cn("h-full overflow-y-auto pb-2", rail ? "px-2 pt-16" : "px-3 pt-19")}>
           {}
           <nav className="flex flex-col gap-0.5">
             {navItems.filter(visible).map((item) => (
@@ -203,7 +203,7 @@ export function Sidebar() {
 
           <nav className="flex flex-col gap-0.5" aria-label={t("nav.groupSystem")}>
             {rail ? (
-              <span aria-hidden className="mx-auto my-2 h-px w-6 bg-border" />
+              <span aria-hidden className="mx-auto my-1.5 h-px w-5 bg-border" />
             ) : (
               <span className="px-3 pt-2.5 pb-0.5 text-[0.6875rem] font-medium tracking-wider text-neutral-400 uppercase">
                 {t("nav.groupSystem")}

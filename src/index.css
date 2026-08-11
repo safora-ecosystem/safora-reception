@@ -130,6 +130,8 @@
   --color-success: var(--success);
   --color-warning: var(--warning);
   
+  --color-brand-ink: var(--brand-ink);
+  
   --color-success-surface: var(--success-surface);
   --color-success-surface-foreground: var(--success-surface-foreground);
   --color-warning-surface: var(--warning-surface);
@@ -205,6 +207,9 @@
   --primary: var(--color-brand-500);
   --primary-foreground: #ffffff;
 
+  
+  --brand-ink: var(--color-brand-700);
+
   --secondary: var(--color-neutral-100);
   --secondary-foreground: var(--color-neutral-800);
   --muted: var(--color-neutral-100);
@@ -265,30 +270,6 @@
   --identity-8-from: #8ccf7e; 
   --identity-8-to: #199765;
 
-  
-  --note-paper-surface: #f5f2ee;
-  --note-paper-border: #dfd9d4;
-  --note-paper-foreground: #4b4744;
-  --note-butter-surface: #fbf2d9;
-  --note-butter-border: #e6dab4;
-  --note-butter-foreground: #504830;
-  --note-sage-surface: #e4f9e6;
-  --note-sage-border: #c4e4c7;
-  --note-sage-foreground: #3a4e3d;
-  --note-sky-surface: #e7f5ff;
-  --note-sky-border: #bbe0f9;
-  --note-sky-foreground: #354b5b;
-  --note-lilac-surface: #f4f0fe;
-  --note-lilac-border: #dfd3f8;
-  --note-lilac-foreground: #4b445a;
-  --note-rose-surface: #feeef0;
-  --note-rose-border: #facdd3;
-  --note-rose-foreground: #5b4044;
-
-  
-  --note-canvas: #f4f2ef;
-  --note-grid: oklch(0.18 0.01 60 / 0.07);
-
   --brand-today: var(--color-brand-50);
   --border: var(--color-neutral-200);
   --input: var(--color-neutral-200);
@@ -327,6 +308,9 @@
   --color-brand-200: #6d3724;
   
   --color-brand-800: #ffa271;
+
+  
+  --brand-ink: #ffa271;
 
   
   --color-neutral-50: #181818;
@@ -412,29 +396,6 @@
   --brand-today: #351d15;
 
   
-  --note-paper-surface: #333333;
-  --note-paper-border: #4a4a4a;
-  --note-paper-foreground: #dcdcdc;
-  --note-butter-surface: #39321b;
-  --note-butter-border: #544929;
-  --note-butter-foreground: #e5dcc2;
-  --note-sage-surface: #253827;
-  --note-sage-border: #37513a;
-  --note-sage-foreground: #cde3cf;
-  --note-sky-surface: #1f3544;
-  --note-sky-border: #2f4e62;
-  --note-sky-foreground: #c7e0f2;
-  --note-lilac-surface: #352e43;
-  --note-lilac-border: #4e4461;
-  --note-lilac-foreground: #e0d8f1;
-  --note-rose-surface: #432a2f;
-  --note-rose-border: #623e45;
-  --note-rose-foreground: #f3d3d8;
-
-  --note-canvas: #111111;
-  --note-grid: oklch(1 0 0 / 0.06);
-
-  
   --shadow-card: inset 0 1px 0 oklch(1 0 0 / 0.04), 0 1px 2px oklch(0 0 0 / 0.45);
   --shadow-xs: inset 0 1px 0 oklch(1 0 0 / 0.04), 0 1px 2px oklch(0 0 0 / 0.5);
   --shadow-sm: inset 0 1px 0 oklch(1 0 0 / 0.05), 0 1px 3px oklch(0 0 0 / 0.55), 0 1px 2px oklch(0 0 0 / 0.45);
@@ -497,48 +458,7 @@
 
 }
 
-
-@layer components {
-  .note-tone-paper {
-    --note-surface: var(--note-paper-surface);
-    --note-border: var(--note-paper-border);
-    --note-ink: var(--note-paper-foreground);
-  }
-  .note-tone-butter {
-    --note-surface: var(--note-butter-surface);
-    --note-border: var(--note-butter-border);
-    --note-ink: var(--note-butter-foreground);
-  }
-  .note-tone-sage {
-    --note-surface: var(--note-sage-surface);
-    --note-border: var(--note-sage-border);
-    --note-ink: var(--note-sage-foreground);
-  }
-  .note-tone-sky {
-    --note-surface: var(--note-sky-surface);
-    --note-border: var(--note-sky-border);
-    --note-ink: var(--note-sky-foreground);
-  }
-  .note-tone-lilac {
-    --note-surface: var(--note-lilac-surface);
-    --note-border: var(--note-lilac-border);
-    --note-ink: var(--note-lilac-foreground);
-  }
-  .note-tone-rose {
-    --note-surface: var(--note-rose-surface);
-    --note-border: var(--note-rose-border);
-    --note-ink: var(--note-rose-foreground);
-  }
-}
-
 @layer utilities {
-  
-  .note-canvas {
-    background-color: var(--note-canvas);
-    background-image: radial-gradient(var(--note-grid) 1px, transparent 1px);
-    background-size: 24px 24px;
-  }
-
   .shadow-card { box-shadow: var(--shadow-card); }
   .shadow-xs { box-shadow: var(--shadow-xs); }
   .shadow-sm { box-shadow: var(--shadow-sm); }

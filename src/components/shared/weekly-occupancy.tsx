@@ -35,7 +35,7 @@ export function WeeklyOccupancy({ days: week, todayIndex }: WeeklyOccupancyProps
     >
       {}
       <ColumnChart
-        className="h-56 xl:h-auto xl:min-h-52 xl:flex-1"
+        className="h-56 @4xl:h-auto @4xl:min-h-52 @4xl:flex-1"
         data={data}
         series={series}
         maxValue={100}

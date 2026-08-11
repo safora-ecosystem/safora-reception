@@ -9,7 +9,6 @@ import { useQuery } from "@tanstack/react-query"
 import { ExpenseDialog, ShiftCloseDialog } from "@/components/shift/shift-dialogs"
 import { getCurrentShift, shiftKeys } from "@/lib/api"
 import { usePermissions } from "@/lib/permissions"
-import { NotesButton } from "@/components/notes/notes-button"
 import { PersonAvatar } from "@/components/shared/person-avatar"
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
 import {
@@ -86,16 +85,15 @@ export function Topbar() {
 
       {typeof title === "string" && title ? (
         <>
-          <h1 className="hidden max-w-[13rem] shrink-0 truncate text-[0.9375rem] font-semibold tracking-tight text-neutral-900 @4xl:block">
+          <h1 className="hidden max-w-[13rem] shrink-0 truncate text-[0.9375rem] font-semibold tracking-tight text-neutral-900 @xl:block">
             {title}
           </h1>
-          <span className="mx-0.5 hidden h-6 w-px shrink-0 bg-border @4xl:block" aria-hidden />
+          <span className="mx-0.5 hidden h-6 w-px shrink-0 bg-border @xl:block" aria-hidden />
         </>
       ) : null}
       {}
       {}
-      {}
-      <div className="relative hidden w-full min-w-[8.5rem] max-w-[21rem] shrink @4xl:block">
+      <div className="relative hidden w-full min-w-[8.5rem] max-w-[26rem] shrink @2xl:block">
         <Icon
           icon={Search01Icon}
           className="pointer-events-none absolute top-1/2 left-4 size-[1.125rem] -translate-y-1/2 text-neutral-400"
@@ -106,17 +104,14 @@ export function Topbar() {
           onChange={(e) => setQuery(e.target.value)}
           placeholder={t("topbar.searchPlaceholder")}
           aria-label={t("topbar.search")}
-          className="h-11 rounded-panel border border-border bg-card pr-3 pl-11 text-[0.9375rem] xl:pr-16"
+          className="h-11 rounded-panel border border-border bg-card pr-3 pl-11 text-[0.9375rem] @3xl:pr-16"
         />
         {}
-        <kbd className="pointer-events-none absolute top-1/2 right-2.5 hidden h-7 -translate-y-1/2 items-center gap-1 rounded-full border border-border bg-white px-2 font-medium text-neutral-500 shadow-xs xl:flex">
+        <kbd className="pointer-events-none absolute top-1/2 right-2.5 hidden h-7 -translate-y-1/2 items-center gap-1 rounded-full border border-border bg-white px-2 font-medium text-neutral-500 shadow-xs @3xl:flex">
           <span className="text-[0.9375rem] leading-none">⌘</span>
           <span className="text-xs leading-none">K</span>
         </kbd>
       </div>
-
-      {}
-      <NotesButton />
 
       <div className="min-w-0 flex-1" aria-hidden />
 
@@ -209,7 +204,7 @@ export function Topbar() {
           </DropdownMenuContent>
         </DropdownMenu>
 
-        <span className="mx-1 hidden h-7 w-px bg-border sm:block" aria-hidden />
+        <span className="mx-1 hidden h-7 w-px bg-border @lg:block" aria-hidden />
 
         {/* Profil menyusi — sidebar'dagi "Chiqish" qatori shu yerga ko'chdi. Chiqish har kuni
             bosiladigan amal emas, lekin navigatsiyada doimiy qator egallab turardi; profil

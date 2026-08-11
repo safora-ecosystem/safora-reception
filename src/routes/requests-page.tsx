@@ -57,7 +57,7 @@ export function RequestsPage() {
         skeleton={
           <div className="flex grow flex-col gap-4">
             <SkeletonStatBar />
-            <div className="grid grid-cols-1 gap-4 lg:min-h-0 lg:flex-1 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 @4xl:min-h-0 @4xl:flex-1 @4xl:grid-cols-3">
               {[0, 1, 2].map((i) => (
                 <Skeleton key={i} className="min-h-64 rounded-panel" />
               ))}

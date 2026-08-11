@@ -330,7 +330,7 @@ export function ExpenseDialog({
               key={key}
               type="button"
               onClick={() => setNote((v) => (v.trim() ? v : `${t(key)}: `))}
-              className="rounded-full border border-border px-2.5 py-1 text-xs font-medium text-neutral-600 transition-colors hover:border-brand-300 hover:text-brand-700"
+              className="rounded-full border border-border px-2.5 py-1 text-xs font-medium text-neutral-600 transition-colors hover:border-brand-300 hover:text-brand-ink"
             >
               {t(key)}
             </button>

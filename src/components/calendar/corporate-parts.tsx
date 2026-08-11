@@ -155,7 +155,7 @@ export function OrganizationTerms({
     <div className="flex flex-col gap-2">
       <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1 text-xs text-neutral-500">
         {org.discountPercent ? (
-          <span className="font-medium text-brand-700">{labels.orgDiscount(org.discountPercent)}</span>
+          <span className="font-medium text-brand-ink">{labels.orgDiscount(org.discountPercent)}</span>
         ) : null}
         <span>
           {labels.orgBalance}:{" "}
@@ -282,7 +282,7 @@ const RoomCard = memo(function RoomCard({
                 <span
                   className={cn(
                     "mt-1.5 grid size-6 shrink-0 place-items-center rounded-full text-[0.625rem] font-medium tabular-nums",
-                    i === 0 ? "bg-brand-100 text-brand-700" : "bg-white text-neutral-500",
+                    i === 0 ? "bg-brand-100 text-brand-ink" : "bg-white text-neutral-500",
                   )}
                   title={i === 0 ? labels.primaryGuest : undefined}
                 >

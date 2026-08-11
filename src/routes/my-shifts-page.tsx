@@ -44,7 +44,7 @@ function SessionRow({ s, onOpen }: { s: ShiftSession; onOpen: () => void }) {
               ro'yxat mehmon oldida ochiladi, hisobot esa bosilganda ko'rinadi. */}
           <p className="truncate text-xs text-neutral-500">
             {s.status === "open" ? (
-              <span className="font-medium text-brand-700">{t("shiftSession.openBadge")}</span>
+              <span className="font-medium text-brand-ink">{t("shiftSession.openBadge")}</span>
             ) : (
               (s.note ?? "")
             )}

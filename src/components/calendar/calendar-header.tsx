@@ -97,7 +97,7 @@ function CalendarHeaderImpl({
                 className={cn(
                   "text-[0.6875rem] uppercase",
                   isToday
-                    ? "font-semibold tracking-tight text-brand-600"
+                    ? "font-semibold tracking-tight text-brand-ink"
                     : "font-medium tracking-wide text-neutral-400",
                 )}
               >
@@ -118,7 +118,7 @@ function CalendarHeaderImpl({
               <span
                 className={cn(
                   "text-xs leading-none font-medium tabular-nums",
-                  isToday ? "text-brand-600" : occ >= 90 ? "text-neutral-600" : "text-neutral-400",
+                  isToday ? "text-brand-ink" : occ >= 90 ? "text-neutral-600" : "text-neutral-400",
                 )}
               >
                 {`${occ}%`}

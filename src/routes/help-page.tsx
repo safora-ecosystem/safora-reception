@@ -92,7 +92,7 @@ export function HelpPage() {
           </CardContent>
         </Card>
 
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid gap-4 @3xl:grid-cols-2">
           {STEPS.map((step) => (
             <Card key={step.titleKey}>
               <CardContent className="flex gap-3.5">
