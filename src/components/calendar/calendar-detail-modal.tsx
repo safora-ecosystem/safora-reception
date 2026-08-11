@@ -419,6 +419,9 @@ function DetailBody({
   const [start, setStart] = useState(b.start);
   const [end, setEnd] = useState(b.end);
   const [note, setNote] = useState(b.note ?? "");
+  // Qo'lda yozilgan summa (xom raqamlar). `null` — tegilmagan, ya'ni quyidagi formula amal
+  // qiladi. Narx endi qulf emas: mehmon bilan kelishilgan raqam bronda turishi kerak.
+  const [totalEdit, setTotalEdit] = useState<string | null>(null);
 
   // Server qoidasi bilan bir xil: kelmagan mehmonni ko'chirish mumkin, ichkaridagini esa faqat
   // uzaytirish (xona va kirish sanasi qulf), chiqib ketganini umuman emas.
@@ -456,13 +459,17 @@ function DetailBody({
   const roomChanged = editing && roomId !== b.roomId;
   const datesChanged = editing && (start !== b.start || end !== b.end);
   const rateMissing = roomChanged && editRoom?.rate == null;
-  const newTotal = roomChanged
+  const computedTotal = roomChanged
     ? editRoom?.rate != null
       ? Math.round(editRoom.rate * nights)
       : oldTotal
     : datesChanged
       ? Math.round((oldTotal / oldNights) * nights)
       : oldTotal;
+  // Qo'lda yozilgan raqam formuladan USTUN turadi — aks holda sanani bir kun surish
+  // kelishilgan narxni jimgina qaytarib yuborardi.
+  const newTotal =
+    totalEdit == null ? computedTotal : totalEdit === "" ? 0 : Number(totalEdit);
 
   const paidNow = b.payment?.paid ?? 0;
   // Qisqartirishda summa to'langan puldan past tushmasin — server ham rad etadi (paid ≤ total).
@@ -530,6 +537,7 @@ function DetailBody({
       await onEdit(b.id, patch);
       // Modal ochiq qoladi: `b` jonli massivdan keladi, refetch tugashi bilan yangi qiymatlar
       // shu yerda ko'rinadi — xodim o'z o'zgarishini tasdiqlangan holda ko'radi.
+      setTotalEdit(null);
       setEditing(false);
     } finally {
       setBusy(false);
@@ -537,6 +545,7 @@ function DetailBody({
   };
 
   const discard = () => {
+    setTotalEdit(null);
     setGuestName(b.label);
     setGuestPhone(initialPhone);
     setRoomId(b.roomId);
@@ -975,23 +984,25 @@ function DetailBody({
               title={labels.payment}
             >
                 <div className="grid gap-3 sm:grid-cols-2">
-                  {/* Summa YOZILMAYDI — sana/xona o'zgarishi bilan o'zi qayta hisoblanadi
-                    (formula tepada, `newTotal`). Eski → yangi ko'rsatiladi: xodim mehmonga
-                    aytadigan farqni ko'rib turadi. */}
+                  {/* Summa sana/xona o'zgarishi bilan o'zi qayta hisoblanadi (formula tepada,
+                    `computedTotal`), lekin USTIGA YOZISH mumkin: kelishilgan narx bronda
+                    turishi kerak (founder, 2026-08-11). Eski raqam yonida turadi — xodim
+                    mehmonga aytadigan farqni ko'rib turadi. */}
                   <Field label={labels.amount}>
-                    <ReadValue>
-                      {newTotal !== oldTotal ? (
-                        <>
-                          <span className="font-normal text-neutral-400 line-through">
-                            {labels.money(oldTotal)}
-                          </span>{" "}
-                          {labels.money(newTotal)}
-                        </>
-                      ) : (
-                        labels.money(oldTotal)
-                      )}
-                    </ReadValue>
-                    {newTotal !== oldTotal && !roomChanged && (
+                    <MoneyInput
+                      value={totalEdit ?? String(newTotal)}
+                      onChange={setTotalEdit}
+                      ariaLabel={labels.amount}
+                      invalid={totalBelowPaid}
+                      className="w-full"
+                    />
+                    {newTotal !== oldTotal && (
+                      <span className="text-xs text-neutral-400 tabular-nums">
+                        <span className="line-through">{labels.money(oldTotal)}</span>{" "}
+                        → {labels.money(newTotal)}
+                      </span>
+                    )}
+                    {totalEdit == null && newTotal !== oldTotal && !roomChanged && (
                       <span className="text-xs text-neutral-400 tabular-nums">
                         {labels.nightlyRate}{" "}
                         {labels.money(Math.round(oldTotal / oldNights))} ×{" "}
@@ -1083,7 +1094,7 @@ function DetailBody({
                         </span>
                       )}
                     </p>
-                    <p className="mt-1.5 text-xs leading-relaxed text-brand-700">
+                    <p className="mt-1.5 text-xs leading-relaxed text-brand-ink">
                       {labels.corporateNoCash}
                     </p>
                     {viewRoom?.rate != null && (

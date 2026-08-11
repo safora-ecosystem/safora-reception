@@ -189,6 +189,14 @@ function CreateForm({
   const [payMode, setPayMode] = useState<PayMode>("unpaid")
   const [payMethod, setPayMethod] = useState<"cash" | "card" | "transfer">("cash")
   const [partialInput, setPartialInput] = useState("")
+  // Xona narxi QO'LDA yozilgan bo'lsa shu yerda turadi (roomId → xom raqamlar). Kalit yo'q —
+  // narx tarifdan olinadi.
+  //
+  // Ilgari bu maydon UMUMAN yo'q edi va sababi shu faylda yozilgandi: "xodim narxni tushirib
+  // yozib, farqni cho'ntagiga urishi mumkin". Founder qarori (2026-08-11): shartnoma narxi
+  // og'zaki kelishiladi va uni yozadigan odam — resepshnning o'zi. Iz audit jurnalida qoladi
+  // (`booking.created` summani yozadi), ya'ni raqam yo'qolmaydi — javobgarlik odamga o'tdi.
+  const [rateEdits, setRateEdits] = useState<Record<string, string>>({})
   const [busy, setBusy] = useState(false)
   // Avans qatorlarining idempotentlik kalitlari — dialogning BITTA ochilishi davomida har
   // xonaga bitta kalit. Submit ichida yaratilsa 409'dan keyingi qayta urinish YANGI kalit
@@ -214,21 +222,34 @@ function CreateForm({
   const roomsById = useMemo(() => new Map(rooms.map((r) => [r.id, r])), [rooms])
 
   // Tanlov TARTIBI saqlanadi — xulosadagi qatorlar xodim bosgan ketma-ketlikda tursin.
-  // Summa FAQAT xona tarifidan: `rate × kechalar`. Qo'lda yozish ATAYLAB yo'q — bu biznes
-  // chegarasi: xodim narxni kamaytirib yozib, farqni naqd olishi mumkin edi. Narx Xonalar
-  // bo'limida (owner/manager) belgilanadi, resepshn esa faqat natijani ko'radi.
+  // Summa xona tarifidan chiqadi (`rate × kechalar`), lekin QOTIB QOLMAGAN: xodim kechalik
+  // narxni o'sha qatorda qayta yozishi mumkin (kelishilgan shartnoma narxi, aksiya, "pro" tarif).
   const lines = useMemo(
     () =>
       selectedIds.flatMap((id) => {
         const room = roomsById.get(id)
         if (!room) return []
+        const typed = rateEdits[id]
+        // Qo'lda yozilgan narx YAKUNIY: shartnoma chegirmasi unga QAYTA qo'llanmaydi — xodim
+        // allaqachon kelishilgan raqamni yozadi (800 mingga 25% qo'yilgan 600 ming emas).
+        if (typed !== undefined) {
+          const nightly = typed === "" ? null : Number(typed)
+          const total = nightly != null ? Math.round(nightly * Math.max(nights, 0)) : 0
+          return [{ room, rack: total, total, hasRate: nightly != null, nightly }]
+        }
         // Rack (shartnomasiz) summa — chegirma undan hisoblanadi va xulosada ALOHIDA qator
         // bo'lib ko'rinadi: kompaniya nima uchun kamroq to'layotgani ekranda yozilib tursin.
         const rack = room.rate != null ? Math.round(room.rate * Math.max(nights, 0)) : 0
         const total = discountPct > 0 ? Math.round((rack * (100 - discountPct)) / 100) : rack
-        return [{ room, rack, total, hasRate: room.rate != null }]
+        const nightly =
+          room.rate == null
+            ? null
+            : discountPct > 0
+              ? Math.round((room.rate * (100 - discountPct)) / 100)
+              : room.rate
+        return [{ room, rack, total, hasRate: room.rate != null, nightly }]
       }),
-    [selectedIds, roomsById, nights, discountPct],
+    [selectedIds, roomsById, nights, discountPct, rateEdits],
   )
 
   // Tarifi kiritilmagan xonaga bron OCHILMAYDI: 0 so'mlik bron xuddi o'sha teshikning
@@ -768,6 +789,8 @@ function CreateForm({
             <MoneyPanel
               labels={labels}
               lines={lines}
+              rateEdits={rateEdits}
+              onRate={(roomId, raw) => setRateEdits((prev) => ({ ...prev, [roomId]: raw }))}
               nights={nights}
               extraTotal={extraTotal}
               chargedGuests={chargedGuests}
@@ -1043,11 +1066,16 @@ interface MoneyLine {
   rack: number
   total: number
   hasRate: boolean
+  /** Amaldagi kechalik narx (chegirmadan keyin yoki qo'lda yozilgani). Tarifsiz xonada `null`. */
+  nightly: number | null
 }
 
 interface MoneyPanelProps {
   labels: CalendarLabels
   lines: MoneyLine[]
+  /** Qo'lda yozilgan kechalik narxlar (roomId → xom raqamlar). */
+  rateEdits: Record<string, string>
+  onRate: (roomId: string, raw: string) => void
   nights: number
   extraTotal: number
   chargedGuests: number
@@ -1073,6 +1101,8 @@ interface MoneyPanelProps {
 const MoneyPanel = memo(function MoneyPanel({
   labels,
   lines,
+  rateEdits,
+  onRate,
   nights,
   extraTotal,
   chargedGuests,
@@ -1104,27 +1134,31 @@ const MoneyPanel = memo(function MoneyPanel({
           <p className="text-xs text-neutral-400">{labels.roomsSelected(0)}</p>
         ) : (
           <div className="divide-hairline flex flex-col rounded-card bg-white ring-1 ring-neutral-200/70">
-            {/* Summalar FAQAT O'QILADI — narx xona tarifidan keladi, resepshn uni yozmaydi
-                (biznes chegarasi, sabab `lines` hisoblanadigan joyda). */}
+            {/* Kechalik narx TAHRIRLANADI: maydon tarif bilan to'ldirilgan holda keladi, xodim
+                kelishilgan raqamni ustiga yozadi. O'ng tomondagi kichik matn — shu qatorning
+                jami summasi (kechalar bilan ko'paytirilgani ko'rinib tursin). */}
             {lines.map((l) => (
               <div key={l.room.id} className="flex items-center gap-2 px-3 py-2">
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-xs font-medium text-neutral-800">{l.room.label}</p>
-                  {l.hasRate && nights >= 1 && (
-                    <p className="text-[0.6875rem] text-neutral-400 tabular-nums">
-                      {groupThousands(l.room.rate as number)} × {nights}
-                    </p>
-                  )}
+                  <p
+                    className={cn(
+                      "text-[0.6875rem] tabular-nums",
+                      l.hasRate ? "text-neutral-400" : "text-warning-surface-foreground",
+                    )}
+                  >
+                    {l.hasRate && nights >= 1
+                      ? `${nights} ${labels.nightsWord} · ${groupThousands(l.total)}`
+                      : labels.rateNotSet}
+                  </p>
                 </div>
-                {l.hasRate ? (
-                  <span className="text-sm font-medium text-neutral-900 tabular-nums">
-                    {groupThousands(l.rack)}
-                  </span>
-                ) : (
-                  <span className="text-xs font-medium text-warning-surface-foreground">
-                    {labels.rateNotSet}
-                  </span>
-                )}
+                <MoneyInput
+                  value={rateEdits[l.room.id] ?? (l.nightly != null ? String(l.nightly) : "")}
+                  onChange={(v) => onRate(l.room.id, v)}
+                  ariaLabel={`${l.room.label} — ${labels.nightlyRate}`}
+                  invalid={!l.hasRate}
+                  className="w-40 shrink-0"
+                />
               </div>
             ))}
 
