@@ -13,7 +13,7 @@ export function CtaButton({
 }: ComponentProps<typeof Button> & { icon?: IconData }) {
   return (
     <Button
-      className={cn("h-auto gap-2.5 rounded-full py-2.5 pr-5 pl-3 text-[0.9375rem] font-semibold", className)}
+      className={cn("h-11 gap-2.5 rounded-full pr-5 pl-3 text-[0.9375rem] font-semibold", className)}
       {...props}
     >
       <CtaIcon icon={icon} />
