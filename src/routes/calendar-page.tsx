@@ -72,7 +72,8 @@ function useMockParams(): { mock: boolean; rooms: number } {
 export function CalendarPage() {
   const t = useT()
   const { mock: mockMode, rooms: mockRooms } = useMockParams()
-  const { can } = usePermissions()
+  const { can, backdateDays } = usePermissions()
+  const minStart = backdateDays == null ? null : addDays(todayIso(), -backdateDays)
   const [selfReadOnly] = useReadOnlyCalendar()
   const canEdit = can("calendar.edit") && !selfReadOnly
   const navigate = useNavigate()
@@ -330,6 +331,7 @@ export function CalendarPage() {
               bookings={data.bookings}
               organizations={data.organizations}
               range={range}
+              minStart={minStart}
               dayWidth={dayWidth}
               railWidth={metrics.railWidth}
               rowHeight={rowHeight}

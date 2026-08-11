@@ -119,6 +119,7 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
       () => props.today ?? localIso(),
       [props.today],
     )
+    const minStart = props.minStart === undefined ? today : props.minStart
     const labels = useMemo(() => resolveLabels(props.labels), [props.labels])
     const statusConfig = useMemo(() => resolveStatusConfig(props.statusConfig), [props.statusConfig])
     const checkInFrac = useMemo(() => dayFraction(labels.checkInTime), [labels.checkInTime])
@@ -362,8 +363,8 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
     }, [onSelectBooking])
 
     const dragConfig = useMemo(
-      () => ({ scrollRef, overlayRef, originDay, days: range.days, dayWidth, rowHeight, railWidth, today, bookings, checkInFrac, checkOutFrac, onCommit: setCreateDraft }),
-      [originDay, range.days, dayWidth, rowHeight, railWidth, today, bookings, checkInFrac, checkOutFrac],
+      () => ({ scrollRef, overlayRef, originDay, days: range.days, dayWidth, rowHeight, railWidth, minStart, bookings, checkInFrac, checkOutFrac, onCommit: setCreateDraft }),
+      [originDay, range.days, dayWidth, rowHeight, railWidth, minStart, bookings, checkInFrac, checkOutFrac],
     )
     const drag = useCalendarDrag(dragConfig)
 
@@ -843,7 +844,7 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
           bookings={bookings}
           organizations={organizations}
           labels={labels}
-          today={today}
+          minStart={minStart}
           onClose={() => setCreateDraft(null)}
           onSubmit={async (input) => {
             await onCreateBooking?.(input)

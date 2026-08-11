@@ -56,7 +56,7 @@ interface CalendarCreateDialogProps {
   bookings: CalendarBooking[]
   organizations?: CalendarOrganization[]
   labels: CalendarLabels
-  today: string
+  minStart: string | null
   onClose: () => void
   onSubmit: (input: CalendarCreateInput) => void | Promise<void>
 }
@@ -162,7 +162,7 @@ function CreateForm({
   bookings,
   organizations,
   labels,
-  today,
+  minStart,
   onClose,
   onSubmit,
 }: CalendarCreateDialogProps & { draft: CalendarDraft }) {
@@ -311,8 +311,9 @@ function CreateForm({
   const overCapacity = capacity != null && guestTotal > capacity
 
   const selectedBusy = selectedIds.some((id) => busyRoomIds.has(id))
-  // Blokni O'TMISHGA qo'yish ruxsat etilgan (ta'mir ko'pincha keyin ro'yxatga olinadi), bron esa yo'q.
-  const inPast = !isBlock && start < today
+  // Blokni O'TMISHGA qo'yish ruxsat etilgan (ta'mir ko'pincha keyin ro'yxatga olinadi), bron esa
+  // faqat rahbar ochgan oyna ichida (`minStart`).
+  const inPast = !isBlock && minStart != null && start < minStart
   // E.164 + libphonenumber katalogi: uzunlik ham, operator prefiksi ham davlatiga qarab tekshiriladi.
   const phoneValid = isPhoneComplete(guestPhone)
   const companionsValid = companions.every((c) => c.fullName.trim().length > 0)
@@ -682,7 +683,7 @@ function CreateForm({
               start={start}
               end={end}
               nights={nights}
-              today={today}
+              minStart={minStart}
               isBlock={isBlock}
               onChange={setRange}
             />
@@ -838,7 +839,7 @@ const StayBlock = memo(function StayBlock({
   start,
   end,
   nights,
-  today,
+  minStart,
   isBlock,
   onChange,
 }: {
@@ -846,7 +847,7 @@ const StayBlock = memo(function StayBlock({
   start: string
   end: string
   nights: number
-  today: string
+  minStart: string | null
   isBlock: boolean
   onChange: (start: string, end: string) => void
 }) {
@@ -878,7 +879,8 @@ const StayBlock = memo(function StayBlock({
               locale={uz}
               defaultMonth={isoToDate(start)}
               // Blok o'tmishga ham qo'yiladi: ta'mir ko'pincha allaqachon boshlangan bo'ladi.
-              disabled={isBlock ? undefined : { before: isoToDate(today) }}
+              // Bronda esa pol rahbar bergan oynadan (rahbarning o'zida pol umuman yo'q).
+              disabled={isBlock || minStart == null ? undefined : { before: isoToDate(minStart) }}
               selected={{ from: isoToDate(start), to: isoToDate(end) }}
               onSelect={(range) => range?.from && pickRange(range.from, range.to)}
             />
@@ -1130,10 +1132,10 @@ const MoneyPanel = memo(function MoneyPanel({
                 yozilib tursin — "narx o'zi shunaqa" degan noaniqlik qolmasin. */}
             {discountTotal > 0 && (
               <div className="flex items-center gap-2 px-3 py-2">
-                <p className="min-w-0 flex-1 truncate text-xs font-medium text-brand-700">
+                <p className="min-w-0 flex-1 truncate text-xs font-medium text-brand-ink">
                   {labels.corporateDiscountLine}
                 </p>
-                <span className="text-sm font-medium text-brand-700 tabular-nums">
+                <span className="text-sm font-medium text-brand-ink tabular-nums">
                   −{groupThousands(discountTotal)}
                 </span>
               </div>
@@ -1172,7 +1174,7 @@ const MoneyPanel = memo(function MoneyPanel({
           {corporate ? (
             <div className="rounded-card bg-brand-50 p-3 text-xs leading-relaxed text-brand-800">
               <p className="font-medium">{labels.corporateBilling}</p>
-              <p className="mt-0.5 text-brand-700">{labels.corporateBillingHint}</p>
+              <p className="mt-0.5 text-brand-ink">{labels.corporateBillingHint}</p>
             </div>
           ) : (
             <Segmented

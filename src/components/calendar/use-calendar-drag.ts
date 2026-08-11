@@ -20,7 +20,7 @@ interface DragConfig {
   dayWidth: number
   rowHeight: number
   railWidth: number
-  today: string
+  minStart: string | null
   bookings: CalendarBooking[]
   checkInFrac: number
   checkOutFrac: number
@@ -38,6 +38,9 @@ interface DragState {
 }
 
 const clamp = (n: number, lo: number, hi: number) => (n < lo ? lo : n > hi ? hi : n)
+
+const floorColumn = (minStart: string | null, originDay: number) =>
+  minStart ? Math.max(0, epochDay(minStart) - originDay) : 0
 
 const EDGE = 56
 const MAX_SPEED = 22
@@ -127,7 +130,7 @@ export function useCalendarDrag(config: DragConfig) {
       const prev = hoverRef.current
       if (prev && prev.roomId === roomId && prev.day === day) return
       hoverRef.current = { roomId, day }
-      const minDay = Math.max(0, epochDay(config.today) - config.originDay)
+      const minDay = floorColumn(config.minStart, config.originDay)
       const draft = {
         roomId,
         start: isoFromEpochDay(config.originDay + day),
@@ -235,7 +238,7 @@ export function useCalendarDrag(config: DragConfig) {
       const scroller = config.scrollRef.current
       if (!scroller) return
       const rect = scroller.getBoundingClientRect()
-      const minDay = Math.max(0, epochDay(config.today) - config.originDay)
+      const minDay = floorColumn(config.minStart, config.originDay)
       if (minDay > config.days - 1) return
       const rawDay = columnFromX(e.clientX, rect.left, scroller.scrollLeft, config.railWidth, config.dayWidth)
       const day0 = clamp(rawDay, minDay, config.days - 1)

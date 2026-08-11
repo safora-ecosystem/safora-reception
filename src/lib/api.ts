@@ -1004,7 +1004,8 @@ export type PermissionCatalog = {
   policies: Record<PolicyRole, string[]>
 }
 
-export const getMyPermissions = () => api<{ role: string; granted: string[] }>("/permissions/me")
+export const getMyPermissions = () =>
+  api<{ role: string; granted: string[]; backdateDays: number | null }>("/permissions/me")
 
 // ── Web push (FCM qurilma tokeni) ────────────────────────────────────────────
 

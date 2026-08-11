@@ -400,6 +400,7 @@ export interface ReservationCalendarProps {
   organizations?: CalendarOrganization[]
   range: CalendarRange
   today?: string
+  minStart?: string | null
 
   dayWidth?: number
   rowHeight?: number
