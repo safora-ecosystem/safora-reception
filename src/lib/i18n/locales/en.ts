@@ -709,6 +709,7 @@ export const en: Dictionary<"en"> = {
       checkedIn: "Guest checked in",
       checkedOut: "Guest checked out",
       cancelled: "Booking cancelled",
+      forceCancelled: "Checked-in booking cancelled",
       guestAdded: "Guest added",
       guestRemoved: "Guest removed",
       primaryChanged: "Primary guest changed",
@@ -842,6 +843,14 @@ export const en: Dictionary<"en"> = {
     debtOnCheckOut: "{amount} outstanding — the guest hasn't paid yet.",
     cancelPaidWarning:
       "{amount} has been collected on this booking — cancelling means refunding the guest.",
+    cancelCheckedInWarning:
+      "The guest is in the room. Cancelling ends the stay, sends the room to cleaning and cuts off the guest's QR access. This cannot be undone and goes into the log under your name.",
+    cancelCheckedInPaidWarning:
+      "The guest is in the room. Cancelling ends the stay, sends the room to cleaning and cuts off the guest's QR access. {amount} has been collected on this booking — refunding is a separate action (void). The entry goes into the log under your name.",
+    cancelReasonLabel: "Reason",
+    cancelReasonPlaceholder: "For example: checked in by mistake, guest moved to another room",
+    cancelReasonRequired: "Write a reason — at least 3 characters",
+    cancelCheckedInConfirm: "Cancel the booking",
     checkOutAnyway: "Check out with debt",
     cancelAnyway: "Cancel anyway",
     earlyCheckInWarning: "The booking starts on {date} — check the guest in today?",

@@ -707,6 +707,7 @@ export const uz = {
       checkedIn: "Mehmon kirdi",
       checkedOut: "Mehmon chiqdi",
       cancelled: "Bron bekor qilindi",
+      forceCancelled: "Joylashgan mehmon broni bekor qilindi",
       guestAdded: "Mehmon qo'shildi",
       guestRemoved: "Mehmon o'chirildi",
       primaryChanged: "Asosiy mehmon almashdi",
@@ -842,6 +843,14 @@ export const uz = {
     cancelPaidWarning:
       "Bu bronda {amount} to'lov qabul qilingan — bekor qilishda pul mehmonga qaytarilishi kerak.",
     cancelAnyway: "Baribir bekor qilish",
+    cancelCheckedInWarning:
+      "Mehmon xonada. Bekor qilinsa yashash to'xtaydi, xona tozalashga tushadi va mehmonning QR kirishi uziladi. Amal qaytarilmaydi va jurnalga sizning ismingiz bilan yoziladi.",
+    cancelCheckedInPaidWarning:
+      "Mehmon xonada. Bekor qilinsa yashash to'xtaydi, xona tozalashga tushadi va mehmonning QR kirishi uziladi. Bu bronda {amount} to'lov qabul qilingan — pulni qaytarish alohida amal (storno). Jurnalga sizning ismingiz bilan yoziladi.",
+    cancelReasonLabel: "Sabab",
+    cancelReasonPlaceholder: "Masalan: xato joylashtirilgan, mehmon boshqa xonaga ko'chdi",
+    cancelReasonRequired: "Sababni yozing — kamida 3 belgi",
+    cancelCheckedInConfirm: "Bekor qilish",
     earlyCheckInWarning: "Bron {date}da boshlanadi — mehmon bugun kiritilsinmi?",
     checkInAnyway: "Bugun kiritish",
     roomOccupiedHint: "Xonada hali chiqmagan mehmon bor — avval uni chiqaring",

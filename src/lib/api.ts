@@ -583,7 +583,14 @@ export const issueInvoice = (bookingId: string) =>
 // PATCH bodyless — api() content-type qo'ymaydi (Fastify bo'sh-body gotcha).
 export const checkInBooking = (id: string) => api<Booking>(`/bookings/${id}/check-in`, { method: "PATCH" })
 export const checkOutBooking = (id: string) => api<Booking>(`/bookings/${id}/check-out`, { method: "PATCH" })
-export const cancelBooking = (id: string) => api<Booking>(`/bookings/${id}/cancel`, { method: "PATCH" })
+// Sabab JOYLASHGAN mehmon bronida majburiy (`booking.cancel_checked_in` ruxsati bilan) —
+// sababsiz so'rovni server 400 bilan rad etadi. Kelmagan mehmonda body umuman yuborilmaydi
+// (Fastify bo'sh-body gotcha'si: `api()` faqat body bo'lsa content-type qo'yadi).
+export const cancelBooking = (id: string, reason?: string) =>
+  api<Booking>(`/bookings/${id}/cancel`, {
+    method: "PATCH",
+    ...(reason ? { body: { reason } } : {}),
+  })
 
 // ── To'lov ledgeri ───────────────────────────────────────────────────────────
 // `payments.record` ruxsati bilan. Yozuvlar o'chirilmaydi — faqat storno (sabab majburiy);

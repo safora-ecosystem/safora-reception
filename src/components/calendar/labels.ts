@@ -212,6 +212,7 @@ function build(t: TFunc): CalendarLabels {
       "booking.checked_in": t("calendar.activity.checkedIn"),
       "booking.checked_out": t("calendar.activity.checkedOut"),
       "booking.cancelled": t("calendar.activity.cancelled"),
+      "booking.force_cancelled": t("calendar.activity.forceCancelled"),
       "booking.guest_added": t("calendar.activity.guestAdded"),
       "booking.guest_removed": t("calendar.activity.guestRemoved"),
       "booking.primary_changed": t("calendar.activity.primaryChanged"),
@@ -276,6 +277,14 @@ function build(t: TFunc): CalendarLabels {
     checkOutAnyway: t("calendar.checkOutAnyway"),
     cancelPaidWarning: (paid) => t("calendar.cancelPaidWarning", { amount: formatMoney(paid) }),
     cancelAnyway: t("calendar.cancelAnyway"),
+    cancelCheckedInWarning: (paid) =>
+      paid > 0
+        ? t("calendar.cancelCheckedInPaidWarning", { amount: formatMoney(paid) })
+        : t("calendar.cancelCheckedInWarning"),
+    cancelReasonLabel: t("calendar.cancelReasonLabel"),
+    cancelReasonPlaceholder: t("calendar.cancelReasonPlaceholder"),
+    cancelReasonRequired: t("calendar.cancelReasonRequired"),
+    cancelCheckedInConfirm: t("calendar.cancelCheckedInConfirm"),
     earlyCheckInWarning: (date) => t("calendar.earlyCheckInWarning", { date }),
     checkInAnyway: t("calendar.checkInAnyway"),
     roomOccupiedHint: t("calendar.roomOccupiedHint"),

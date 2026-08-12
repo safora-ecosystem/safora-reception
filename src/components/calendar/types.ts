@@ -300,6 +300,11 @@ export interface CalendarLabels {
   checkOutAnyway: string
   cancelPaidWarning: (paid: number) => string
   cancelAnyway: string
+  cancelCheckedInWarning: (paid: number) => string
+  cancelReasonLabel: string
+  cancelReasonPlaceholder: string
+  cancelReasonRequired: string
+  cancelCheckedInConfirm: string
   earlyCheckInWarning: (date: string) => string
   checkInAnyway: string
   roomOccupiedHint: string
@@ -431,7 +436,8 @@ export interface ReservationCalendarProps {
   onCreateBooking?: (input: CalendarCreateInput) => void | Promise<void>
   onCheckIn?: (id: string) => void | Promise<void>
   onCheckOut?: (id: string) => void | Promise<void>
-  onCancel?: (id: string) => void | Promise<void>
+  onCancel?: (id: string, reason?: string) => void | Promise<void>
+  canCancelCheckedIn?: boolean
   onSelectBooking?: (booking: CalendarBooking | null) => void
 
   guests?: CalendarGuest[] | null

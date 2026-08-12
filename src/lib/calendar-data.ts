@@ -76,7 +76,7 @@ export interface CalendarData {
   createBooking: (input: CalendarCreateInput) => Promise<void>
   checkIn: (id: string) => Promise<void>
   checkOut: (id: string) => Promise<void>
-  cancel: (id: string) => Promise<void>
+  cancel: (id: string, reason?: string) => Promise<void>
   editBooking: (id: string, patch: BookingEditPatch) => Promise<void>
   moveBooking: (id: string, next: CalendarDraft) => Promise<void>
   splitBooking: (id: string, input: CalendarSplitInput) => Promise<void>
@@ -748,9 +748,9 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
   )
 
   const cancel = useCallback(
-    async (id: string) => {
+    async (id: string, reason?: string) => {
       try {
-        await cancelBooking(id)
+        await cancelBooking(id, reason)
         toast.success(t("calendarToast.cancelled"))
         invalidate()
       } catch (e) {

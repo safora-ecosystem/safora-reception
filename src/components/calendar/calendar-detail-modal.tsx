@@ -106,7 +106,8 @@ interface CalendarDetailModalProps {
   onClose: () => void;
   onCheckIn?: (id: string) => void | Promise<void>;
   onCheckOut?: (id: string) => void | Promise<void>;
-  onCancel?: (id: string) => void | Promise<void>;
+  onCancel?: (id: string, reason?: string) => void | Promise<void>;
+  canCancelCheckedIn?: boolean;
   onEdit?: (id: string, patch: BookingEditPatch) => void | Promise<void>;
   onAddGuest?: (
     bookingId: string,
@@ -389,6 +390,7 @@ function DetailBody({
   onCheckIn,
   onCheckOut,
   onCancel,
+  canCancelCheckedIn,
   onEdit,
   onAddGuest,
   onUpdateGuest,
@@ -406,9 +408,12 @@ function DetailBody({
   // Harakat guard'lari: qarz bilan chiqish / to'lovli bronni bekor qilish / erta kirish —
   // bitta bosishda EMAS, ogohlantirish + aniq tasdiq bilan. null = oddiy tugmalar.
   const [confirming, setConfirming] = useState<
-    null | "checkout" | "cancel" | "checkin"
+    null | "checkout" | "cancel" | "checkin" | "force-cancel"
   >(null);
   const [payFormOpen, setPayFormOpen] = useState(false);
+  // Joylashgan mehmon bronini bekor qilish sababi — MAJBURIY (server ham shuni talab qiladi
+  // va uni jurnalga yozadi). Guard qutisi yopilganda tozalanadi.
+  const [cancelReason, setCancelReason] = useState("");
 
   const [guestName, setGuestName] = useState(b.label);
   // Bazadagi eski yozuvlar har xil ko'rinishda ("998 90...", "+998-90-...") — tahrirga
@@ -1305,7 +1310,8 @@ function DetailBody({
                 )}
 
                 {/* To'lovi bor bronni bekor qilish = qaytariladigan pul — tasdiq bilan. */}
-                {b.status === "booked" &&
+                {onCancel &&
+                  b.status === "booked" &&
                   (confirming === "cancel" ? (
                     <ConfirmBox
                       tone="destructive"
@@ -1327,6 +1333,49 @@ function DetailBody({
                           ? setConfirming("cancel")
                           : run(onCancel)
                       }
+                    >
+                      {labels.cancel}
+                    </Button>
+                  ))}
+
+                {/* JOYLASHGAN mehmonni bekor qilish — mahsulotdagi eng og'ir kalendar amali:
+                    yashash to'xtaydi, xona tozalashga tushadi, mehmonning QR seansi uziladi.
+                    Shuning uchun bu yerda "bir bosish" yo'li UMUMAN yo'q (yuqoridagi bekor
+                    qilishdan farqi shu): har doim ogohlantirish + MAJBURIY sabab. Sabab
+                    jurnalga tushadi va ertaga rahbarga "nega chiqarib yuborildi" degan
+                    savolga javob beradi. Ruxsat bo'lmasa tugma umuman chizilmaydi. */}
+                {onCancel &&
+                  canCancelCheckedIn &&
+                  b.status === "checked_in" &&
+                  (confirming === "force-cancel" ? (
+                    <ConfirmBox
+                      tone="destructive"
+                      text={labels.cancelCheckedInWarning(payment?.paid ?? 0)}
+                      confirmLabel={labels.cancelCheckedInConfirm}
+                      backLabel={labels.back}
+                      busy={busy}
+                      input={{
+                        label: labels.cancelReasonLabel,
+                        placeholder: labels.cancelReasonPlaceholder,
+                        hint: labels.cancelReasonRequired,
+                        value: cancelReason,
+                        onChange: setCancelReason,
+                      }}
+                      onConfirm={() =>
+                        run((id) => onCancel(id, cancelReason.trim()))
+                      }
+                      onBack={() => {
+                        setConfirming(null);
+                        setCancelReason("");
+                      }}
+                    />
+                  ) : (
+                    <Button
+                      size="lg"
+                      variant="ghost"
+                      className="rounded-control text-destructive hover:text-destructive"
+                      disabled={busy}
+                      onClick={() => setConfirming("force-cancel")}
                     >
                       {labels.cancel}
                     </Button>
@@ -1944,6 +1993,15 @@ function activityDetails(
       return d.paid != null
         ? [{ text: `${labels.paid}: ${money(d.paid)}`, warn: true }]
         : [];
+    // Joylashgan mehmon broni majburiy bekor qilingan — SABAB birinchi qatorda turadi:
+    // "kim, nega" degan savolga javob aynan shu satr (server uni majburiy qiladi).
+    case "booking.force_cancelled": {
+      const out: Array<{ text: string; warn?: boolean }> = [];
+      if (typeof d.reason === "string") out.push({ text: d.reason, warn: true });
+      if (d.paid != null && Number(d.paid) > 0)
+        out.push({ text: `${labels.paid}: ${money(d.paid)}`, warn: true });
+      return out;
+    }
     case "payment.recorded":
       return [
         {
@@ -1976,6 +2034,10 @@ const ACTIVITY_VISUAL: Record<string, { icon: IconData; tone?: string }> = {
   "booking.checked_in": { icon: Login03Icon },
   "booking.checked_out": { icon: Logout03Icon },
   "booking.cancelled": {
+    icon: CancelCircleIcon,
+    tone: "bg-destructive-surface text-destructive-surface-foreground",
+  },
+  "booking.force_cancelled": {
     icon: CancelCircleIcon,
     tone: "bg-destructive-surface text-destructive-surface-foreground",
   },
@@ -2046,9 +2108,16 @@ function ActivityRow({
   );
 }
 
+/** Sabab maydonining eng qisqa uzunligi — server DTO'si bilan bir xil (`MinLength(3)`). */
+const MIN_REASON = 3;
+
 /**
  * Harakat guard'i — ogohlantirish + aniq tanlov. `extra` (bo'lsa) TO'G'RI yo'l sifatida birinchi
  * turadi (masalan "To'lov qabul qilish"), tasdiqlash tugmasi esa ongli chetlab o'tish.
+ *
+ * `input` berilsa amal SABABSIZ bajarilmaydi: tasdiq tugmasi maydon to'lguncha o'chiq turadi.
+ * Bu ikkinchi komponent sifatida yozilmadi — guard bitta bo'lib qolgani muhim: ogohlantirish
+ * ohangi, tugmalar tartibi va "orqaga" yo'li hamma joyda bir xil o'qilishi kerak.
  */
 function ConfirmBox({
   tone,
@@ -2059,6 +2128,7 @@ function ConfirmBox({
   onConfirm,
   onBack,
   extra,
+  input,
 }: {
   tone: "warning" | "destructive";
   text: string;
@@ -2068,7 +2138,17 @@ function ConfirmBox({
   onConfirm: () => void;
   onBack: () => void;
   extra?: { label: string; onClick: () => void };
+  /** Majburiy sabab maydoni — berilsa tasdiq shu maydon to'lguncha bloklanadi. */
+  input?: {
+    label: string;
+    placeholder: string;
+    /** Tugma nega o'chiqligi — xodim "nima yetishmayapti?" deb qidirmasin. */
+    hint: string;
+    value: string;
+    onChange: (value: string) => void;
+  };
 }) {
+  const inputReady = !input || input.value.trim().length >= MIN_REASON;
   return (
     <div
       className={cn(
@@ -2086,6 +2166,29 @@ function ConfirmBox({
       >
         {text}
       </p>
+      {input && (
+        <div className="flex flex-col gap-1.5">
+          <label
+            htmlFor="confirm-reason"
+            className="text-xs font-medium text-neutral-700"
+          >
+            {input.label}
+          </label>
+          <Textarea
+            id="confirm-reason"
+            rows={2}
+            autoFocus
+            value={input.value}
+            placeholder={input.placeholder}
+            onChange={(e) => input.onChange(e.target.value)}
+            disabled={busy}
+            className="bg-white/80 text-sm"
+          />
+          {!inputReady && (
+            <p className="text-[0.6875rem] text-neutral-500">{input.hint}</p>
+          )}
+        </div>
+      )}
       <div className="flex flex-col gap-1.5">
         {extra && (
           <Button
@@ -2105,7 +2208,7 @@ function ConfirmBox({
             tone === "destructive" && "text-destructive hover:text-destructive",
           )}
           onClick={onConfirm}
-          disabled={busy}
+          disabled={busy || !inputReady}
         >
           {confirmLabel}
         </Button>

@@ -76,6 +76,8 @@ export function CalendarPage() {
   const minStart = backdateDays == null ? null : addDays(todayIso(), -backdateDays)
   const [selfReadOnly] = useReadOnlyCalendar()
   const canEdit = can("calendar.edit") && !selfReadOnly
+  const canCancel = can("booking.cancel") && !selfReadOnly
+  const canCancelCheckedIn = canCancel && can("booking.cancel_checked_in")
   const navigate = useNavigate()
   const calRef = useRef<ReservationCalendarHandle>(null)
   const { hostRef, panelRef, expanded, toggle } = useFullscreenPanel()
@@ -348,7 +350,8 @@ export function CalendarPage() {
               onCreateBooking={data.createBooking}
               onCheckIn={data.checkIn}
               onCheckOut={data.checkOut}
-              onCancel={data.cancel}
+              onCancel={canCancel ? data.cancel : undefined}
+              canCancelCheckedIn={canCancelCheckedIn}
               onEditBooking={data.editBooking}
               onMoveBooking={canEdit ? data.moveBooking : undefined}
               onMoveConflict={onMoveConflict}

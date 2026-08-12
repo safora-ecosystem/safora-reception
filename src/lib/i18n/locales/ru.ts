@@ -760,6 +760,7 @@ export const ru: Dictionary<"ru"> = {
       checkedIn: "Гость заехал",
       checkedOut: "Гость выехал",
       cancelled: "Бронь отменена",
+      forceCancelled: "Бронь заселённого гостя отменена",
       guestAdded: "Гость добавлен",
       guestRemoved: "Гость удалён",
       primaryChanged: "Основной гость изменён",
@@ -916,6 +917,14 @@ export const ru: Dictionary<"ru"> = {
     debtOnCheckOut: "Остаток {amount} — гость ещё не оплатил.",
     cancelPaidWarning:
       "По этой брони принято {amount} — при отмене деньги нужно вернуть гостю.",
+    cancelCheckedInWarning:
+      "Гость в номере. При отмене проживание прекращается, номер уходит на уборку, гостевой QR-доступ отключается. Действие необратимо и попадёт в журнал под вашим именем.",
+    cancelCheckedInPaidWarning:
+      "Гость в номере. При отмене проживание прекращается, номер уходит на уборку, гостевой QR-доступ отключается. По этой брони принято {amount} — возврат денег оформляется отдельно (сторно). Запись попадёт в журнал под вашим именем.",
+    cancelReasonLabel: "Причина",
+    cancelReasonPlaceholder: "Например: заселили по ошибке, гость перешёл в другой номер",
+    cancelReasonRequired: "Укажите причину — минимум 3 символа",
+    cancelCheckedInConfirm: "Отменить бронь",
     checkOutAnyway: "Выселить с долгом",
     cancelAnyway: "Всё равно отменить",
     earlyCheckInWarning: "Бронь начинается {date} — заселить гостя сегодня?",
