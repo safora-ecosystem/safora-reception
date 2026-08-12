@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { DocPreview } from "@/components/shared/doc-preview"
+import { useT } from "@/lib/i18n"
 import { getHotelBranding, getShiftReport, getShiftTimeline } from "@/lib/api"
 import {
   DEFAULT_DOC_OPTIONS,
@@ -39,6 +40,7 @@ export function ShiftDocDialog({
   open: boolean
   onOpenChange: (next: boolean) => void
 }) {
+  const t = useT()
   const frame = useRef<HTMLIFrameElement>(null)
   const [opts, setOpts] = useState<ShiftDocOptions>(DEFAULT_DOC_OPTIONS)
 
@@ -99,7 +101,7 @@ export function ShiftDocDialog({
 
         <DialogFooter>
           <DialogClose asChild>
-            <Button variant="ghost">Yopish</Button>
+            <Button variant="ghost">{t("common.close")}</Button>
           </DialogClose>
           <Button
             variant="outline"

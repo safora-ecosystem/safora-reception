@@ -1,5 +1,5 @@
 import { clearSession, getSession, updateAccessExpiry, type Session } from "./auth"
-import { t } from "./i18n"
+import { getLocale, t } from "./i18n"
 
 const BASE_URL = import.meta.env.VITE_API_URL
 
@@ -82,6 +82,17 @@ async function rawFetch(
       headers: {
         ...(hasBody && !isForm ? { "content-type": "application/json" } : {}),
         ...PANEL_HEADER,
+        // Panelning joriy tili. Serverdan keladigan ba'zi matn panel lug'atida YO'Q — u
+        // backend katalogida yashaydi (ruxsatlar ro'yxati, xizmat shablonlari) va tilni
+        // server tanlaydi. Busiz panel ruschaga o'tkazilganda o'sha ekranlar o'zbekcha
+        // qolib ketardi. Sarlavha HAR so'rovga qo'yiladi, faqat o'sha ikki endpointga
+        // emas: server matnlari (xato xabarlari) tarjima qilingan kuni yo'l allaqachon
+        // ochiq bo'ladi — `apiErrorText` izohi aynan shuni kutadi.
+        //
+        // `Accept-Language` — CORS "safelist" sarlavhasi, ya'ni qo'shimcha preflight
+        // tug'ilmaydi. Har so'rovda O'QILADI (keshlanmaydi): til almashtirilgach keyingi
+        // so'rov darrov yangi tilda ketishi kerak.
+        "accept-language": getLocale(),
       },
       ...(hasBody ? { body: isForm ? (body as FormData) : JSON.stringify(body) } : {}),
       signal: controller.signal,
@@ -125,7 +136,7 @@ async function sendWithRetry(path: string, options: ApiOptions): Promise<Respons
 // Endi Web Locks bilan navbat: qulfni olgan tab AVVAL storage'ni qayta o'qiydi — boshqa tab
 // allaqachon yangilagan bo'lsa, umuman so'rov yubormaydi.
 const REFRESH_LOCK = "safora-refresh"
-/** Access tokenda shu vaqtdan ko'proq qolgan bo'lsa yangilash shart emas. */
+/** Access tokenda shu vaqtdan ko'proq qolgan bo'lsa OLDINDAN yangilash shart emas. */
 const FRESH_MARGIN_SEC = 30
 
 /** Server "bu token o'lik" degan yagona holat. Tarmoq/5xx bundan FARQ qiladi. */
@@ -133,11 +144,27 @@ class SessionExpiredError extends Error {}
 
 // Refresh tokeni so'rov TANASIDA emas: u `httpOnly` cookie'da va brauzer uni /auth/refresh
 // yo'liga o'zi qo'shadi. Muddat esa seansdan o'qiladi — JWT endi panelga ko'rinmaydi.
-async function runRefresh(): Promise<Session | null> {
+//
+// `expiredAt` — 401 olgan so'rov yuborilgan paytdagi `accessExpiresAt`; oldindan yangilashda
+// (401 kutmasdan) `null`.
+//
+// NEGA IKKI XIL SHART. Lokal `accessExpiresAt` — bu TAXMIN (login/refresh javobida server
+// yozib bergan muddat), 401 esa serverning HUKMI. Ilgari bu yerda faqat "muddat hali
+// tugamagan bo'lsa so'rov yubormaymiz" sharti turardi va u 401 yo'lini HAM to'sib qo'yardi:
+// cookie brauzerda yo'qolgan (yoki seans boshqa qurilmadan yopilgan) bo'lsa panel "token hali
+// yangi" deb hisoblab refreshni umuman yubormasdi. Natijada har so'rov 401 bo'lardi, ekran
+// "Seans muddati tugadi" kartalari bilan qotib qolardi va /login'ga ham o'tmasdi — "qayta
+// urinish" ham xuddi shu tsiklni takrorlardi. Endi 401'dan keyin MUDDAT emas, muddatning
+// O'ZGARGANI tekshiriladi: qulfni kutayotganda boshqa tab yangilab ulgurgan bo'lsa muddat
+// boshqacha bo'ladi — ortiqcha so'rov faqat o'sha holatda yuborilmaydi.
+async function runRefresh(expiredAt: number | null): Promise<Session | null> {
   const current = getSession()
   if (!current) return null
-  // Qulfni kutayotganda boshqa tab yangilab qo'ygan bo'lishi mumkin — u holda so'rov shart emas.
-  if (current.accessExpiresAt - Date.now() / 1000 > FRESH_MARGIN_SEC) return current
+  const alreadyFresh =
+    expiredAt === null
+      ? current.accessExpiresAt - Date.now() / 1000 > FRESH_MARGIN_SEC
+      : current.accessExpiresAt !== expiredAt
+  if (alreadyFresh) return current
 
   const res = await rawFetch("/auth/refresh", { method: "POST", body: {} })
   if (res.ok) {
@@ -153,15 +180,26 @@ async function runRefresh(): Promise<Session | null> {
 
 let refreshInFlight: Promise<Session | null> | null = null
 
-function refreshSession(): Promise<Session | null> {
+function refreshSession(expiredAt: number | null): Promise<Session | null> {
   refreshInFlight ??= (
     typeof navigator !== "undefined" && "locks" in navigator
-      ? navigator.locks.request(REFRESH_LOCK, runRefresh)
-      : runRefresh()
+      ? navigator.locks.request(REFRESH_LOCK, () => runRefresh(expiredAt))
+      : runRefresh(expiredAt)
   ).finally(() => {
     refreshInFlight = null
   })
   return refreshInFlight
+}
+
+/** Seans o'lik: lokal nusxani tozalab /login'ga olib chiqamiz. Bitta sahifada o'nlab so'rov bir
+    vaqtda 401 bo'lishi mumkin, shuning uchun yo'naltirish BIR MARTA bajariladi. */
+let sessionEnded = false
+
+function endSession(): void {
+  if (sessionEnded) return
+  sessionEnded = true
+  clearSession()
+  window.location.assign("/login")
 }
 
 /** Seans cookie'sini brauzer o'zi qo'shadi; access eskirgan bo'lsa (401) bir marta refresh qilib
@@ -170,21 +208,29 @@ export async function api<T>(path: string, options: ApiOptions = {}): Promise<T>
   const session = getSession()
   let res = await sendWithRetry(path, options)
 
-  if (res.status === 401 && session) {
+  if (res.status === 401 && session && path !== "/auth/login") {
     let next: Session | null = null
     try {
-      next = await refreshSession()
+      next = await refreshSession(session.accessExpiresAt)
     } catch (err) {
-      if (err instanceof SessionExpiredError && path !== "/auth/login") {
-        clearSession()
-        window.location.assign("/login")
+      if (err instanceof SessionExpiredError) {
+        endSession()
         throw new ApiError(401, { message: t("errors.sessionExpiredShort") })
       }
       throw err
     }
     // `next` null bo'lsa — vaqtinchalik nosozlik. Sessiya saqlanadi, chaqiruvchi oddiy
     // xatolikni oladi va keyingi urinishda hammasi tiklanadi.
-    if (next) res = await sendWithRetry(path, options)
+    if (next) {
+      res = await sendWithRetry(path, options)
+      // Yangilangan seans bilan HAM 401 — server bizni tanimayapti: cookie brauzerda yo'q
+      // yoki seans boshqa qurilmadan yopilgan. Bu holatda qayta urinishning ma'nosi yo'q va
+      // eng yomoni — panel "kirgan" ko'rinishida qotib qoladi. Yagona to'g'ri yo'l: qayta kirish.
+      if (res.status === 401) {
+        endSession()
+        throw new ApiError(401, { message: t("errors.sessionExpiredShort") })
+      }
+    }
   }
 
   const payload = await res.json().catch(() => null)
@@ -223,6 +269,11 @@ export function apiErrorText(err: unknown, fallback = t("errors.generic")): stri
 // ── core-api domen tiplari (reception ishlatadigan qismi) ──────────────────
 
 export type BookingStatus = "booked" | "checked_in" | "checked_out" | "cancelled"
+
+/** Bron qayerdan tug'ilgan (backend `booking_source` enum'i bilan bir xil).
+    `reception` — xodim paneldan ochgan · `channel` — tashqi sotuv kanali (OTA) ·
+    `web` — mehmonxonaning o'z sayti/boti. */
+export type BookingSource = "reception" | "channel" | "web"
 
 /** Qo'shimcha xarajat (ovqat, xizmat) — `payments` kabi append-only, storno bilan. */
 export type BookingCharge = {
@@ -343,6 +394,11 @@ export type Booking = {
   organization?: { id: string; name: string; shortName: string | null; status: OrganizationStatus } | null
   /** Kafolat xati / buyurtma raqami (korporativ bronda). */
   orgRef?: string | null
+  /** Bron QAYERDAN kelgan: resepshn xodimi, tashqi kanal (OTA) yoki sayt/bot. */
+  source?: BookingSource
+  /** Bronni OCHGAN xodim. `null` — bot/kanal broni (odam ochmagan) yoki eski yozuv.
+      Smena almashganda "buni kim qo'ygan?" degan savol shu yerdan javob topadi. */
+  createdBy?: { id: string; name: string; role: string } | null
   /** To'liq ro'yxat FAQAT `GET /bookings/:id` javobida — kalendar ro'yxatida sanoq keladi. */
   guests?: BookingGuest[]
   /** To'lov ledgeri — FAQAT detal javobida (`GET /bookings/:id` va mutatsiya javoblari). */

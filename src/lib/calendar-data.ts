@@ -432,6 +432,10 @@ function mapBooking(b: Booking): CalendarBooking {
       ? { id: b.organization.id, name: b.organization.name, shortName: b.organization.shortName }
       : null,
     orgRef: b.orgRef,
+    // Kim ochgani + qaysi kanaldan. Ikkalasi ham ixtiyoriy: eski bronlarda `createdBy` yo'q,
+    // `source` esa backend enum'i (sukut — `reception`).
+    createdBy: b.createdBy ? { name: b.createdBy.name, role: b.createdBy.role } : null,
+    source: b.source,
   }
 }
 

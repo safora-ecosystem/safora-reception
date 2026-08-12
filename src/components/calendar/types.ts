@@ -5,6 +5,8 @@ export type CalendarStatus = "booked" | "checked_in" | "checked_out" | "cancelle
 
 export type CalendarBlockKind = "maintenance" | "cleaning" | "hold" | "other"
 
+export type CalendarBookingSource = "reception" | "channel" | "web"
+
 export interface CalendarPayment {
   total: number
   paid: number
@@ -52,6 +54,8 @@ export interface CalendarBooking {
   note?: string | null
   organization?: { id: string; name: string; shortName?: string | null } | null
   orgRef?: string | null
+  createdBy?: { name: string; role?: string } | null
+  source?: CalendarBookingSource
   blockKind?: CalendarBlockKind
   linkId?: string | null
   meta?: Record<string, unknown>
@@ -104,6 +108,11 @@ export interface CalendarLabels {
   stay: string
   payment: string
   today: string
+  bookedBy: string
+  bookingSource: Record<CalendarBookingSource, string>
+  paidFully: string
+  paidPartly: string
+  paidNone: string
   noRoomsTitle: string
   noRoomsHint: string
   newBooking: string

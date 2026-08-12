@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion"
-import { Calendar03Icon, Note01Icon } from "@hugeicons/core-free-icons"
+import { Calendar03Icon, Note01Icon, User02Icon } from "@hugeicons/core-free-icons"
 import { Icon } from "@/components/ui/icon"
 import { cn } from "@/lib/utils"
 import { nightsBetween } from "./geometry"
@@ -85,8 +85,8 @@ export function CalendarBarTooltip({ state, labels, statusConfig }: CalendarBarT
           exit={reduceMotion ? { opacity: 0, transition: { duration: 0.08 } } : EXIT}
           transition={ENTER_TRANSITION}
           className={cn(
-            "pointer-events-none fixed z-[70] w-64 max-w-[calc(100vw-16px)] overflow-hidden",
-            "rounded-xl border border-border bg-popover shadow-lg",
+            "pointer-events-none fixed z-[70] w-[17.5rem] max-w-[calc(100vw-16px)] overflow-hidden",
+            "rounded-2xl border border-border bg-popover shadow-xl",
           )}
           style={{
             left: pos?.left ?? state.anchor.x,
@@ -95,87 +95,128 @@ export function CalendarBarTooltip({ state, labels, statusConfig }: CalendarBarT
           }}
         >
           {}
-          <div className="flex items-start gap-2.5 px-3 pt-2.5">
+          <div className="flex items-start gap-2.5 px-3.5 pt-3 pb-2.5">
             <span
-              className={cn("mt-1 h-3.5 w-1 shrink-0 rounded-full", visual.strip ?? "bg-neutral-300")}
+              className={cn(
+                "mt-0.5 w-1 shrink-0 self-stretch rounded-full",
+                visual.strip ?? "bg-muted-foreground/30",
+              )}
               aria-hidden
             />
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm leading-tight font-semibold text-neutral-900">{b.label}</p>
+              <p className="truncate text-sm leading-tight font-semibold text-foreground">{b.label}</p>
               {b.sublabel && (
-                <p className="mt-0.5 truncate text-xs leading-tight text-neutral-400">{b.sublabel}</p>
+                <p className="mt-1 truncate text-xs leading-tight text-muted-foreground tabular-nums">
+                  {b.sublabel}
+                </p>
               )}
             </div>
+            {}
             <span
               className={cn(
-                "mt-0.5 shrink-0 text-[0.6875rem] leading-none font-semibold",
-                visual.text ?? "text-neutral-500",
+                "shrink-0 rounded-lg px-2 py-1 text-[0.6875rem] leading-none font-semibold",
+                visual.labelClass ? "bg-muted" : visual.bar,
+                visual.text ?? "text-muted-foreground",
               )}
             >
               {labels.statusText[b.status]}
             </span>
           </div>
 
-          <div className="mt-2.5 border-t border-neutral-100" />
-
           {}
-          <div className="flex items-center gap-1.5 px-3 pt-2.5 text-xs text-neutral-600">
-            <Icon icon={Calendar03Icon} className="size-3.5 shrink-0 text-neutral-400" />
-            <span className="tabular-nums">
-              {fmtDay(b.start, labels)} – {fmtDay(b.end, labels)}
-            </span>
-            <span className="text-neutral-300">·</span>
-            <span className="text-neutral-500">{labels.nights(nightsBetween(b.start, b.end))}</span>
-            {(b.guestCount ?? 0) > 1 && (
-              <>
-                <span className="text-neutral-300">·</span>
-                <span className="text-neutral-500">{labels.guestsWord(b.guestCount as number)}</span>
-              </>
+          <div className="space-y-1.5 border-t border-border px-3.5 py-2.5">
+            <div className="flex items-center gap-1.5 text-xs text-foreground/80">
+              <Icon icon={Calendar03Icon} className="size-3.5 shrink-0 text-muted-foreground" />
+              <span className="tabular-nums">
+                {fmtDay(b.start, labels)} – {fmtDay(b.end, labels)}
+              </span>
+              <span className="text-muted-foreground/50">·</span>
+              <span className="text-muted-foreground">
+                {labels.nights(nightsBetween(b.start, b.end))}
+              </span>
+              {(b.guestCount ?? 0) > 1 && (
+                <>
+                  <span className="text-muted-foreground/50">·</span>
+                  <span className="text-muted-foreground">
+                    {labels.guestsWord(b.guestCount as number)}
+                  </span>
+                </>
+              )}
+            </div>
+
+            {}
+            {(b.createdBy?.name || (b.source && b.source !== "reception")) && (
+              <div className="flex items-center gap-1.5 text-xs text-foreground/80">
+                <Icon icon={User02Icon} className="size-3.5 shrink-0 text-muted-foreground" />
+                <span className="text-muted-foreground">{labels.bookedBy}</span>
+                <span className="min-w-0 truncate">
+                  {b.createdBy?.name ?? labels.bookingSource[b.source ?? "reception"]}
+                </span>
+                {b.createdBy?.name && b.source && b.source !== "reception" && (
+                  <>
+                    <span className="text-muted-foreground/50">·</span>
+                    <span className="truncate text-muted-foreground">
+                      {labels.bookingSource[b.source]}
+                    </span>
+                  </>
+                )}
+              </div>
             )}
           </div>
 
           {}
           {b.organization ? (
-            <div className="px-3 pt-2 pb-3">
+            <div className="border-t border-border px-3.5 py-2.5">
               <div className="flex items-baseline justify-between gap-2 text-xs">
-                <span className="text-neutral-400">{labels.corporateBilling}</span>
-                {pay && <span className="tabular-nums text-neutral-600">{labels.money(pay.total)}</span>}
+                <span className="text-muted-foreground">{labels.corporateBilling}</span>
+                {pay && (
+                  <span className="tabular-nums text-foreground/80">{labels.money(pay.total)}</span>
+                )}
               </div>
-              <p className="mt-1 truncate text-xs font-medium text-neutral-700">
+              <p className="mt-1 truncate text-xs font-medium text-foreground">
                 {b.organization.shortName || b.organization.name}
               </p>
             </div>
           ) : pay ? (
-            <div className="px-3 pt-2 pb-3">
+            <div className="border-t border-border px-3.5 py-2.5">
               <div className="flex items-baseline justify-between gap-2 text-xs">
-                <span className="text-neutral-400">{labels.payment}</span>
+                <span className="text-muted-foreground">{labels.payment}</span>
                 <span className="tabular-nums">
                   <span className={cn("font-semibold", paidFull ? "text-success" : "text-warning")}>
                     {labels.money(pay.paid)}
                   </span>
-                  <span className="text-neutral-400"> / {labels.money(pay.total)}</span>
+                  <span className="text-muted-foreground"> / {labels.money(pay.total)}</span>
                 </span>
               </div>
-              <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-neutral-100">
-                <div
-                  className={cn("h-full rounded-full", paidFull ? "bg-success" : "bg-warning")}
-                  style={{ width: `${Math.max(ratio * 100, 4)}%` }}
-                />
+              <div className="mt-1.5 flex items-center gap-2">
+                <div className="h-1 flex-1 overflow-hidden rounded-full bg-muted">
+                  <div
+                    className={cn("h-full rounded-full", paidFull ? "bg-success" : "bg-warning")}
+                    style={{ width: `${Math.max(ratio * 100, 4)}%` }}
+                  />
+                </div>
+                {/* Bitta so'zli javob: xodim progress chizig'ini o'lchab o'tirmasin. */}
+                <span
+                  className={cn(
+                    "shrink-0 text-[0.6875rem] leading-none font-medium",
+                    paidFull ? "text-success" : ratio > 0 ? "text-warning" : "text-muted-foreground",
+                  )}
+                >
+                  {paidFull ? labels.paidFully : ratio > 0 ? labels.paidPartly : labels.paidNone}
+                </span>
               </div>
             </div>
-          ) : (
-            <div className="pb-3" />
-          )}
+          ) : null}
 
           {/* Eslatma — bor bo'lsa alohida bo'lim. `line-clamp-5`: eslatma erkin matn, uzuni
               tooltip'ni ekran bo'yi cho'zib yuborardi (founder, 2026-08-07: 5-6 qator yetadi) —
               to'lig'i detal oynasida. `whitespace-pre-line` — xodim yozgan qator bo'linishlari
               saqlanadi va klamp ularni ham hisoblaydi. */}
           {b.note && (
-            <div className="border-t border-neutral-100 px-3 py-2.5">
+            <div className="bg-brand-500 px-3.5 py-2.5 text-white">
               <div className="flex items-start gap-1.5">
-                <Icon icon={Note01Icon} className="mt-px size-3.5 shrink-0 text-neutral-400" />
-                <p className="line-clamp-5 min-w-0 text-xs leading-snug break-words whitespace-pre-line text-neutral-600">
+                <Icon icon={Note01Icon} className="mt-px size-3.5 shrink-0 text-white/70" />
+                <p className="line-clamp-5 min-w-0 text-xs leading-snug break-words whitespace-pre-line">
                   {b.note}
                 </p>
               </div>

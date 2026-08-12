@@ -250,7 +250,7 @@ export function CalendarPage() {
                 variant="outline"
                 size="icon-xl"
                 onClick={() => calRef.current?.scrollByViewport(-1)}
-                aria-label="Oldingi"
+                aria-label={t("common.prev")}
               >
                 <Icon icon={ArrowLeft01Icon} />
               </Button>
@@ -265,7 +265,7 @@ export function CalendarPage() {
                 variant="outline"
                 size="icon-xl"
                 onClick={() => calRef.current?.scrollByViewport(1)}
-                aria-label="Keyingi"
+                aria-label={t("common.next")}
               >
                 <Icon icon={ArrowRight01Icon} />
               </Button>

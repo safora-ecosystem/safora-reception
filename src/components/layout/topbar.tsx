@@ -27,6 +27,7 @@ import { useNotices } from "@/lib/notices"
 import { usePageHeader } from "@/lib/page-header"
 import { useTopbarSearch } from "@/lib/topbar-search"
 import { useUiPrefs } from "@/lib/ui-prefs"
+import { cn } from "@/lib/utils"
 
 export function Topbar() {
   const t = useT()
@@ -70,7 +71,7 @@ export function Topbar() {
   }, [])
 
   return (
-    <header className="@container flex h-16 shrink-0 items-center gap-3 rounded-panel border border-border bg-white px-4 sm:px-5">
+    <header className="@container flex h-16 shrink-0 items-center gap-3 overflow-hidden rounded-panel border border-border bg-white px-4 sm:px-5">
       {}
       {}
       <button
@@ -93,7 +94,13 @@ export function Topbar() {
       ) : null}
       {}
       {}
-      <div className="relative hidden w-full min-w-[8.5rem] max-w-[26rem] shrink @2xl:block">
+      {}
+      <div
+        className={cn(
+          "relative hidden w-full min-w-0 max-w-[26rem] shrink",
+          actions ? "@4xl:block" : "@2xl:block",
+        )}
+      >
         <Icon
           icon={Search01Icon}
           className="pointer-events-none absolute top-1/2 left-4 size-[1.125rem] -translate-y-1/2 text-neutral-400"
@@ -219,9 +226,9 @@ export function Topbar() {
               name={user?.name ?? t("topbar.staff")}
               avatarUrl={user?.avatarUrl}
             />
-            <div className="hidden leading-tight text-left @4xl:block">
-              <p className="text-[0.9375rem] font-medium text-neutral-900">{user?.name ?? t("topbar.staff")}</p>
-              <p className="text-sm text-neutral-500">{user ? t(ROLE_KEY[user.role]) : ""}</p>
+            <div className="hidden min-w-0 max-w-[11rem] leading-tight text-left @4xl:block">
+              <p className="truncate text-[0.9375rem] font-medium text-neutral-900">{user?.name ?? t("topbar.staff")}</p>
+              <p className="truncate text-sm text-neutral-500">{user ? t(ROLE_KEY[user.role]) : ""}</p>
             </div>
             <Icon icon={ArrowDown01Icon} className="hidden size-4 shrink-0 text-neutral-400 @4xl:block" strokeWidth={2} />
           </DropdownMenuTrigger>
