@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { PageLayout } from "@/components/layout/page-layout"
 import { EmptyState } from "@/components/shared/empty-state"
+import { usePhotoViewer } from "@/components/shared/photo-viewer"
 import { QueryState } from "@/components/shared/query-state"
 import { RangeToggle } from "@/components/shared/charts"
 import { SkeletonList, SkeletonStatBar } from "@/components/shared/skeletons"
@@ -42,6 +43,7 @@ export function HousekeepingPage() {
   const t = useT()
   const qc = useQueryClient()
   const [days, setDays] = useState<RangeDays>(1)
+  const { show, viewer } = usePhotoViewer(t("hk.photoAlt"))
 
   const range = useMemo(
     () => ({ from: ymdDaysAgo(days - 1), to: localIso(new Date()) }),
@@ -160,15 +162,22 @@ export function HousekeepingPage() {
                           bo'sh bo'lishi tabiiy holat, xato emas. */}
                       {s.photos.length > 0 && (
                         <div className="flex shrink-0 items-center gap-1.5">
-                          {s.photos.map((p) => (
-                            <a key={p} href={hkFileUrl(p)} target="_blank" rel="noreferrer">
+                          {s.photos.map((p, i) => (
+                            <button
+                              key={p}
+                              type="button"
+                              // Seansning HAMMA rasmi ochiladi, bosilgani birinchi bo'lib —
+                              // xodim odatda uchalasini ketma-ket ko'radi.
+                              onClick={() => show(s.photos.map(hkFileUrl), i)}
+                              className="rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-ring/40"
+                            >
                               <img
                                 src={hkFileUrl(p)}
                                 alt={t("hk.photoAlt")}
                                 loading="lazy"
-                                className="size-8 rounded-lg border border-border object-cover"
+                                className="size-8 rounded-lg border border-border object-cover transition-opacity hover:opacity-80"
                               />
-                            </a>
+                            </button>
                           ))}
                         </div>
                       )}
@@ -191,6 +200,7 @@ export function HousekeepingPage() {
                       item={item}
                       resolving={resolveM.isPending && resolveM.variables === item.id}
                       onResolve={() => resolveM.mutate(item.id)}
+                      onPhoto={() => item.photoUrl && show([hkFileUrl(item.photoUrl)])}
                     />
                   ))}
                 </CardContent>
@@ -199,6 +209,7 @@ export function HousekeepingPage() {
           </div>
         )}
       </QueryState>
+      {viewer}
     </PageLayout>
   )
 }
@@ -207,23 +218,29 @@ function LostItemRow({
   item,
   resolving,
   onResolve,
+  onPhoto,
 }: {
   item: HkLostItem
   resolving: boolean
   onResolve: () => void
+  onPhoto: () => void
 }) {
   const t = useT()
   return (
     <div className="flex items-center gap-3 py-2.5">
       {item.photoUrl ? (
-        <a href={hkFileUrl(item.photoUrl)} target="_blank" rel="noreferrer" className="shrink-0">
+        <button
+          type="button"
+          onClick={onPhoto}
+          className="shrink-0 rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-ring/40"
+        >
           <img
             src={hkFileUrl(item.photoUrl)}
             alt={item.itemName}
             loading="lazy"
-            className="size-8 rounded-lg border border-border object-cover"
+            className="size-8 rounded-lg border border-border object-cover transition-opacity hover:opacity-80"
           />
-        </a>
+        </button>
       ) : (
         <span
           className="size-8 shrink-0 rounded-control border border-dashed border-border"
