@@ -203,7 +203,11 @@ function SplitBody({
                     <span className="tabular-nums">{fmtDay(splitDate, labels)}</span>
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent align="start" className="w-auto p-0">
+                <PopoverContent
+                        align="start"
+                        className="w-auto p-0"
+                        onOpenAutoFocus={(e) => e.preventDefault()}
+                      >
                   <Calendar
                     mode="single"
                     locale={uz}

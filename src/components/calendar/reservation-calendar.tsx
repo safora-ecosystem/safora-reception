@@ -353,6 +353,8 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
 
     const handleSelect = useCallback(
       (b: CalendarBooking) => {
+        const active = document.activeElement
+        if (active instanceof HTMLElement) active.blur()
         setSelectedId(b.id)
         onSelectBooking?.(b)
       },

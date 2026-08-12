@@ -896,7 +896,11 @@ const StayBlock = memo(function StayBlock({
               </span>
             </Button>
           </PopoverTrigger>
-          <PopoverContent align="start" className="w-auto p-0">
+          <PopoverContent
+                        align="start"
+                        className="w-auto p-0"
+                        onOpenAutoFocus={(e) => e.preventDefault()}
+                      >
             <Calendar
               mode="range"
               locale={uz}
