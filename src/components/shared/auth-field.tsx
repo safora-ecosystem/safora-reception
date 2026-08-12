@@ -7,15 +7,41 @@ import { Button } from "@/components/ui/button"
 import { Icon } from "@/components/ui/icon"
 import { cn } from "@/lib/utils"
 
+function firstLine(text: string): string {
+  return text.split(/[\r\n]/, 1)[0]!.trim()
+}
+
 export function AuthField({
   label,
   trailing,
   className,
+  onPaste,
   ...props
 }: ComponentProps<"input"> & {
   label: string
   trailing?: ReactNode
 }) {
+  function handlePaste(event: React.ClipboardEvent<HTMLInputElement>) {
+    onPaste?.(event)
+    if (event.defaultPrevented) return
+
+    const pasted = event.clipboardData.getData("text")
+    const clean = firstLine(pasted)
+    if (clean === pasted) return
+
+    event.preventDefault()
+    const input = event.currentTarget
+    const start = input.selectionStart ?? input.value.length
+    const end = input.selectionEnd ?? start
+    const next = input.value.slice(0, start) + clean + input.value.slice(end)
+
+    const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set
+    setValue?.call(input, next)
+    input.dispatchEvent(new Event("input", { bubbles: true }))
+    const caret = start + clean.length
+    input.setSelectionRange(caret, caret)
+  }
+
   return (
     <div className="auth-field relative">
       <label
@@ -28,6 +54,7 @@ export function AuthField({
         <span className="text-xs leading-4 font-medium text-muted-foreground">{label}</span>
         <input
           {...props}
+          onPaste={handlePaste}
           className={cn(
             "mt-0.5 h-5 w-full min-w-0 bg-transparent text-[0.9375rem] leading-5 text-foreground outline-none",
             "placeholder:text-neutral-400/70",
