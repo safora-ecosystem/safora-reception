@@ -844,6 +844,7 @@ export const uz = {
     cancelAnyway: "Baribir bekor qilish",
     earlyCheckInWarning: "Bron {date}da boshlanadi — mehmon bugun kiritilsinmi?",
     checkInAnyway: "Bugun kiritish",
+    roomOccupiedHint: "Xonada hali chiqmagan mehmon bor — avval uni chiqaring",
     foundCount: { one: "{count} ta topildi", other: "{count} ta topildi" },
     cleaningWaiting: "Tozalash kutilmoqda",
     cleaningNow: "Tozalanmoqda",

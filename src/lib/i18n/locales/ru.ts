@@ -920,6 +920,7 @@ export const ru: Dictionary<"ru"> = {
     cancelAnyway: "Всё равно отменить",
     earlyCheckInWarning: "Бронь начинается {date} — заселить гостя сегодня?",
     checkInAnyway: "Заселить сегодня",
+    roomOccupiedHint: "В номере ещё не выехавший гость — сначала выселите его",
     foundCount: {
       one: "Найден {count}",
       few: "Найдено {count}",

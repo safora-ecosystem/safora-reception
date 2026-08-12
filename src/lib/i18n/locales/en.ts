@@ -846,6 +846,7 @@ export const en: Dictionary<"en"> = {
     cancelAnyway: "Cancel anyway",
     earlyCheckInWarning: "The booking starts on {date} — check the guest in today?",
     checkInAnyway: "Check in today",
+    roomOccupiedHint: "The room still has a guest checked in — check them out first",
     foundCount: { one: "{count} found", other: "{count} found" },
     cleaningWaiting: "Awaiting cleaning",
     cleaningNow: "Cleaning",

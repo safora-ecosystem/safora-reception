@@ -278,6 +278,7 @@ function build(t: TFunc): CalendarLabels {
     cancelAnyway: t("calendar.cancelAnyway"),
     earlyCheckInWarning: (date) => t("calendar.earlyCheckInWarning", { date }),
     checkInAnyway: t("calendar.checkInAnyway"),
+    roomOccupiedHint: t("calendar.roomOccupiedHint"),
     back: t("common.back"),
   }
 }

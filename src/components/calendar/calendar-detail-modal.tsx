@@ -448,6 +448,15 @@ function DetailBody({
     (canRelocate || canExtend) &&
     hasConflict({ roomId, start, end }, bookings, b.id);
 
+  // Bitta xonada bir vaqtda BITTA faol mehmon: oldingisi chiqmaguncha keyingisi
+  // kiritilmaydi. Server ham xuddi shu qoidani ROOM_OCCUPIED bilan ushlaydi — bu
+  // yerda faqat tugma oldindan o'chib, sababi yozib turadi.
+  const roomOccupied =
+    b.status === "booked" &&
+    bookings.some(
+      (x) => x.roomId === b.roomId && x.id !== b.id && x.status === "checked_in",
+    );
+
   // ── Summa HISOBLANADI, yozilmaydi ─────────────────────────────────────────
   // Resepshn narxni qo'lda kirita olmaydi (biznes chegarasi — yaratish formasi bilan bir xil):
   //   · xona ALMASHSA — yangi xonaning tarifi × kechalar (boshqa toifada eski narx ma'nosiz);
@@ -1372,17 +1381,24 @@ function DetailBody({
               {labels.close}
             </Button>
             {b.status === "booked" && onCheckIn && (
-              <Button
-                size="lg"
-                className="rounded-control"
-                disabled={busy}
-                // Erta kirish (bron hali boshlanmagan) tasdiq so'raydi — quti o'ng ustunda ochiladi.
-                onClick={() =>
-                  b.start > today ? setConfirming("checkin") : run(onCheckIn)
-                }
-              >
-                <Icon icon={Login03Icon} /> {labels.checkIn}
-              </Button>
+              <div className="flex items-center gap-3">
+                {roomOccupied && (
+                  <span className="max-w-60 text-right text-xs leading-snug text-warning">
+                    {labels.roomOccupiedHint}
+                  </span>
+                )}
+                <Button
+                  size="lg"
+                  className="rounded-control"
+                  disabled={busy || roomOccupied}
+                  // Erta kirish (bron hali boshlanmagan) tasdiq so'raydi — quti o'ng ustunda ochiladi.
+                  onClick={() =>
+                    b.start > today ? setConfirming("checkin") : run(onCheckIn)
+                  }
+                >
+                  <Icon icon={Login03Icon} /> {labels.checkIn}
+                </Button>
+              </div>
             )}
             {b.status === "checked_in" && onCheckOut && (
               <Button

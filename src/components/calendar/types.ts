@@ -302,6 +302,7 @@ export interface CalendarLabels {
   cancelAnyway: string
   earlyCheckInWarning: (date: string) => string
   checkInAnyway: string
+  roomOccupiedHint: string
   back: string
 }
 
