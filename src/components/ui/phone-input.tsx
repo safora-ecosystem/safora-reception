@@ -1,13 +1,13 @@
 import { memo, useDeferredValue, useMemo, useRef, useState } from "react"
 import { Check, ChevronDown, Search } from "lucide-react"
-import PhoneNumberInput, {
+import {
   getCountries,
   getCountryCallingCode,
   isValidPhoneNumber,
   parsePhoneNumber,
   type Country,
 } from "react-phone-number-input/input"
-import { validatePhoneNumberLength } from "libphonenumber-js/min"
+import { AsYouType, validatePhoneNumberLength } from "libphonenumber-js/min"
 import flags from "react-phone-number-input/flags"
 import { getLocale, t, type Locale } from "@/lib/i18n"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -129,6 +129,13 @@ function countryOf(value: string): Country | undefined {
   return value.startsWith("+") ? parsePhoneNumber(value)?.country : undefined
 }
 
+/** Milliy raqamlar → ko'rinadigan matn: "901234567" → "90 123 45 67". Sinxron va sof. */
+function formatNational(digits: string, country: Country): string {
+  if (!digits) return ""
+  return new AsYouType(country).input(digits)
+}
+
+
 // `memo` — forma katta (bir modal ichida bir nechta telefon maydoni bo'ladi): boshqa maydonda
 // terish bu komponentni (bayroq SVG'si bilan) qayta chizmasin. `onChange` barqaror setter bo'lsa
 // shallow solishtirish yetadi.
@@ -153,54 +160,88 @@ export const PhoneInput = memo(function PhoneInput({
 }) {
   const [open, setOpen] = useState(false)
   const [manualCountry, setManualCountry] = useState<Country | null>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
 
-  // Ko'rsatiladigan qiymat ICHKI holat, ota-komponentga faqat XABAR beriladi. To'liq controlled
-  // qilinsa har harf ota state'idan aylanib qaytguncha input matni ikki marta yoziladi
-  // (formatlangan → xom → formatlangan) — ko'zga lipillash bo'lib ko'rinadi. Ota yuborgan qiymat
-  // biz oxirgi chiqargan bilan bir xil bo'lsa — bu aks-sado, e'tiborsiz; farq qilsa — tashqi
-  // o'zgarish (reset, tahrirga ochish), qabul qilinadi.
-  const lastEmitted = useRef(value)
-  const [inner, setInner] = useState(value)
-  if (value !== lastEmitted.current) {
-    lastEmitted.current = value
-    if (value !== inner) setInner(value)
-  }
-
-  const emit = (next?: string) => {
-    const v = next ?? ""
-    lastEmitted.current = v
-    setInner(v)
-    onChange(v)
-  }
-
-  /**
-   * Davlat maksimal uzunligidan ORTIQ raqam kiritilmasin (UZ: kod + 9 xona). Tekshiruv
-   * `beforeinput`da — belgi input'ga umuman tushmaydi, state'ga tegilmaydi, hech narsa
-   * miltillamaydi. Faqat `TOO_LONG` bloklanadi: ba'zi davlatlarda uzunliklar oraliq
-   * bo'lib keladi (7 va 9 mumkin, 8 emas) — qat'iyroq shart haqiqiy raqamni to'sib qo'yardi.
-   */
-  const blockOverflow = (e: React.FormEvent<HTMLInputElement>) => {
-    const data = (e.nativeEvent as InputEvent).data
-    if (!data || !/\d/.test(data)) return // o'chirish, ko'chirish, navigatsiya — ruxsat
-    const el = e.currentTarget
-    const selStart = el.selectionStart ?? el.value.length
-    const selEnd = el.selectionEnd ?? selStart
-    const next = el.value.slice(0, selStart) + data + el.value.slice(selEnd)
-    if (next.trimStart().startsWith("+")) {
-      // Yopishtirilgan xalqaro shakl — kod matnning o'zida, uzunlikni kutubxona hal qiladi.
-      if (validatePhoneNumberLength(next) === "TOO_LONG") e.preventDefault()
-    } else if (next.replace(/\D/g, "").length > maxNationalDigits(country)) {
-      // Milliy rejimda XOM raqamlar sonini o'zimiz sanaymiz: foydalanuvchi +998 tanlangan
-      // turib yana 998 bilan boshlab tersa, validatePhoneNumberLength boshidagi 998 ni
-      // davlat kodi deb hisoblab, 12 raqamli satrni ham to'g'ri deb o'tkazib yuborardi.
-      e.preventDefault()
-    }
-  }
+  // TO'LIQ SINXRON, EFFEKTSIZ. Bu maydon ataylab `react-phone-number-input`ning input
+  // komponentisiz yozilgan: u qiymatni useEffect zanjiri orqali chiqaradi, va closure'lari
+  // bir qadam orqada qolgani uchun chiqishga qilingan HAR QANDAY tuzatish (998-ikkilanishni
+  // yig'ishtirish kabi) u bilan cheksiz aylanmaga tushardi — maydon o'z-o'zidan ikki qiymat
+  // orasida "o'ynab" turar, React esa "Maximum update depth exceeded" bilan butun sahifani
+  // yiqitardi. Bron modallarining mashhur "qotishi" aynan shu edi.
+  //
+  // Endi manba BITTA: otadagi E.164 qiymat. Har keystroke bitta sinxron o'tishda
+  // raqamlarga aylanadi, tuzatiladi, otaga chiqadi va shu renderdayoq formatlanib
+  // qaytadi. Effekt yo'q, ichki state yo'q, ikkinchi manba yo'q — aylanadigan narsa yo'q.
 
   // Qiymatning o'zi davlatni aytib tursa (E.164 kiritilgan/yopishtirilgan) — shunisi ustun.
   // Qo'lda tanlangan davlat esa maydon bo'sh yoki hali tanilmaganda ishlaydi.
-  const country = countryOf(inner) ?? manualCountry ?? DEFAULT_COUNTRY
+  const country = countryOf(value) ?? manualCountry ?? DEFAULT_COUNTRY
   const Flag = flags[country]
+  const code = getCountryCallingCode(country)
+
+  // E.164 → milliy raqamlar → ko'rinadigan matn ("90 123 45 67"). Eski yozuvlarda qiymat
+  // E.164 bo'lmasligi mumkin — u holda raqamlargina olinadi, jimgina yo'qotilmaydi.
+  const nationalDigits = value.startsWith(`+${code}`)
+    ? value.slice(1 + code.length).replace(/\D/g, "")
+    : value.replace(/\D/g, "")
+  const display = formatNational(nationalDigits, country)
+
+  const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const el = e.currentTarget
+    const raw = el.value
+    const trimmed = raw.trim()
+
+    // Xalqaro shakl yopishtirildi ("+7 912 ...") — butun raqam sifatida o'qiladi, davlat
+    // tanlagich qiymatning o'zidan ergashadi.
+    if (trimmed.startsWith("+")) {
+      const parsed = parsePhoneNumber(trimmed)
+      if (parsed) {
+        onChange(parsed.number)
+        return
+      }
+    }
+
+    // Kursor: formatlangan matnda emas, RAQAMLAR ichida nechanchi o'rin — format o'zgarsa
+    // ham shu raqamdan keyin qoladi.
+    let caretDigits = raw.slice(0, el.selectionStart ?? raw.length).replace(/\D/g, "").length
+    let digits = raw.replace(/\D/g, "")
+    const max = maxNationalDigits(country)
+
+    if (digits.length > max) {
+      // Terilganning O'ZI to'liq xalqaro raqam bo'lsa ("998 90 123 45 67", "7 912 ..."),
+      // aynan shu qabul qilinadi — maydon o'zi to'g'ri milliy shaklga tushadi va davlat
+      // tanlagich qiymatga ergashadi. Bu tekshiruv faqat TO'LIQ raqamda o'tadi, shuning
+      // uchun 99-operator raqamiga ortiqcha belgi tushganda boshi KESILMAYDI.
+      if (isValidPhoneNumber(`+${digits}`)) {
+        onChange(`+${digits}`)
+        return
+      }
+      // Kod bilan boshlangan terish hali tugamagan (998 + 7-8 xona) — davom etishga
+      // ruxsat, kod uzunligicha qo'shimcha xona bilan.
+      const cap = digits.startsWith(code) ? code.length + max : max
+      if (digits.length > cap) {
+        // Ortiqcha belgi QABUL QILINMAYDI. Hech narsa surilmaydi, hech narsa
+        // kesilmaydi — React controlled qiymatni joyiga qaytaradi.
+        return
+      }
+    }
+
+    onChange(digits ? `+${code}${digits}` : "")
+
+    // Format qo'shgan bo'shliqlardan keyin kursor to'g'ri raqamdan keyin tursin.
+    requestAnimationFrame(() => {
+      const node = inputRef.current
+      if (!node) return
+      const text = formatNational(digits, country)
+      let pos = 0
+      let seen = 0
+      while (pos < text.length && seen < caretDigits) {
+        if (/\d/.test(text[pos]!)) seen++
+        pos++
+      }
+      node.setSelectionRange(pos, pos)
+    })
+  }
 
   return (
     <div
@@ -233,20 +274,20 @@ export const PhoneInput = memo(function PhoneInput({
               setManualCountry(next)
               // Davlat almashsa raqam TOZALANADI: eski milliy raqam yangi kodga yopishtirilsa
               // ("+7" + "901234567") mavjud bo'lmagan raqam hosil bo'lardi.
-              emit("")
+              onChange("")
               setOpen(false)
             }}
           />
         </PopoverContent>
       </Popover>
 
-      <PhoneNumberInput
+      <input
+        ref={inputRef}
         id={id}
-        country={country}
-        international={false}
-        value={inner}
-        onChange={emit}
-        onBeforeInput={blockOverflow}
+        type="tel"
+        inputMode="tel"
+        value={display}
+        onChange={handleInput}
         placeholder={placeholder}
         aria-label={ariaLabel}
         autoFocus={autoFocus}

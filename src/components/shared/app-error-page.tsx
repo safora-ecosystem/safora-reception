@@ -1,5 +1,3 @@
-import { Alert02Icon } from "@hugeicons/core-free-icons"
-import { Icon } from "@/components/ui/icon"
 import { Button } from "@/components/ui/button"
 import { SkeletonPage } from "@/components/shared/skeletons"
 import { t } from "@/lib/i18n"
@@ -15,24 +13,26 @@ export function AppErrorPage({ error }: { error: unknown }) {
       <div className="absolute inset-0 flex items-center justify-center p-6">
         <div
           role="alert"
-          className="flex w-full max-w-sm flex-col items-center gap-2 rounded-2xl border border-border bg-popover p-8 text-center shadow-lg"
+          className="w-full max-w-sm rounded-2xl border border-border bg-popover p-7 shadow-lg"
         >
-          <span className="flex size-11 items-center justify-center rounded-full bg-destructive-surface text-destructive-surface-foreground">
-            <Icon icon={Alert02Icon} className="size-5" strokeWidth={2} />
-          </span>
-          <p className="mt-1 text-base font-semibold text-neutral-900">{t("appError.title")}</p>
-          <p className="text-xs leading-relaxed text-neutral-500">{t("appError.hint")}</p>
+          <p className="text-[0.6875rem] font-medium tracking-[0.16em] text-neutral-400 uppercase select-none">
+            Safora
+          </p>
+          <p className="mt-3 text-[0.9375rem] font-semibold text-neutral-900">
+            {t("appError.title")}
+          </p>
+          <p className="mt-1.5 text-xs leading-relaxed text-neutral-500">{t("appError.hint")}</p>
+          <Button size="lg" className="mt-5 w-full" onClick={() => window.location.reload()}>
+            {t("appError.reload")}
+          </Button>
           {message && (
             <p
-              className="mt-1 w-full truncate rounded-md bg-neutral-100 px-2.5 py-1.5 font-mono text-[0.6875rem] text-neutral-500"
+              className="hairline-t mt-5 truncate pt-3 font-mono text-[0.625rem] leading-relaxed text-neutral-400"
               title={message}
             >
               {message}
             </p>
           )}
-          <Button size="lg" className="mt-3" onClick={() => window.location.reload()}>
-            {t("appError.reload")}
-          </Button>
         </div>
       </div>
     </div>
