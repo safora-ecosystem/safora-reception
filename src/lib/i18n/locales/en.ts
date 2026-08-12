@@ -5,6 +5,8 @@ export const en: Dictionary<"en"> = {
   panel: {
     name: "Reception",
     guideTitle: "Reception panel guide",
+    loginTitle: "Reception panel",
+    loginSubtitle: "Guest check-in and room assignment",
   },
 
   common: {

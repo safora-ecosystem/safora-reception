@@ -169,6 +169,8 @@
   --color-surface-0: var(--surface-0);
   --color-surface-1: var(--surface-1);
   
+  --color-surface-field: var(--surface-field);
+  
   --color-canvas: var(--surface-page);
   --color-hero: var(--hero);
   --color-hero-foreground: var(--hero-foreground);
@@ -193,6 +195,7 @@
   --surface-shell: #ffffff; 
   --surface-0: var(--color-neutral-50);
   --surface-1: #ffffff;
+  --surface-field: var(--surface-1);
 
   
   --hero: var(--color-brand-700);
@@ -332,6 +335,7 @@
   --surface-0: #181818;
   --surface-1: #0e0e0e;
   --card: #1b1b1b;
+  --surface-field: var(--card);
   --popover: #262626;
 
   --hero: var(--color-brand-700);
@@ -472,6 +476,16 @@
   .hairline-b { border-bottom: 1px solid var(--border); }
   .hairline-r { border-right: 1px solid var(--border); }
   .divide-hairline > * + * { border-top: 1px solid var(--border); }
+
+  
+  .auth-field input:-webkit-autofill,
+  .auth-field input:-webkit-autofill:hover,
+  .auth-field input:-webkit-autofill:focus {
+    -webkit-text-fill-color: var(--foreground);
+    -webkit-background-clip: text;
+    caret-color: var(--foreground);
+    transition: background-color 9999s ease-out;
+  }
 
   
   .scroll-edge-b {

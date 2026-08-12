@@ -64,7 +64,7 @@ export function Turnstile({
         widgetId.current = window.turnstile.render(holder.current, {
           sitekey: SITEKEY,
           appearance: "always",
-          theme: "light",
+          theme: document.documentElement.dataset.theme === "dark" ? "dark" : "light",
           retry: "auto",
           "refresh-expired": "auto",
           callback: (token) => onTokenRef.current(token),

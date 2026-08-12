@@ -5,6 +5,8 @@ export const uz = {
   panel: {
     name: "Resepshn",
     guideTitle: "Resepshn paneli qo'llanmasi",
+    loginTitle: "Resepshn paneli",
+    loginSubtitle: "Mehmonlarni qabul qilish va joylashtirish",
   },
 
   common: {

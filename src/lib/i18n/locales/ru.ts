@@ -5,6 +5,8 @@ export const ru: Dictionary<"ru"> = {
   panel: {
     name: "Ресепшн",
     guideTitle: "Руководство по панели ресепшн",
+    loginTitle: "Панель ресепшн",
+    loginSubtitle: "Приём и размещение гостей",
   },
 
   common: {

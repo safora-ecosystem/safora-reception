@@ -1,4 +1,5 @@
 import { Outlet, useLocation } from "@tanstack/react-router"
+import { motion } from "framer-motion"
 import { NoticeBanner } from "@/components/layout/notice-banner"
 import { ShiftGate, ShiftNoteReminder } from "@/components/shift/shift-dialogs"
 import { Sidebar } from "@/components/layout/sidebar"
@@ -25,7 +26,14 @@ export function RootLayout() {
         <ShiftGate>
         {}
         <ShiftNoteReminder />
-        <div className="flex h-svh gap-3 bg-background p-3 text-foreground">
+        {}
+        <div className="h-svh bg-background p-3 text-foreground">
+        <motion.div
+          className="flex h-full gap-3"
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
+        >
           <Sidebar />
           <div className="flex min-w-0 flex-1 flex-col gap-3">
             <Topbar />
@@ -43,6 +51,7 @@ export function RootLayout() {
               <Outlet />
             </main>
           </div>
+        </motion.div>
         </div>
         </ShiftGate>
         </LocaleBoundary>
