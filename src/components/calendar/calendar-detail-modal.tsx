@@ -2093,10 +2093,15 @@ function activityDetails(
         ];
       });
     case "booking.checked_out":
+      // KO'CHISH chiqishdan farq qiladi va timeline buni aytishi kerak: aks holda bo'lingan
+      // yashashda "Mehmon chiqdi" qatori mehmonxonadan ketgandek o'qilardi.
+      if (d.movedTo != null) return [{ text: labels.splitToRoom(String(d.movedTo)) }];
       // Qarz bilan chiqarilgan — timeline'da ham amber: rahbar/keyingi smena darrov ko'radi.
       return d.remaining != null
         ? [{ text: `${labels.remaining}: ${money(d.remaining)}`, warn: true }]
         : [];
+    case "booking.checked_in":
+      return d.movedFrom != null ? [{ text: labels.splitFromRoom(String(d.movedFrom)) }] : [];
     case "booking.cancelled":
       return d.paid != null
         ? [{ text: `${labels.paid}: ${money(d.paid)}`, warn: true }]
