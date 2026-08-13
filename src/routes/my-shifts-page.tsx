@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
 import { EmptyState } from "@/components/shared/empty-state"
+import { LoadMore } from "@/components/shared/load-more"
 import { QueryState } from "@/components/shared/query-state"
 import { SkeletonList } from "@/components/shared/skeletons"
 import {
@@ -14,6 +15,7 @@ import {
   type ShiftSession,
 } from "@/lib/api"
 import { money, shortDate } from "@/lib/format"
+import { usePagedList } from "@/lib/paged"
 import { methodLabel, methodsTotal, sortedMethods, visibleFlags } from "@/lib/shift-report"
 import { useT, type TKey } from "@/lib/i18n"
 import { cn } from "@/lib/utils"
@@ -159,14 +161,18 @@ function ReportDialog({ sessionId, onClose }: { sessionId: string; onClose: () =
 export function MyShiftsPage() {
   const t = useT()
   const [selected, setSelected] = useState<string | null>(null)
-  const q = useQuery({ queryKey: shiftKeys.list(), queryFn: () => listShiftSessions() })
+  // Ilgari listShiftSessions() bir marta chaqirilib nextCursor TASHLAB YUBORILARDI — faqat
+  // eng yangi 30 smena ko'rinardi, eskilariga yo'l yo'q edi. Endi kursor zanjiri.
+  const q = usePagedList<ShiftSession>(shiftKeys.list(), (cursor) =>
+    listShiftSessions(cursor ?? undefined),
+  )
 
   return (
     <PageLayout title={t("shiftSession.myShiftsTitle")}>
       <QueryState
         queries={q}
         skeleton={<SkeletonList rows={6} />}
-        isEmpty={q.data?.items.length === 0}
+        isEmpty={q.items.length === 0}
         empty={
           <Card className="p-0">
             <EmptyState title={t("shiftSession.myShiftsEmpty")} className="min-h-64" />
@@ -177,10 +183,19 @@ export function MyShiftsPage() {
             `--color-white` korpus rangiga ag'darilib, ro'yxat fondan ajralmay qolardi. */}
         <Card className="gap-0 p-0">
           <ol className="divide-hairline flex flex-col">
-            {q.data?.items.map((s) => (
+            {q.items.map((s) => (
               <SessionRow key={s.id} s={s} onOpen={() => setSelected(s.id)} />
             ))}
           </ol>
+          {/* Bitta sahifadan oshmagan ro'yxatda hech nima chizilmaydi — "hammasi ko'rsatildi"
+              satri faqat davomi bor (yoki bo'lgan) ro'yxatda ma'noli. */}
+          {(q.hasNextPage || (q.data?.pages.length ?? 0) > 1) && (
+            <LoadMore
+              hasNext={q.hasNextPage}
+              isFetching={q.isFetchingNextPage}
+              onMore={() => void q.fetchNextPage()}
+            />
+          )}
         </Card>
       </QueryState>
       {selected && <ReportDialog sessionId={selected} onClose={() => setSelected(null)} />}

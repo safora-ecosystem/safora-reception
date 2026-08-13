@@ -37,6 +37,9 @@ export const uz = {
     copy: "Nusxalash",
     search: "Qidirish",
     loading: "Yuklanmoqda…",
+    loadMore: "Yana yuklash",
+    listEnd: "Hammasi ko'rsatildi",
+    shownOfTotal: "Jami {total} ta — {shown} tasi ko'rsatilmoqda",
     saving: "Saqlanmoqda…",
     optional: "Ixtiyoriy",
     required: "majburiy",
@@ -525,6 +528,7 @@ export const uz = {
     empty: "Arxiv hali bo'sh",
     emptyHint: "Mehmon chiqib ketgach uning yozuvi shu yerga o'tadi.",
     searchHint: "Ism, telefon raqami yoki hujjat raqamini kiritib ko'ring.",
+    capped: "Natija juda ko'p — qidiruvni aniqlashtiring",
   },
 
   services: {

@@ -37,6 +37,9 @@ export const en: Dictionary<"en"> = {
     copy: "Copy",
     search: "Search",
     loading: "Loading…",
+    loadMore: "Load more",
+    listEnd: "That's everything",
+    shownOfTotal: "Showing {shown} of {total}",
     saving: "Saving…",
     optional: "Optional",
     required: "required",
@@ -527,6 +530,7 @@ export const en: Dictionary<"en"> = {
     empty: "The archive is empty",
     emptyHint: "A record moves here once the guest checks out.",
     searchHint: "Try entering a name, phone number or document number.",
+    capped: "Too many results — narrow your search",
   },
 
   services: {

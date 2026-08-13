@@ -6,6 +6,7 @@ import { Icon } from "@/components/ui/icon"
 import { PageLayout } from "@/components/layout/page-layout"
 import { EmptyState } from "@/components/shared/empty-state"
 import { GuestDialog, GuestTable } from "@/components/shared/guest-table"
+import { TruncationNotice } from "@/components/shared/load-more"
 import { QueryState } from "@/components/shared/query-state"
 import { SkeletonStatBar, SkeletonTable } from "@/components/shared/skeletons"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -20,6 +21,8 @@ import { cn } from "@/lib/utils"
 
 
 const DEBOUNCE_MS = 350
+
+const ARCHIVE_CAP = 400
 
 export function GuestsArchivePage() {
   const t = useT()
@@ -41,6 +44,7 @@ export function GuestsArchivePage() {
   })
 
   const rows = useMemo(() => guestsQ.data ?? [], [guestsQ.data])
+  const capped = rows.length === ARCHIVE_CAP
 
   const totals = useMemo(() => {
     const returning = rows.filter((g) => g.stays > 1).length
@@ -84,7 +88,7 @@ export function GuestsArchivePage() {
           <StatBar>
             <StatBarItem
               label={t("archive.count")}
-              value={String(rows.length)}
+              value={capped ? `${ARCHIVE_CAP}+` : String(rows.length)}
               hint={search ? t("archive.countHintSearch") : t("archive.countHintDefault")}
             />
             <StatBarItem
@@ -129,6 +133,7 @@ export function GuestsArchivePage() {
           <CardContent
             className={cn(
               "p-0 transition-opacity",
+              // Qidiruv javobi yo'lda — eski jadval xira turadi (bo'sh ekranga almashmaydi).
               guestsQ.isPlaceholderData && "opacity-60",
             )}
           >
@@ -140,7 +145,12 @@ export function GuestsArchivePage() {
                 className="min-h-64"
               />
             ) : (
-              <GuestTable rows={rows} onSelect={setSelected} archive />
+              <>
+                <GuestTable rows={rows} onSelect={setSelected} archive />
+                {capped && (
+                  <TruncationNotice shown={rows.length}>{t("archive.capped")}</TruncationNotice>
+                )}
+              </>
             )}
           </CardContent>
         </Card>

@@ -53,7 +53,7 @@ import {
   REACTION_CHAR,
   REACTION_ORDER,
   aggregateReactions,
-  appendLiveMessage,
+  appendToInfinite,
   appendGroupMessage,
   appendHkMessage,
   conversationsKey,
@@ -72,7 +72,9 @@ import {
 import { shortDate } from "@/lib/format"
 import { t as tr, useT, type TKey } from "@/lib/i18n"
 import { useSetPageHeader } from "@/lib/page-header"
+import { usePagedList } from "@/lib/paged"
 import { usePermissions } from "@/lib/permissions"
+import { useRealtimeStore } from "@/stores/realtime-store"
 import { EmptyState } from "@/components/shared/empty-state"
 import { ErrorState, Spinner } from "@/components/shared/error-state"
 import { PersonAvatar } from "@/components/shared/person-avatar"
@@ -132,7 +134,8 @@ export function ChatPage() {
   const { can } = usePermissions()
   const canGuest = can("chat.guest")
   const canTeam = can("chat.team")
-  const { status } = useChat()
+  // Ulanish holati endi kontekstda emas — realtime-store'dan tor selektor bilan.
+  const status = useRealtimeStore((s) => s.status)
 
   // Chuqur havola: `/chat?tab=team&user=<id>` yoki `?booking=<id>`. Boshqaruv panelidagi
   // "Jamoa" qatori shu manzilga olib keladi — suhbat AYNAN o'sha odamda ochiladi.
@@ -498,16 +501,14 @@ function GuestThread({ conv, onBack }: { conv: ChatConversation; onBack: () => v
   const bookingId = conv.bookingId
   const [draft, setDraft] = useState("")
   const [replyTo, setReplyTo] = useState<ThreadItem | null>(null)
-  const [loadingOlder, setLoadingOlder] = useState(false)
 
-  const messages = useQuery({
-    queryKey: messagesKey(bookingId),
-    queryFn: () => listChatMessages(bookingId),
-  })
-  const thread = useMemo(
-    () => (messages.data ? [...messages.data.items].reverse() : []),
-    [messages.data],
+  // Tarix endi useInfiniteQuery (usePagedList): nextCursor ESKI sahifaga ishora qiladi,
+  // ya'ni fetchNextPage = "oldingi xabarlarni yuklash". Sahifalar ham, sahifa ichi ham
+  // yangi→eski — flatMap yangi→eski beradi, chizish uchun bitta reverse yetadi.
+  const messages = usePagedList<ChatMessage>(messagesKey(bookingId), (cursor) =>
+    listChatMessages(bookingId, cursor ?? undefined),
   )
+  const thread = useMemo(() => [...messages.items].reverse(), [messages.items])
 
   // Ochiq suhbat kanali — client-side obuna (token bilan). Chime YO'Q: u shell'dagi global
   // inbox handler'ida, aks holda bitta xabar ikki marta jiringlardi.
@@ -541,7 +542,7 @@ function GuestThread({ conv, onBack }: { conv: ChatConversation; onBack: () => v
         return
       }
       if (data?.type !== "message" || !data.message) return
-      appendLiveMessage(qc, bookingId, data.message)
+      appendToInfinite(qc, messagesKey(bookingId), data.message)
       if (data.message.senderType === "guest") void markChatRead(bookingId).catch(() => {})
       void qc.invalidateQueries({ queryKey: conversationsKey })
     })
@@ -559,7 +560,9 @@ function GuestThread({ conv, onBack }: { conv: ChatConversation; onBack: () => v
     mutationFn: (input: { text: string; replyToId?: string }) =>
       sendChatMessage(bookingId, input.text, input.replyToId),
     onSuccess: (msg) => {
-      appendLiveMessage(qc, bookingId, msg)
+      // POST javobi ham xuddi jonli xabar kabi birinchi sahifa boshiga — dedupe push bilan
+      // to'qnashuvni yutadi (qaysi biri oldin kelsa o'sha qoladi).
+      appendToInfinite(qc, messagesKey(bookingId), msg)
       void qc.invalidateQueries({ queryKey: conversationsKey })
     },
     onError: (_err, input) => {
@@ -575,22 +578,12 @@ function GuestThread({ conv, onBack }: { conv: ChatConversation; onBack: () => v
     onError: () => toast.error(t("chat.reactionFailed")),
   })
 
+  // Qo'lda setQueryData merge YO'Q — sahifa zanjirini useInfiniteQuery yuritadi.
+  // fetchNextPage xatoni reject qilmay natijada qaytaradi, shuning uchun toast shu yerda.
   async function loadOlder() {
-    const cursor = messages.data?.nextCursor
-    if (!cursor || loadingOlder) return
-    setLoadingOlder(true)
-    try {
-      const older = await listChatMessages(bookingId, cursor)
-      qc.setQueryData<{ items: ChatMessage[]; nextCursor: string | null }>(
-        messagesKey(bookingId),
-        (old) =>
-          old ? { items: [...old.items, ...older.items], nextCursor: older.nextCursor } : older,
-      )
-    } catch {
-      toast.error(t("chat.olderFailed"))
-    } finally {
-      setLoadingOlder(false)
-    }
+    if (messages.isFetchingNextPage) return
+    const res = await messages.fetchNextPage()
+    if (res.isError) toast.error(t("chat.olderFailed"))
   }
 
   return (
@@ -603,10 +596,15 @@ function GuestThread({ conv, onBack }: { conv: ChatConversation; onBack: () => v
       error={messages.data === undefined && messages.isError ? messages.error : null}
       onRetry={() => messages.refetch()}
       olderSlot={
-        messages.data?.nextCursor ? (
+        messages.hasNextPage ? (
           <div className="flex justify-center pb-3">
-            <Button variant="ghost" size="sm" onClick={loadOlder} disabled={loadingOlder}>
-              {loadingOlder ? t("common.loading") : t("chat.older")}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => void loadOlder()}
+              disabled={messages.isFetchingNextPage}
+            >
+              {messages.isFetchingNextPage ? t("common.loading") : t("chat.older")}
             </Button>
           </div>
         ) : null

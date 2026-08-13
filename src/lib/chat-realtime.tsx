@@ -4,11 +4,16 @@ import {
   useContext,
   useEffect,
   useMemo,
-  useRef,
   useState,
   type ReactNode,
 } from "react"
-import { useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query"
+import {
+  useQuery,
+  useQueryClient,
+  type InfiniteData,
+  type QueryClient,
+  type QueryKey,
+} from "@tanstack/react-query"
 import {
   ApiError,
   chatRtConnect,
@@ -27,8 +32,7 @@ import { t } from "./i18n"
 import { getSession } from "./auth"
 import { playMessageChime, showDesktopNotification } from "./notify"
 import { keys } from "./query-keys"
-
-export type ChatConnState = "connecting" | "connected" | "disconnected"
+import { useRealtimeStore } from "@/stores/realtime-store"
 
 export const conversationsKey = ["chat", "conversations"] as const
 export const messagesKey = (bookingId: string) => ["chat", "messages", bookingId] as const
@@ -72,9 +76,15 @@ export function updateGuestReactions(
   messageId: string,
   reactions: ReactionView[],
 ): void {
-  qc.setQueryData<MessagePage>(messagesKey(bookingId), (old) =>
+  qc.setQueryData<InfiniteData<MessagePage>>(messagesKey(bookingId), (old) =>
     old
-      ? { ...old, items: old.items.map((m) => (m.id === messageId ? { ...m, reactions } : m)) }
+      ? {
+          ...old,
+          pages: old.pages.map((p) => ({
+            ...p,
+            items: p.items.map((m) => (m.id === messageId ? { ...m, reactions } : m)),
+          })),
+        }
       : old,
   )
 }
@@ -92,11 +102,16 @@ export function updateTeamReactions(
   )
 }
 
-export function appendLiveMessage(qc: QueryClient, bookingId: string, message: ChatMessage): void {
-  qc.setQueryData<MessagePage>(messagesKey(bookingId), (old) => {
-    if (!old) return old
-    if (old.items.some((m) => m.id === message.id)) return old
-    return { ...old, items: [message, ...old.items] }
+export function appendToInfinite<T extends { id: string }>(
+  qc: QueryClient,
+  key: QueryKey,
+  msg: T,
+): void {
+  qc.setQueryData<InfiniteData<{ items: T[]; nextCursor: string | null }>>(key, (old) => {
+    if (!old || old.pages.length === 0) return old
+    if (old.pages.some((p) => p.items.some((m) => m.id === msg.id))) return old
+    const [first, ...rest] = old.pages
+    return { ...old, pages: [{ ...first!, items: [msg, ...first!.items] }, ...rest] }
   })
 }
 
@@ -246,45 +261,24 @@ function handleServerPublication(qc: QueryClient, raw: unknown): void {
 
 type ChatCtxValue = {
   client: Centrifuge | null
-  status: ChatConnState
-  rawStatus: ChatConnState
 }
-const ChatCtx = createContext<ChatCtxValue>({
-  client: null,
-  status: "connected",
-  rawStatus: "connecting",
-})
+const ChatCtx = createContext<ChatCtxValue>({ client: null })
 
-const GRACE_MS = 2500
 const BOOTSTRAP_MIN_MS = 1000
 const BOOTSTRAP_MAX_MS = 15_000
 
 export function ChatRealtimeProvider({ children }: { children: ReactNode }) {
   const qc = useQueryClient()
   const [client, setClient] = useState<Centrifuge | null>(null)
-  const [raw, setRaw] = useState<ChatConnState>("connecting")
-  const [display, setDisplay] = useState<ChatConnState>("connected")
-  const rawRef = useRef<ChatConnState>("connecting")
-  const leftAtRef = useRef<number | null>(null)
-
-  useEffect(() => {
-    rawRef.current = raw
-    if (raw === "connected") {
-      leftAtRef.current = null
-      setDisplay("connected")
-      return
-    }
-    if (leftAtRef.current === null) leftAtRef.current = Date.now()
-    const wait = Math.max(0, GRACE_MS - (Date.now() - leftAtRef.current))
-    const timer = setTimeout(() => setDisplay(rawRef.current), wait)
-    return () => clearTimeout(timer)
-  }, [raw])
 
   useEffect(() => {
     let disposed = false
     let created: Centrifuge | null = null
     let wakeBootstrap: (() => void) | null = null
     let everConnected = false
+
+    const { setRawStatus } = useRealtimeStore.getState()
+    setRawStatus("connecting")
 
     const kick = () => {
       if (disposed) return
@@ -326,7 +320,7 @@ export function ChatRealtimeProvider({ children }: { children: ReactNode }) {
       const first = await bootstrap()
       if (disposed) return
       if (!first) {
-        setRaw("disconnected")
+        setRawStatus("disconnected")
         return
       }
 
@@ -351,16 +345,26 @@ export function ChatRealtimeProvider({ children }: { children: ReactNode }) {
         },
       })
       c.on("connecting", () => {
-        if (!disposed) setRaw("connecting")
+        if (!disposed) setRawStatus("connecting")
       })
       c.on("connected", () => {
         if (disposed) return
-        setRaw("connected")
-        if (everConnected) void qc.invalidateQueries({ queryKey: ["chat"] })
+        setRawStatus("connected")
+        if (everConnected) {
+          void qc.invalidateQueries({ queryKey: conversationsKey })
+          void qc.invalidateQueries({ queryKey: teamThreadsKey })
+          void qc.invalidateQueries({ queryKey: teamUnreadKey })
+          void qc.invalidateQueries({ queryKey: groupUnreadKey })
+          void qc.invalidateQueries({ queryKey: hkUnreadKey })
+          void qc.invalidateQueries({ queryKey: ["chat", "messages"], refetchType: "active" })
+          void qc.invalidateQueries({ queryKey: ["chat", "team-messages"], refetchType: "active" })
+          void qc.invalidateQueries({ queryKey: groupMessagesKey, refetchType: "active" })
+          void qc.invalidateQueries({ queryKey: hkMessagesKey, refetchType: "active" })
+        }
         everConnected = true
       })
       c.on("disconnected", () => {
-        if (!disposed) setRaw("disconnected")
+        if (!disposed) setRawStatus("disconnected")
       })
       c.on("publication", (ctx) => handleServerPublication(qc, ctx.data))
       c.connect()
@@ -377,10 +381,7 @@ export function ChatRealtimeProvider({ children }: { children: ReactNode }) {
     }
   }, [qc])
 
-  const value = useMemo<ChatCtxValue>(
-    () => ({ client, status: display, rawStatus: raw }),
-    [client, display, raw],
-  )
+  const value = useMemo<ChatCtxValue>(() => ({ client }), [client])
   return <ChatCtx.Provider value={value}>{children}</ChatCtx.Provider>
 }
 
@@ -389,32 +390,33 @@ export function useChat(): ChatCtxValue {
 }
 
 export function useChatBadge(): string | undefined {
+  const live = useRealtimeStore((s) => s.status === "connected")
   const conv = useQuery({
     queryKey: conversationsKey,
     queryFn: listConversations,
     staleTime: 15_000,
-    refetchInterval: 30_000,
+    refetchInterval: live ? false : 30_000,
     retry: false,
   })
   const team = useQuery({
     queryKey: teamUnreadKey,
     queryFn: getTeamUnread,
     staleTime: 15_000,
-    refetchInterval: 30_000,
+    refetchInterval: live ? false : 30_000,
     retry: false,
   })
   const group = useQuery({
     queryKey: groupUnreadKey,
     queryFn: getGroupUnread,
     staleTime: 15_000,
-    refetchInterval: 30_000,
+    refetchInterval: live ? false : 30_000,
     retry: false,
   })
   const hk = useQuery({
     queryKey: hkUnreadKey,
     queryFn: getHkUnread,
     staleTime: 15_000,
-    refetchInterval: 30_000,
+    refetchInterval: live ? false : 30_000,
     retry: false,
   })
   const total =

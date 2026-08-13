@@ -37,6 +37,9 @@ export const ru: Dictionary<"ru"> = {
     copy: "Скопировать",
     search: "Поиск",
     loading: "Загрузка…",
+    loadMore: "Показать ещё",
+    listEnd: "Показано всё",
+    shownOfTotal: "Всего {total} — показано {shown}",
     saving: "Сохранение…",
     optional: "Необязательно",
     required: "обязательно",
@@ -568,6 +571,7 @@ export const ru: Dictionary<"ru"> = {
     empty: "Архив пока пуст",
     emptyHint: "Запись переносится сюда после выезда гостя.",
     searchHint: "Попробуйте ввести имя, номер телефона или номер документа.",
+    capped: "Слишком много результатов — уточните поиск",
   },
 
   services: {

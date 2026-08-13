@@ -74,6 +74,18 @@
       }
     },
     {
+      "path": "src/stores/realtime-store.ts",
+      "repos": [
+        "safora-reception",
+        "safora-owner",
+        "safora-manager",
+        "safora-kitchen"
+      ],
+      "hashes": {
+        "src/stores/realtime-store.ts": "0aaa3dfa88b925cbdc306d8525216bf3e7f45b244a3328bf572e298fa8bc891f"
+      }
+    },
+    {
       "path": "src/lib/theme.ts",
       "repos": [
         "safora-reception",
