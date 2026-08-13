@@ -19,6 +19,7 @@ export type {
   CalendarBooking,
   CalendarOrganization,
   CalendarPayment,
+  CalendarFolio,
   CalendarRange,
   CalendarLabels,
   CalendarDraft,

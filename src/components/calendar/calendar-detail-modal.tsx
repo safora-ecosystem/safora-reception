@@ -62,6 +62,7 @@ import { cn } from "@/lib/utils";
 import { DocFields, Segmented } from "./form-parts";
 import { MoneyInput } from "@/components/shared/money-input";
 import { addDays, hasConflict, nightsBetween } from "./geometry";
+import { displayPayment, folioElsewhere } from "./folio";
 import { Field, ReadValue, Section, StayCard } from "./modal-parts";
 import type {
   BookingEditPatch,
@@ -127,6 +128,7 @@ interface CalendarDetailModalProps {
   onDuplicate?: (booking: CalendarBooking) => void;
   onOpenChat?: (booking: CalendarBooking) => void;
   onSplit?: (booking: CalendarBooking) => void;
+  onMoveNext?: (id: string) => void | Promise<void>;
   onInvoice?: (booking: CalendarBooking) => void;
 }
 
@@ -399,6 +401,7 @@ function DetailBody({
   onDuplicate,
   onOpenChat,
   onSplit,
+  onMoveNext,
   onInvoice,
 }: CalendarDetailModalProps & { booking: CalendarBooking }) {
   const [editing, setEditing] = useState(false);
@@ -408,7 +411,7 @@ function DetailBody({
   // Harakat guard'lari: qarz bilan chiqish / to'lovli bronni bekor qilish / erta kirish —
   // bitta bosishda EMAS, ogohlantirish + aniq tasdiq bilan. null = oddiy tugmalar.
   const [confirming, setConfirming] = useState<
-    null | "checkout" | "cancel" | "checkin" | "force-cancel"
+    null | "checkout" | "cancel" | "checkin" | "force-cancel" | "move-next"
   >(null);
   const [payFormOpen, setPayFormOpen] = useState(false);
   // Joylashgan mehmon bronini bekor qilish sababi — MAJBURIY (server ham shuni talab qiladi
@@ -508,9 +511,34 @@ function DetailBody({
     !rateMissing &&
     !conflict;
 
-  const payment = b.payment;
+  // ── Pul: BO'LAK emas, BUTUN yashash ──────────────────────────────────────
+  // Yuqoridagi `oldTotal`/`paidNow` bronning O'Z puli bo'lib qoladi (tahrir summani aynan
+  // shundan qayta hisoblaydi). Ekranga chiqadigan hisob esa boshqa savolga javob beradi:
+  // "mehmon qancha qarzdor?" — va u bo'lingan yashashda zanjir bo'yicha (`folio.ts`).
+  const payment = displayPayment(b);
   const ratio = payment ? paymentRatio(payment) : 0;
   const remaining = payment ? Math.max(0, payment.total - payment.paid) : 0;
+  // Hisob boshqa bo'lakda ochiq: bu yerda pul amali YO'Q — na to'lov, na qarz ogohlantirishi.
+  const elsewhere = folioElsewhere(b);
+  // Mehmon shu bo'lakdan keyingi xonaga ko'chadimi va bu BUGUN mumkinmi. Kelajakdagi bo'lakka
+  // bugun ko'chirish yolg'on bo'lardi, shuning uchun tugma faqat vaqti kelganda chiqadi.
+  const nextPart =
+    b.linkId != null && b.folio != null && !b.folio.last
+      ? bookings
+          .filter(
+            (x) =>
+              x.linkId === b.linkId &&
+              x.id !== b.id &&
+              x.status === "booked" &&
+              x.start >= b.end,
+          )
+          .sort((x, y) => (x.start < y.start ? -1 : 1))[0]
+      : undefined;
+  const canMoveNext =
+    b.status === "checked_in" && nextPart != null && nextPart.start <= today && !!onMoveNext;
+  // Zanjirning OXIRGI bo'lagidan chiqish = mehmonxonadan chiqish. Oraliq bo'laklardan
+  // chiqish esa ko'chish, ya'ni qarz ogohlantirishi u yerda yolg'on bo'lardi.
+  const leavingHotel = b.folio == null || b.folio.last;
   // Korporativ bron — hisob kompaniyada. Bu bitta bayroq to'lov kartasini, chiqish qorovulini
   // va "to'lov qabul qilish" tugmasini birdaniga boshqaradi.
   const corporateOrg = b.organization ?? null;
@@ -600,7 +628,9 @@ function DetailBody({
             {b.linkId && (
               <span className="inline-flex items-center gap-1 rounded-full bg-brand-100 px-2 py-0.5 text-[0.6875rem] font-medium text-brand-800">
                 <Icon icon={Scissor01Icon} className="size-3" />
-                {labels.splitLinked}
+                {/* Zanjirdagi o'rin ("2/3-bo'lak") — «Bo'lingan» so'zining o'zi qaysi bo'lak
+                    ekanini aytmasdi va xodim uch bo'lakli yashashda adashardi. */}
+                {b.folio ? labels.splitPart(b.folio.index, b.folio.parts) : labels.splitLinked}
               </span>
             )}
           </div>
@@ -1093,8 +1123,43 @@ function DetailBody({
             icon={<Icon icon={Wallet02Icon} className="size-3.5" />}
             title={labels.payment}
           >
-            {payment ? (
+            {/* HISOB BOSHQA BO'LAKDA — mehmon bu xonadan ko'chgan (yoki hali kelmagan).
+                Bu yerda pul amali YO'Q: na summa, na to'lov tugmasi. Ilgari har bo'lak o'z
+                hisobini ko'rsatardi va 302 da to'lagan mehmon 306 da "0 so'm" bo'lib turardi —
+                xodim ikkinchi to'lovni yozib yuborardi. Bo'sh joy qoldirilmaydi: "ma'lumot
+                yuklanmadi" deb o'qilardi, shuning uchun sabab YOZIB turadi. */}
+            {elsewhere && b.folio ? (
+              <div className="rounded-card bg-neutral-100 p-4">
+                <p className="text-xs font-medium text-neutral-500">
+                  {labels.splitPart(b.folio.index, b.folio.parts)}
+                </p>
+                {b.folio.openRoom && (
+                  <p className="mt-1 flex items-center gap-1.5 text-sm font-semibold text-neutral-900">
+                    <Icon icon={Scissor01Icon} className="size-3.5 shrink-0 text-neutral-400" />
+                    {labels.splitFolioElsewhere(b.folio.openRoom)}
+                  </p>
+                )}
+                <p className="mt-1.5 text-xs leading-relaxed text-neutral-500">
+                  {labels.splitFolioElsewhereHint}
+                </p>
+                {/* Qayerdan kelgan / qayerga ketadi — zanjirni bu oynadan ham o'qish mumkin. */}
+                <p className="mt-2.5 text-xs text-neutral-500">
+                  {b.folio.prevRoom
+                    ? labels.splitFromRoom(b.folio.prevRoom)
+                    : b.folio.nextRoom
+                      ? labels.splitToRoom(b.folio.nextRoom)
+                      : ""}
+                </p>
+              </div>
+            ) : payment ? (
               <div className="flex flex-col gap-2.5">
+                {/* Bo'lingan yashashda summa BUTUN yashashniki — sarlavha buni aytib turadi,
+                    aks holda "nega bir kechalik bo'lakda 1,35 mln?" degan savol tug'ilardi. */}
+                {b.folio && (
+                  <p className="text-xs font-medium text-neutral-500">
+                    {labels.splitFolioWhole(b.folio.parts)}
+                  </p>
+                )}
                 {/* KORPORATIV bron: qoldiq mehmonning qarzi EMAS, kompaniya hisobi. Amber
                     progress va "qoldi" qatori xodimni mehmondan pul so'rashga undardi —
                     mahsulotning va'dasi aynan shu joyda buzilardi. */}
@@ -1234,6 +1299,23 @@ function DetailBody({
                     backLabel={labels.back}
                     busy={busy}
                     onConfirm={() => run(onCheckIn)}
+                    onBack={() => setConfirming(null)}
+                  />
+                )}
+                {/* KO'CHIRISH tasdig'i — ogohlantirish EMAS, tushuntirish: xodim tugma
+                    ikkala amalni (chiqarish + kiritish) bajarishini oldindan bilsin va
+                    "pul nima bo'ladi?" degan savol javobsiz qolmasin. */}
+                {confirming === "move-next" && b.folio?.nextRoom && onMoveNext && (
+                  <ConfirmBox
+                    tone="brand"
+                    text={labels.moveNextHint(
+                      shownRoom?.label ?? "—",
+                      b.folio.nextRoom,
+                    )}
+                    confirmLabel={labels.moveNextConfirm}
+                    backLabel={labels.back}
+                    busy={busy}
+                    onConfirm={() => run(onMoveNext)}
                     onBack={() => setConfirming(null)}
                   />
                 )}
@@ -1457,21 +1539,39 @@ function DetailBody({
                 </Button>
               </div>
             )}
-            {b.status === "checked_in" && onCheckOut && (
+            {/* KO'CHIRISH — bo'lingan yashashda "Chiqdi" o'rniga. Mehmon mehmonxonadan
+                chiqmayapti, u koridordan o'tib boshqa xonaga kiradi: bitta bosish eski
+                xonani chiqaradi (tozalashga tushadi) va yangisiga kiritadi. Ilgari xodim
+                ikki tugma bosardi va oradagi lahzada mehmon hech qaysi xonada bo'lmasdi. */}
+            {canMoveNext && b.folio?.nextRoom ? (
               <Button
                 size="lg"
                 className="rounded-control"
                 disabled={busy}
-                // Qarz bilan chiqarish tasdiq so'raydi — korporativ bronda esa qoldiq QARZ
-                // EMAS (kompaniya oy oxirida to'laydi), shuning uchun u yerda so'ralmaydi.
-                onClick={() =>
-                  remaining > 0 && !corporateOrg
-                    ? setConfirming("checkout")
-                    : run(onCheckOut)
-                }
+                onClick={() => setConfirming("move-next")}
               >
-                <Icon icon={Logout03Icon} /> {labels.checkOut}
+                <Icon icon={ArrowRight02Icon} /> {labels.moveNext(b.folio.nextRoom)}
               </Button>
+            ) : (
+              b.status === "checked_in" &&
+              onCheckOut && (
+                <Button
+                  size="lg"
+                  className="rounded-control"
+                  disabled={busy}
+                  // Qarz bilan chiqarish tasdiq so'raydi — korporativ bronda esa qoldiq QARZ
+                  // EMAS (kompaniya oy oxirida to'laydi), shuning uchun u yerda so'ralmaydi.
+                  // Zanjirning oxirgisi bo'lmagan bo'lakda ham so'ralmaydi: hisob keyingi
+                  // xonada davom etadi va server ham qarz yozuvini yozmaydi.
+                  onClick={() =>
+                    remaining > 0 && !corporateOrg && leavingHotel
+                      ? setConfirming("checkout")
+                      : run(onCheckOut)
+                  }
+                >
+                  <Icon icon={Logout03Icon} /> {labels.checkOut}
+                </Button>
+              )
             )}
           </>
         )}
@@ -2138,7 +2238,8 @@ function ConfirmBox({
   extra,
   input,
 }: {
-  tone: "warning" | "destructive";
+  /** `brand` — OGOHLANTIRISH emas, tushuntirish (ko'chirish): amber signalini arzonlashtirmaydi. */
+  tone: "warning" | "destructive" | "brand";
   text: string;
   confirmLabel: string;
   backLabel: string;
@@ -2161,7 +2262,11 @@ function ConfirmBox({
     <div
       className={cn(
         "flex flex-col gap-2.5 rounded-card p-3",
-        tone === "warning" ? "bg-warning-surface" : "bg-destructive-surface",
+        tone === "warning"
+          ? "bg-warning-surface"
+          : tone === "brand"
+            ? "bg-brand-50"
+            : "bg-destructive-surface",
       )}
     >
       <p
@@ -2169,7 +2274,9 @@ function ConfirmBox({
           "text-xs leading-relaxed font-medium",
           tone === "warning"
             ? "text-warning-surface-foreground"
-            : "text-destructive-surface-foreground",
+            : tone === "brand"
+              ? "text-brand-ink"
+              : "text-destructive-surface-foreground",
         )}
       >
         {text}

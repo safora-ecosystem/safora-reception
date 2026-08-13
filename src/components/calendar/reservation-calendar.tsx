@@ -96,6 +96,7 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
       onMoveBooking,
       onMoveConflict,
       onSplitBooking,
+      onMoveNext,
       onInvoice,
       guests = null,
       guestsLoading = false,
@@ -808,6 +809,7 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
                 }
               : undefined
           }
+          onMoveNext={onMoveNext}
           onInvoice={onInvoice}
         />
 

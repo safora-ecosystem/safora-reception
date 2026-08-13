@@ -12,6 +12,19 @@ export interface CalendarPayment {
   paid: number
 }
 
+export interface CalendarFolio {
+  parts: number
+  index: number
+  last: boolean
+  open: boolean
+  openRoom: string | null
+  prevRoom: string | null
+  nextRoom: string | null
+  total: number
+  extras: number
+  paid: number
+}
+
 export interface CalendarRoom {
   id: string
   label: string
@@ -58,6 +71,7 @@ export interface CalendarBooking {
   source?: CalendarBookingSource
   blockKind?: CalendarBlockKind
   linkId?: string | null
+  folio?: CalendarFolio | null
   meta?: Record<string, unknown>
 }
 
@@ -229,6 +243,21 @@ export interface CalendarLabels {
   splitTooShort: string
   splitLinked: string
   confirmSplit: string
+  splitFirstAmount: string
+  splitTotalBefore: string
+  splitTotalAfter: string
+  splitMoveNow: string
+  splitMoveNowHint: string
+
+  splitPart: (index: number, parts: number) => string
+  splitFolioElsewhere: (room: string) => string
+  splitFolioElsewhereHint: string
+  splitFolioWhole: (parts: number) => string
+  splitFromRoom: (room: string) => string
+  splitToRoom: (room: string) => string
+  moveNext: (room: string) => string
+  moveNextHint: (from: string, to: string) => string
+  moveNextConfirm: string
 
   invoice: string
   invoiceTitle: string
@@ -389,6 +418,8 @@ export interface CalendarSplitInput {
   splitDate: string
   roomId: string
   totalAmount?: number
+  firstTotalAmount?: number
+  moveNow?: boolean
 }
 
 export interface CalendarBlockInput {
@@ -478,6 +509,7 @@ export interface ReservationCalendarProps {
   onEditBooking?: (id: string, patch: BookingEditPatch) => void | Promise<void>
   onMoveBooking?: (id: string, next: CalendarDraft) => void | Promise<void>
   onSplitBooking?: (id: string, input: CalendarSplitInput) => void | Promise<void>
+  onMoveNext?: (id: string) => void | Promise<void>
   onInvoice?: (booking: CalendarBooking) => void
   onMoveConflict?: () => void
 

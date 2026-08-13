@@ -42,6 +42,7 @@ import {
   recordBookingPayment,
   removeBookingGuest,
   removeRoomBlock,
+  moveBookingNext as apiMoveBookingNext,
   setPrimaryGuest as apiSetPrimaryGuest,
   splitBooking as apiSplitBooking,
   shiftKeys,
@@ -80,6 +81,7 @@ export interface CalendarData {
   editBooking: (id: string, patch: BookingEditPatch) => Promise<void>
   moveBooking: (id: string, next: CalendarDraft) => Promise<void>
   splitBooking: (id: string, input: CalendarSplitInput) => Promise<void>
+  moveNext: (id: string) => Promise<void>
   removeBlock: (id: string) => Promise<void>
 
   selectGuestsFor: (bookingId: string | null) => void
@@ -219,7 +221,11 @@ export function useMockCalendarData(roomCount = 24): CalendarData {
 
   // Mock rejimida bo'lish REAL serverning natijasini takrorlaydi: birinchi qism qisqaradi,
   // ikkinchisi yangi xonada paydo bo'ladi, ikkalasi bir xil `linkId` oladi — kalendar uzuq
-  // chiziqli izni aynan shundan chizadi.
+  // chiziqli izni aynan shundan chizadi. Har qism O'Z narxida (yig'indi o'zgarishi mumkin) va
+  // PUL KO'CHIRILMAYDI — u qaysi bo'lakda olingan bo'lsa o'sha yerda qoladi.
+  //
+  // ⚠️ Mock `folio` BERMAYDI (zanjir hisobini server hisoblaydi) — ya'ni offline rejimda pul
+  // bo'lakma-bo'lak ko'rinadi. Bu mock chegarasi, mahsulot xulqi emas.
   const splitBooking = useCallback(
     async (id: string, input: CalendarSplitInput) =>
       setBookings((prev) => {
@@ -228,12 +234,13 @@ export function useMockCalendarData(roomCount = 24): CalendarData {
         const linkId = b.linkId ?? `link-${mockIdSeq++}`
         const total = b.payment?.total ?? 0
         const nights = nightsBetween(b.start, b.end)
+        const firstNights = nightsBetween(b.start, input.splitDate)
         const secondNights = nightsBetween(input.splitDate, b.end)
+        const firstTotal =
+          input.firstTotalAmount ?? (nights > 0 ? Math.round((total * firstNights) / nights) : 0)
         const secondTotal =
           input.totalAmount ?? (nights > 0 ? Math.round((total * secondNights) / nights) : 0)
-        const firstTotal = Math.round((total - secondTotal) * 100) / 100
-        const paid = b.payment?.paid ?? 0
-        const paidMoved = Math.max(0, Math.round((paid - firstTotal) * 100) / 100)
+        const moved = input.moveNow === true && b.status === "checked_in"
         return [
           ...prev.map((x) =>
             x.id === id
@@ -241,7 +248,8 @@ export function useMockCalendarData(roomCount = 24): CalendarData {
                   ...x,
                   end: input.splitDate,
                   linkId,
-                  ...(x.payment ? { payment: { total: firstTotal, paid: paid - paidMoved } } : {}),
+                  ...(moved ? { status: "checked_out" as const } : {}),
+                  ...(x.payment ? { payment: { ...x.payment, total: firstTotal } } : {}),
                 }
               : x,
           ),
@@ -251,13 +259,34 @@ export function useMockCalendarData(roomCount = 24): CalendarData {
             roomId: input.roomId,
             start: input.splitDate,
             end: b.end,
-            status: "booked" as const,
+            status: moved ? ("checked_in" as const) : ("booked" as const),
             linkId,
             checkedInAt: null,
             checkedOutAt: null,
-            ...(b.payment ? { payment: { total: secondTotal, paid: paidMoved } } : {}),
+            ...(b.payment ? { payment: { total: secondTotal, paid: 0 } } : {}),
           },
         ]
+      }),
+    [],
+  )
+
+  // Ko'chirishni yakunlash — mehmon turgan bo'lak chiqadi, keyingisi kiradi.
+  const moveNext = useCallback(
+    async (id: string) =>
+      setBookings((prev) => {
+        const from = prev.find((x) => x.id === id)
+        if (!from?.linkId) return prev
+        const next = prev
+          .filter((x) => x.linkId === from.linkId && x.id !== id && x.start >= from.end)
+          .sort((a, c) => (a.start < c.start ? -1 : 1))[0]
+        if (!next) return prev
+        return prev.map((x) =>
+          x.id === from.id
+            ? { ...x, status: "checked_out" as const }
+            : x.id === next.id
+              ? { ...x, status: "checked_in" as const }
+              : x,
+        )
       }),
     [],
   )
@@ -357,6 +386,7 @@ export function useMockCalendarData(roomCount = 24): CalendarData {
     editBooking,
     moveBooking,
     splitBooking,
+    moveNext,
     removeBlock,
     selectGuestsFor: setSelectedId,
     guests,
@@ -420,7 +450,11 @@ function mapBooking(b: Booking): CalendarBooking {
     // yadro uchun `sublabel` bitta ma'noga ega bo'lishi kerak. Korporativ belgisi alohida
     // maydondan (`organization`) o'qiladi — bar, tooltip va detal uni shundan chizadi.
     sublabel: b.guestPhone ?? undefined,
+    // `payment` — SHU bronning O'Z puli va shundayligicha qoladi: bo'lish oynasi summani
+    // aynan shundan taqsimlaydi. Butun yashashning puli alohida (`folio`) va ekranga
+    // qaysi biri chiqishini `calendar/folio.ts` hal qiladi.
     payment: total != null ? { total, paid: Number(b.paidAmount ?? 0) } : undefined,
+    folio: b.folio,
     guestConfirmed: b.guestConfirmed,
     checkedInAt: b.checkedInAt,
     checkedOutAt: b.checkedOutAt,
@@ -849,6 +883,10 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
           splitDate: input.splitDate,
           roomId: input.roomId,
           ...(input.totalAmount !== undefined ? { totalAmount: input.totalAmount } : {}),
+          ...(input.firstTotalAmount !== undefined
+            ? { firstTotalAmount: input.firstTotalAmount }
+            : {}),
+          ...(input.moveNow ? { moveNow: true } : {}),
         })
         toast.success(t("calendarToast.splitDone"))
         invalidate()
@@ -860,6 +898,28 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
           onError(e, t("calendarToast.splitFailed"))
         }
         // Oyna ochiq qolsin: xodim boshqa xona yoki sana tanlab qayta urinsin.
+        throw e
+      }
+    },
+    [invalidate, onError],
+  )
+
+  // KO'CHIRISHNI YAKUNLASH — chiqarish + kiritish serverda BITTA tranzaksiya, shuning uchun
+  // bu yerda "yarim ko'chgan" holatni tozalash kodi yo'q. 409 — xona band yoki bo'lak
+  // kirishga tayyor emas: server sababni o'zi yozadi, uni shundayligicha ko'rsatamiz.
+  const moveNext = useCallback(
+    async (id: string) => {
+      try {
+        await apiMoveBookingNext(id)
+        toast.success(t("calendarToast.moveNextDone"))
+        invalidate()
+      } catch (e) {
+        if (e instanceof ApiError && e.status === 409) {
+          toast.error(e.message || t("calendarToast.moveNextFailed"))
+          invalidate()
+        } else {
+          onError(e, t("calendarToast.moveNextFailed"))
+        }
         throw e
       }
     },
@@ -1059,6 +1119,7 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
     editBooking,
     moveBooking,
     splitBooking,
+    moveNext,
     removeBlock,
     selectGuestsFor: setSelectedId,
     guests,

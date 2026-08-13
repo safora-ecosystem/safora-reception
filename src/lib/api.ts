@@ -384,6 +384,26 @@ export type Booking = {
    * shundan uzuq chiziqli izni chizadi, hisob-faktura esa qismlarni bitta hujjatga yig'adi.
    */
   linkId?: string | null
+  /**
+   * BO'LINGAN yashashning puli — bo'lak emas, BUTUN yashash bo'yicha (server hisoblaydi).
+   * Bo'linmagan bronda maydon umuman kelmaydi.
+   *
+   * `open` — hisob SHU bo'lakda ochiqmi; zanjirda aynan bitta bo'lak `true`. Panel butun pul
+   * yuzasini shundan boshqaradi: mehmon tark etgan xonada pul ko'rsatilmaydi va to'lov
+   * tugmasi chiqmaydi (server ham 409 `FOLIO_MOVED` bilan to'sadi).
+   */
+  folio?: {
+    parts: number
+    index: number
+    last: boolean
+    open: boolean
+    openRoom: string | null
+    prevRoom: string | null
+    nextRoom: string | null
+    total: number
+    extras: number
+    paid: number
+  } | null
   /** Resepshn eslatmasi (smenalar orasida ma'lumot uzatish). */
   note?: string | null
   /** Tashqi kanal broni raqami (OTA). Hisob-fakturada "Bron №" sifatida chiqadi — mehmon
@@ -544,13 +564,28 @@ export type SplitBookingBody = {
   splitDate: string
   /** Mehmon ko'chadigan xona — joriysidan boshqa. */
   roomId: string
-  /** Ikkinchi qism summasi; berilmasa server kechalar bo'yicha proporsional taqsimlaydi. */
+  /** IKKINCHI qism summasi — yangi xonaning tarifi × o'sha xonadagi kechalar. */
   totalAmount?: number
+  /** BIRINCHI qism summasi. Ilgari u QOLDIQ edi va yig'indi qulflangan edi — shu qoida
+      qimmatroq xonaga ko'chishda birinchi qismni 0 so'mga tushirardi. */
+  firstTotalAmount?: number
+  /** Mehmon bugun ko'chadimi: eski xonadan chiqarish + yangisiga kiritish o'sha commit'da. */
+  moveNow?: boolean
 }
 
 /** Ikkala qism ham qaytadi — panel kalendarni kutmasdan natijani ko'rsata oladi. */
 export const splitBooking = (id: string, body: SplitBookingBody) =>
   api<{ first: Booking; second: Booking }>(`/bookings/${id}/split`, { method: "POST", body })
+
+/**
+ * KO'CHIRISHNI YAKUNLASH — mehmon bo'lingan yashashning keyingi xonasiga o'tadi.
+ *
+ * Chiqarish + kiritish BITTA tranzaksiyada: ilgari xodim ikki tugma bosardi va oradagi
+ * lahzada mehmon hech qaysi xonada bo'lmasdi (QR uzilardi, xona bo'sh ko'rinardi).
+ * `id` — zanjirning istalgan bo'lagi; server mehmon HOZIR turgan bo'lakdan keyingisiga o'tkazadi.
+ */
+export const moveBookingNext = (id: string) =>
+  api<{ from: Booking; to: Booking }>(`/bookings/${id}/move-next`, { method: "POST" })
 
 // ── Hisob-faktura ────────────────────────────────────────────────────────────
 //

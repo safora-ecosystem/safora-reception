@@ -10,6 +10,7 @@ import {
   nightsBetween,
   type BarRect,
 } from "./geometry"
+import { displayPayment } from "./folio"
 import type { CalendarMoveHandlers } from "./use-calendar-move"
 import type { CalendarTooltipHandlers } from "./use-calendar-tooltip"
 import type {
@@ -201,13 +202,17 @@ function CalendarBarImpl({
   const nights = nightsBetween(booking.start, booking.end)
   const barHeight = rowHeight - 2 * BAR_VPAD
   const corporate = booking.organization != null
+  // Bo'lingan yashashda pul BUTUN yashash bo'yicha va faqat hisob ochiq bo'lakda ko'rinadi
+  // (`folio.ts`) — aks holda uch bo'lakli zanjirda uchala bar bir xil summani ko'rsatib,
+  // jadval bo'ylab pul uch marta ko'paygandek o'qilardi.
+  const payment = displayPayment(booking)
   const showPayment =
-    booking.payment != null && !corporate && barMoney !== "hidden" && rect.width >= PAYMENT_MIN_PX
+    payment != null && !corporate && barMoney !== "hidden" && rect.width >= PAYMENT_MIN_PX
   const showCorporate = corporate && rect.width >= PAYMENT_MIN_PX
   // `remaining` rejimida qoldiqsiz bron yashil glifga QAYTADI: bo'sh joy "ma'lumot yo'q" deb
   // o'qilardi, to'liq yashil `$` esa "qarz yo'q" tasdig'i — xodim pul so'ramaydigan bar'ni
   // bir qarashda ajratadi.
-  const remaining = booking.payment ? Math.max(0, booking.payment.total - booking.payment.paid) : 0
+  const remaining = payment ? Math.max(0, payment.total - payment.paid) : 0
   const paymentAsText =
     barMoney === "total" || (barMoney === "remaining" && remaining > 0)
 
@@ -225,9 +230,7 @@ function CalendarBarImpl({
 
   const title =
     `${booking.label} · ${fmtDay(booking.start, labels)} – ${fmtDay(booking.end, labels)} · ${labels.nights(nights)}` +
-    (booking.payment
-      ? ` · ${labels.money(booking.payment.paid)} / ${labels.money(booking.payment.total)}`
-      : "")
+    (payment ? ` · ${labels.money(payment.paid)} / ${labels.money(payment.total)}` : "")
 
   return (
     <motion.button
@@ -308,15 +311,11 @@ function CalendarBarImpl({
         <span className={cn("min-w-0 truncate", visual.labelClass)}>{booking.label}</span>
         {showCorporate && <CorporateGlyph />}
         {showPayment &&
-          booking.payment &&
+          payment &&
           (paymentAsText ? (
-            <PaymentText
-              payment={booking.payment}
-              mode={barMoney as "total" | "remaining"}
-              labels={labels}
-            />
+            <PaymentText payment={payment} mode={barMoney as "total" | "remaining"} labels={labels} />
           ) : (
-            <PaymentGlyph payment={booking.payment} />
+            <PaymentGlyph payment={payment} />
           ))}
       </span>
       {/* Burchak badge'lari — ichki span'dan KEYIN (uning overflow-hidden'i kesmasin, ustida

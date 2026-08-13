@@ -356,6 +356,7 @@ export function CalendarPage() {
               onMoveBooking={canEdit ? data.moveBooking : undefined}
               onMoveConflict={onMoveConflict}
               onSplitBooking={canEdit ? data.splitBooking : undefined}
+              onMoveNext={canEdit ? data.moveNext : undefined}
               onInvoice={(b) => setInvoiceFor(b.id)}
               onRemoveBlock={data.removeBlock}
               onSelectBooking={(b) => data.selectGuestsFor(b?.id ?? null)}

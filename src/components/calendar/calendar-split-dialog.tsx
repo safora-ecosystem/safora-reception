@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/sheet"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Switch } from "@/components/ui/switch"
 import { MoneyInput } from "@/components/shared/money-input"
 import { cn } from "@/lib/utils"
 import { addDays, epochDay, hasConflict, nightsBetween } from "./geometry"
@@ -100,14 +101,6 @@ function SplitBody({
   const firstNights = nightsBetween(b.start, splitDate)
   const secondNights = nightsBetween(splitDate, b.end)
 
-  // Summa kechalar bo'yicha — resepshn kalkulyator qidirmasin. Sana o'zgarganda qayta
-  // hisoblanadi, LEKIN xodim qo'lda tekkan bo'lsa tegilmaydi (`touched`).
-  const [touched, setTouched] = useState(false)
-  const suggested = nights > 0 ? Math.round((total * secondNights) / nights) : 0
-  const [secondAmount, setSecondAmount] = useState(String(suggested))
-  const effectiveSecond = touched ? Number(secondAmount.replace(/\s/g, "")) : suggested
-  const firstAmount = Math.round((total - effectiveSecond) * 100) / 100
-
   // Xona ro'yxati: joriy xona chiqmaydi (o'ziga ko'chirish ma'nosiz), band bo'lganlar esa
   // ko'rinadi-yu tanlanmaydi — "nega bu xona yo'q?" degan savol tug'ilmasin.
   const options = useMemo(
@@ -129,8 +122,56 @@ function SplitBody({
   // ogohlantiramiz (xodim o'zi qaror qilsin: sanani qaytarish yoki boshqa xona).
   const roomBusy = selected?.busy === true
 
+  // ── SUMMA: har qism O'Z xonasining narxida ────────────────────────────────
+  // Ilgari faqat ikkinchi qism kiritilardi va birinchisi QOLDIQNI olardi, ya'ni yig'indi
+  // hech qachon o'zgarmasdi. Aynan shu qoida qimmatroq xonaga ko'chishni buzardi: 600k lik
+  // xonada 4 kecha turgan mehmon 3 kechaga 800k lik xonaga ko'chsa, ikkinchi qism butun
+  // summani yeb, birinchi qism 0 so'mga tushardi — bir kecha tekinga ketardi.
+  //
+  // Endi ikkalasi ham tahrirlanadi va yig'indi o'zgarishi MUMKIN: mehmon boshqa toifadagi
+  // xonaga ko'chdi, demak narx ham boshqa.
+  const [firstTouched, setFirstTouched] = useState(false)
+  const [secondTouched, setSecondTouched] = useState(false)
+  const [firstInput, setFirstInput] = useState("")
+  const [secondInput, setSecondInput] = useState("")
+
+  // Birinchi qism — bronning O'Z kechalik narxida (jami / kechalar): o'sha xona, o'sha tarif.
+  const suggestedFirst = nights > 0 ? Math.round((total * firstNights) / nights) : 0
+  // Ikkinchi qism — YANGI xonaning tarifida. Tarifi yo'q xonada eski kechalik narx qoladi:
+  // taxmin qilib yozilgan raqam noto'g'ri hisobdan yomonroq.
+  const suggestedSecond =
+    selected?.room.rate != null
+      ? Math.round(selected.room.rate * secondNights)
+      : nights > 0
+        ? Math.round((total * secondNights) / nights)
+        : 0
+
+  const num = (s: string) => Number(s.replace(/\s/g, ""))
+  const firstAmount = firstTouched ? num(firstInput) : suggestedFirst
+  const secondAmount = secondTouched ? num(secondInput) : suggestedSecond
+  const newTotal = Math.round((firstAmount + secondAmount) * 100) / 100
+
+  // Server AYNAN shu tekshiruvni ZANJIR bo'yicha qiladi: yangi yig'indi allaqachon olingan
+  // puldan past bo'lib qolmasin (aks holda bo'lish jimgina qaytarim qarzini yaratardi).
+  // Uchinchi marta bo'lishda boshqa bo'laklardagi narx va pul ham hisobda turadi.
+  const chainTotal = b.folio?.total ?? total
+  const chainPaid = b.folio?.paid ?? b.payment?.paid ?? 0
+  const totalAfter = Math.round((chainTotal - total + newTotal) * 100) / 100
+
   const amountValid =
-    Number.isFinite(effectiveSecond) && effectiveSecond >= 0 && effectiveSecond <= total
+    Number.isFinite(firstAmount) &&
+    firstAmount >= 0 &&
+    Number.isFinite(secondAmount) &&
+    secondAmount >= 0 &&
+    totalAfter >= chainPaid
+
+  // Ko'chish BUGUN bo'layotgan bo'lsa, bo'lish bilan birga chiqarish/kiritish ham bajariladi —
+  // aks holda xodim yana ikki tugma bosardi va oradagi lahzada mehmon hech qaysi xonada
+  // bo'lmasdi. Kelajakka rejalashtirilgan bo'lishda bu tanlov umuman ko'rinmaydi: bugun
+  // ko'chirish yolg'on bo'lardi.
+  const canMoveNow = b.status === "checked_in" && splitDate === today
+  const [moveNow, setMoveNow] = useState(true)
+
   const valid = !tooShort && roomId != null && !roomBusy && amountValid && !busy
 
   // Jonli tanlovni kalendarga uzatamiz — u kesish chizig'ini va yangi xonadagi bo'lakni
@@ -164,7 +205,8 @@ function SplitBody({
         splitDate,
         roomId,
         // Summasiz bron (payment yo'q) — serverga summa yubormaymiz, u o'zi taqsimlaydi.
-        ...(b.payment ? { totalAmount: effectiveSecond } : {}),
+        ...(b.payment ? { totalAmount: secondAmount, firstTotalAmount: firstAmount } : {}),
+        ...(canMoveNow && moveNow ? { moveNow: true } : {}),
       })
       onClose()
     } finally {
@@ -262,26 +304,76 @@ function SplitBody({
               room={selected?.room.label ?? "—"}
               range={`${fmtDay(splitDate, labels)} – ${fmtDay(b.end, labels)}`}
               nights={labels.nights(secondNights)}
-              amount={b.payment ? labels.money(effectiveSecond) : null}
+              amount={b.payment ? labels.money(secondAmount) : null}
               accent
             />
           </div>
 
           {b.payment && (
-            <Field label={`${labels.splitSecond} · ${labels.amount}`}>
-              <MoneyInput
-                value={touched ? secondAmount : String(suggested)}
-                onChange={(v) => {
-                  setTouched(true)
-                  setSecondAmount(v)
-                }}
-                ariaLabel={labels.amount}
-                invalid={!amountValid}
-              />
-              <span className="text-xs text-neutral-500 tabular-nums">
-                {labels.total} {labels.money(total)}
+            <div className="grid gap-3">
+              <Field label={labels.splitFirstAmount}>
+                <MoneyInput
+                  value={firstTouched ? firstInput : String(suggestedFirst)}
+                  onChange={(v) => {
+                    setFirstTouched(true)
+                    setFirstInput(v)
+                  }}
+                  ariaLabel={labels.splitFirstAmount}
+                  invalid={!amountValid}
+                />
+              </Field>
+              <Field label={`${labels.splitSecond} · ${labels.amount}`}>
+                <MoneyInput
+                  value={secondTouched ? secondInput : String(suggestedSecond)}
+                  onChange={(v) => {
+                    setSecondTouched(true)
+                    setSecondInput(v)
+                  }}
+                  ariaLabel={labels.amount}
+                  invalid={!amountValid}
+                />
+              </Field>
+
+              {/* Yig'indi endi o'zgarishi MUMKIN — va o'zgarganda buni AYTISH shart: xodim
+                  qimmatroq xonaga ko'chirayotganini bilib turib tasdiqlasin, keyin
+                  "narx o'zi oshib ketibdi" degan savol tug'ilmasin. */}
+              <div className="rounded-card bg-neutral-50 p-3 text-xs tabular-nums">
+                <div className="flex items-baseline justify-between">
+                  <span className="text-neutral-500">{labels.splitTotalBefore}</span>
+                  <span className="text-neutral-600">{labels.money(total)}</span>
+                </div>
+                <div className="mt-1 flex items-baseline justify-between">
+                  <span className="font-medium text-neutral-600">{labels.splitTotalAfter}</span>
+                  <span
+                    className={cn(
+                      "font-semibold",
+                      newTotal === total ? "text-neutral-900" : "text-brand-700",
+                    )}
+                  >
+                    {labels.money(newTotal)}
+                  </span>
+                </div>
+              </div>
+
+              {!amountValid && (
+                <p className="text-xs font-medium text-destructive">{labels.totalBelowPaid}</p>
+              )}
+            </div>
+          )}
+
+          {/* Ko'chish BUGUN bo'lsa — bo'lish bilan birga chiqarish/kiritish ham bajariladi. */}
+          {canMoveNow && (
+            <label className="flex cursor-pointer items-start gap-3 rounded-card bg-neutral-50 p-3.5">
+              <Switch size="sm" checked={moveNow} onCheckedChange={setMoveNow} className="mt-0.5" />
+              <span className="min-w-0">
+                <span className="block text-sm font-medium text-neutral-900">
+                  {labels.splitMoveNow}
+                </span>
+                <span className="mt-0.5 block text-xs leading-relaxed text-neutral-500">
+                  {labels.splitMoveNowHint}
+                </span>
               </span>
-            </Field>
+            </label>
           )}
 
           {roomBusy && <p className="text-xs font-medium text-destructive">{labels.splitBusy}</p>}

@@ -5,6 +5,7 @@ import { Calendar03Icon, Note01Icon, User02Icon } from "@hugeicons/core-free-ico
 import { Icon } from "@/components/ui/icon"
 import { cn } from "@/lib/utils"
 import { nightsBetween } from "./geometry"
+import { displayPayment } from "./folio"
 import type { CalendarTooltipState } from "./use-calendar-tooltip"
 import type { CalendarLabels, CalendarPayment, StatusConfig } from "./types"
 
@@ -69,7 +70,7 @@ export function CalendarBarTooltip({ state, labels, statusConfig }: CalendarBarT
 
   const b = state?.booking
   const visual = b ? statusConfig[b.status] : undefined
-  const pay = b?.payment
+  const pay = b ? displayPayment(b) : undefined
   const ratio = pay ? paymentRatio(pay) : 0
   const paidFull = ratio >= 1
 
@@ -204,6 +205,21 @@ export function CalendarBarTooltip({ state, labels, statusConfig }: CalendarBarT
                 >
                   {paidFull ? labels.paidFully : ratio > 0 ? labels.paidPartly : labels.paidNone}
                 </span>
+              </div>
+            </div>
+          ) : b.folio ? (
+            /* Bo'lingan yashashning boshqa bo'lagi: bu yerda pul YO'Q — hisob mehmon turgan
+               xonada ochiq. Bo'sh joy qoldirilsa "ma'lumot yuklanmadi" deb o'qilardi. */
+            <div className="border-t border-border px-3.5 py-2.5">
+              <div className="flex items-baseline justify-between gap-2 text-xs">
+                <span className="text-muted-foreground">
+                  {labels.splitPart(b.folio.index, b.folio.parts)}
+                </span>
+                {b.folio.openRoom && (
+                  <span className="font-medium text-foreground/80">
+                    {labels.splitFolioElsewhere(b.folio.openRoom)}
+                  </span>
+                )}
               </div>
             </div>
           ) : null}
