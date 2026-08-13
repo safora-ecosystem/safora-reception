@@ -1,6 +1,6 @@
 {
   "source": "safora-reception",
-  "mode": "warn",
+  "mode": "fail",
   "files": [
     {
       "path": "src/stores/reset-bus.ts",
