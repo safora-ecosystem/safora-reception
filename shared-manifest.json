@@ -244,6 +244,29 @@
         "src/components/calendar/use-calendar-tooltip.ts": "b1f4c7c73ed9d5ae1df58f3448050f377350e0648afbce7a1647deb6378f47c9",
         "src/components/calendar/use-lanes.ts": "0177e92552724072f34644543573779eaab5285944c511af6517dbe24da18277"
       }
+    },
+    {
+      "path": "src/lib/paged.ts",
+      "repos": [
+        "safora-reception",
+        "safora-owner",
+        "safora-manager",
+        "safora-admin"
+      ],
+      "hashes": {
+        "src/lib/paged.ts": "1c6b325342afa249763a9af6b436ee19ee3bc31df559e1410c4231fc38859232"
+      }
+    },
+    {
+      "path": "src/components/shared/load-more.tsx",
+      "repos": [
+        "safora-reception",
+        "safora-owner",
+        "safora-manager"
+      ],
+      "hashes": {
+        "src/components/shared/load-more.tsx": "8fbb1bd57e6cad44a30bddfc560391c27072daee97b30fd7396fa97cc3e057a8"
+      }
     }
   ]
 }
