@@ -1,7 +1,9 @@
+import { useMemo } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { PlusSignIcon, TimeScheduleIcon } from "@hugeicons/core-free-icons"
 import { Icon } from "@/components/ui/icon"
 import { Link } from "@tanstack/react-router"
+import { addDays } from "@/components/calendar"
 import { PageLayout } from "@/components/layout/page-layout"
 import { DoorIn, DoorOut } from "@/components/shared/icons"
 import { ChatPanel } from "@/components/shared/chat-panel"
@@ -66,34 +68,45 @@ type Movement = {
 
 export function StatistikaPage() {
   const t = useT()
-  const rooms = useQuery({ queryKey: ["rooms"], queryFn: listRooms })
-  const bookings = useQuery({ queryKey: ["bookings"], queryFn: () => listBookings() })
 
   const today = localIso()
+  const weekStart = addDays(today, -((new Date().getDay() + 6) % 7))
+  const weekEnd = addDays(weekStart, 6)
+  const windowFrom = addDays(weekStart, -14)
 
-  const totalRooms = rooms.data?.length ?? 0
-  const allBookings = bookings.data ?? []
-
-  const occupiedNow = new Set(
-    allBookings.filter((b) => b.status === "checked_in" && b.room != null).map((b) => b.room!.id),
-  ).size
-  const occupancyPct = totalRooms > 0 ? Math.round((occupiedNow / totalRooms) * 100) : 0
-
-  const arrivals: Movement[] = allBookings
-    .filter((b) => bookingDate(b.checkInDate) === today && (b.status === "booked" || b.status === "checked_in"))
-    .map((b) => ({ type: "in", booking: b, done: b.status === "checked_in" }))
-  const departures: Movement[] = allBookings
-    .filter((b) => bookingDate(b.checkOutDate) === today && (b.status === "checked_in" || b.status === "checked_out"))
-    .map((b) => ({ type: "out", booking: b, done: b.status === "checked_out" }))
-  const late: Movement[] = allBookings
-    .filter((b) => b.status === "checked_in" && bookingDate(b.checkOutDate) < today)
-    .map((b) => ({ type: "out", booking: b, done: false, late: true }))
-  const movements = [...late, ...arrivals, ...departures].sort((a, b) => {
-    const rank = (m: Movement) => (m.late ? 0 : m.done ? 2 : 1)
-    return rank(a) - rank(b)
+  const rooms = useQuery({ queryKey: ["rooms"], queryFn: listRooms })
+  const bookings = useQuery({
+    queryKey: ["bookings", windowFrom, weekEnd],
+    queryFn: () => listBookings(windowFrom, weekEnd),
   })
 
-  const week = weeklyOccupancy(allBookings, totalRooms)
+  const totalRooms = rooms.data?.length ?? 0
+
+  const { occupiedNow, arrivals, departures, late, movements, week } = useMemo(() => {
+    const allBookings = bookings.data ?? []
+
+    const occupiedNow = new Set(
+      allBookings.filter((b) => b.status === "checked_in" && b.room != null).map((b) => b.room!.id),
+    ).size
+
+    const arrivals: Movement[] = allBookings
+      .filter((b) => bookingDate(b.checkInDate) === today && (b.status === "booked" || b.status === "checked_in"))
+      .map((b) => ({ type: "in", booking: b, done: b.status === "checked_in" }))
+    const departures: Movement[] = allBookings
+      .filter((b) => bookingDate(b.checkOutDate) === today && (b.status === "checked_in" || b.status === "checked_out"))
+      .map((b) => ({ type: "out", booking: b, done: b.status === "checked_out" }))
+    const late: Movement[] = allBookings
+      .filter((b) => b.status === "checked_in" && bookingDate(b.checkOutDate) < today)
+      .map((b) => ({ type: "out", booking: b, done: false, late: true }))
+    const movements = [...late, ...arrivals, ...departures].sort((a, b) => {
+      const rank = (m: Movement) => (m.late ? 0 : m.done ? 2 : 1)
+      return rank(a) - rank(b)
+    })
+
+    return { occupiedNow, arrivals, departures, late, movements, week: weeklyOccupancy(allBookings, totalRooms) }
+  }, [bookings.data, totalRooms, today])
+
+  const occupancyPct = totalRooms > 0 ? Math.round((occupiedNow / totalRooms) * 100) : 0
 
   const snapshot = [
     {

@@ -766,11 +766,6 @@ function GroupThread({ onBack }: { onBack: () => void }) {
       .then(() => qc.invalidateQueries({ queryKey: groupUnreadKey }))
       .catch(() => {})
   }, [last, meId, qc])
-  useEffect(() => {
-    void markGroupRead()
-      .then(() => qc.invalidateQueries({ queryKey: groupUnreadKey }))
-      .catch(() => {})
-  }, [qc])
 
   const send = useMutation({
     mutationFn: (input: { text: string; replyToId?: string }) =>
@@ -848,11 +843,6 @@ function HkThread({ onBack }: { onBack: () => void }) {
       .then(() => qc.invalidateQueries({ queryKey: hkUnreadKey }))
       .catch(() => {})
   }, [last, meId, qc])
-  useEffect(() => {
-    void markHkRead()
-      .then(() => qc.invalidateQueries({ queryKey: hkUnreadKey }))
-      .catch(() => {})
-  }, [qc])
 
   const send = useMutation({
     mutationFn: (input: { text: string }) => sendHkMessage(input.text),

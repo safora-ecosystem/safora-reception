@@ -36,7 +36,10 @@ function loadScript(): Promise<void> {
     script.async = true
     script.defer = true
     script.onload = () => resolve()
-    script.onerror = () => reject(new Error(t("errors.turnstile")))
+    script.onerror = () => {
+      loader = null
+      reject(new Error(t("errors.turnstile")))
+    }
     document.head.appendChild(script)
   })
   return loader

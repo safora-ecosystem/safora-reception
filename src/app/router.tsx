@@ -19,6 +19,7 @@ import { AppErrorPage } from "@/components/shared/app-error-page"
 import { staffLogout } from "@/lib/api"
 import { isAuthed } from "@/lib/auth"
 import { disableWebPush } from "@/lib/push"
+import { queryClient } from "@/lib/query-client"
 
 const rootRoute = createRootRoute()
 
@@ -154,6 +155,16 @@ const logoutRoute = createRoute({
   beforeLoad: async () => {
     await disableWebPush().catch(() => {})
     await staffLogout()
+    queryClient.clear()
+    for (const key of [
+      "safora_notices_seen",
+      "safora_calendar_readonly",
+      "safora_extra_guest_rate",
+      "safora_reception_shift_note_ack",
+      "safora_reception_shift_open",
+    ]) {
+      localStorage.removeItem(key)
+    }
     throw redirect({ to: "/login" })
   },
   component: () => null,
