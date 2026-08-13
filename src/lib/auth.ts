@@ -1,3 +1,4 @@
+import { useSessionStore } from "@/stores/session-store"
 import type { TKey } from "./i18n"
 
 export type StaffRole = "owner" | "manager" | "reception" | "housekeeper"
@@ -23,46 +24,30 @@ export type Session = {
   accessExpiresAt: number
 }
 
-const KEY = "safora_reception_session"
-
 export function saveSession(session: Session, temporary: boolean): void {
-  clearSession()
-  const store = temporary ? sessionStorage : localStorage
-  store.setItem(KEY, JSON.stringify(session))
+  useSessionStore.getState().save(session, temporary)
 }
 
 export function getSession(): Session | null {
-  const raw = sessionStorage.getItem(KEY) ?? localStorage.getItem(KEY)
-  if (!raw) return null
-  try {
-    return JSON.parse(raw) as Session
-  } catch {
-    clearSession()
-    return null
-  }
+  return useSessionStore.getState().session
 }
 
 export function updateAccessExpiry(accessExpiresAt: number): void {
-  const inSession = sessionStorage.getItem(KEY) !== null
-  const current = getSession()
-  if (!current) return
-  const store = inSession ? sessionStorage : localStorage
-  store.setItem(KEY, JSON.stringify({ ...current, accessExpiresAt }))
+  useSessionStore.getState().updateAccessExpiry(accessExpiresAt)
 }
 
 export function updateAvatar(avatarUrl: string | null): void {
-  const inSession = sessionStorage.getItem(KEY) !== null
-  const current = getSession()
-  if (!current) return
-  const store = inSession ? sessionStorage : localStorage
-  store.setItem(KEY, JSON.stringify({ ...current, user: { ...current.user, avatarUrl } }))
+  useSessionStore.getState().updateAvatar(avatarUrl)
 }
 
 export function clearSession(): void {
-  sessionStorage.removeItem(KEY)
-  localStorage.removeItem(KEY)
+  useSessionStore.getState().clearOnly()
+}
+
+export function fullSessionReset(): void {
+  useSessionStore.getState().reset()
 }
 
 export function isAuthed(): boolean {
-  return getSession() !== null
+  return useSessionStore.getState().session !== null
 }

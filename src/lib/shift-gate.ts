@@ -1,55 +1,23 @@
-import { useSyncExternalStore } from "react"
+import {
+  lastKnownShiftOpen,
+  rememberShiftOpen,
+  useShiftStore,
+} from "@/stores/shift-store"
 
-let held = false
-const subs = new Set<() => void>()
+export { lastKnownShiftOpen, rememberShiftOpen }
 
 export function holdShiftGate(value: boolean): void {
-  if (held === value) return
-  held = value
-  for (const fn of subs) fn()
+  useShiftStore.getState().hold(value)
 }
 
 export function useShiftGateHeld(): boolean {
-  return useSyncExternalStore(
-    (cb) => {
-      subs.add(cb)
-      return () => subs.delete(cb)
-    },
-    () => held,
-  )
+  return useShiftStore((s) => s.held)
 }
-
-const LAST_KNOWN_KEY = "safora_reception_shift_open"
-
-export function rememberShiftOpen(open: boolean): void {
-  try {
-    localStorage.setItem(LAST_KNOWN_KEY, open ? "1" : "0")
-  } catch {
-  }
-}
-
-export function lastKnownShiftOpen(): boolean {
-  try {
-    return localStorage.getItem(LAST_KNOWN_KEY) === "1"
-  } catch {
-    return false
-  }
-}
-
-let logoutPending = false
 
 export function startLogoutCountdown(): void {
-  if (logoutPending) return
-  logoutPending = true
-  for (const fn of subs) fn()
+  useShiftStore.getState().startLogoutCountdown()
 }
 
 export function useLogoutCountdownPending(): boolean {
-  return useSyncExternalStore(
-    (cb) => {
-      subs.add(cb)
-      return () => subs.delete(cb)
-    },
-    () => logoutPending,
-  )
+  return useShiftStore((s) => s.logoutPending)
 }

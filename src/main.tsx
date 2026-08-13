@@ -8,12 +8,12 @@ import { router } from "./app/router"
 import { initI18n } from "./lib/i18n"
 import { queryClient } from "./lib/query-client"
 import { initScrollbarAutohide } from "./lib/scrollbar"
-import { initTheme } from "./lib/theme"
-import { initUiPrefs } from "./lib/ui-prefs"
+import { initPrefs } from "./stores/prefs-store"
+import { onSessionReset } from "./stores/reset-bus"
 
 initScrollbarAutohide()
-initTheme()
-initUiPrefs()
+initPrefs()
+onSessionReset(() => queryClient.clear())
 
 void initI18n().then(() => {
   createRoot(document.getElementById("root")!).render(

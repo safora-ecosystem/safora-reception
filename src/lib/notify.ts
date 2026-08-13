@@ -1,13 +1,9 @@
-import { useEffect, useState } from "react"
+import { useNotifyStore, type AlertToneId, type NotifyPrefs, type ToneId } from "@/stores/notify-store"
 import type { TKey } from "./i18n"
 
-export type ToneId = "marimba" | "bell" | "pop"
 
-export type AlertToneId = "trill" | "dingdong" | "pulse"
+export type { AlertToneId, NotifyPrefs, ToneId }
 
-export type NotifyPrefs = { sound: boolean; desktop: boolean; tone: ToneId; alertTone: AlertToneId }
-
-const KEY = "safora_notify"
 const DEFAULTS: NotifyPrefs = { sound: true, desktop: false, tone: "marimba", alertTone: "dingdong" }
 
 export const TONES: Array<{ id: ToneId; labelKey: TKey; hintKey: TKey }> = [
@@ -22,44 +18,19 @@ export const ALERT_TONES: Array<{ id: AlertToneId; labelKey: TKey; hintKey: TKey
   { id: "pulse", labelKey: "alertTones.pulse", hintKey: "alertTones.pulseHint" },
 ]
 
-const ALERT_IDS: readonly string[] = ALERT_TONES.map((t) => t.id)
-
 export function readNotifyPrefs(): NotifyPrefs {
-  try {
-    const raw = localStorage.getItem(KEY)
-    const merged = raw ? { ...DEFAULTS, ...(JSON.parse(raw) as Partial<NotifyPrefs>) } : DEFAULTS
-    if (!ALERT_IDS.includes(merged.alertTone)) merged.alertTone = DEFAULTS.alertTone
-    return merged
-  } catch {
-    return DEFAULTS
-  }
-}
-
-export function writeNotifyPrefs(next: NotifyPrefs): void {
-  localStorage.setItem(KEY, JSON.stringify(next))
-  window.dispatchEvent(new CustomEvent("safora:notify-prefs"))
+  const { sound, desktop, tone, alertTone } = useNotifyStore.getState()
+  return { sound, desktop, tone, alertTone }
 }
 
 export function useNotifyPrefs() {
-  const [prefs, setPrefs] = useState<NotifyPrefs>(readNotifyPrefs)
-
-  useEffect(() => {
-    const sync = () => setPrefs(readNotifyPrefs())
-    window.addEventListener("safora:notify-prefs", sync)
-    window.addEventListener("storage", sync)
-    return () => {
-      window.removeEventListener("safora:notify-prefs", sync)
-      window.removeEventListener("storage", sync)
-    }
-  }, [])
-
+  const sound = useNotifyStore((s) => s.sound)
+  const desktop = useNotifyStore((s) => s.desktop)
+  const tone = useNotifyStore((s) => s.tone)
+  const alertTone = useNotifyStore((s) => s.alertTone)
   return {
-    prefs,
-    set: (patch: Partial<NotifyPrefs>) => {
-      const next = { ...readNotifyPrefs(), ...patch }
-      writeNotifyPrefs(next)
-      setPrefs(next)
-    },
+    prefs: { sound, desktop, tone, alertTone },
+    set: useNotifyStore.getState().set,
   }
 }
 

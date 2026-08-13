@@ -1,0 +1,237 @@
+{
+  "source": "safora-reception",
+  "mode": "warn",
+  "files": [
+    {
+      "path": "src/stores/reset-bus.ts",
+      "repos": [
+        "safora-reception",
+        "safora-owner",
+        "safora-manager",
+        "safora-admin",
+        "safora-kitchen"
+      ],
+      "hashes": {
+        "src/stores/reset-bus.ts": "eb1e71ce55157b95fd060cc3bc1faba0fb6fa6d9f2d81665bb5226b505191d15"
+      }
+    },
+    {
+      "path": "src/stores/session-store.ts",
+      "repos": [
+        "safora-reception",
+        "safora-owner",
+        "safora-manager",
+        "safora-admin",
+        "safora-kitchen"
+      ],
+      "hashes": {
+        "src/stores/session-store.ts": "701cff7dfb95d561522e70d7b0807c24059dd1141b53ea8255b054dccac3cdb2"
+      }
+    },
+    {
+      "path": "src/stores/prefs-store.ts",
+      "repos": [
+        "safora-reception",
+        "safora-owner",
+        "safora-manager",
+        "safora-admin"
+      ],
+      "hashes": {
+        "src/stores/prefs-store.ts": "9b5ed4e0abbaae8307b60c90231e0e3d042e9002af16572fc054cfd06ac98ac8"
+      }
+    },
+    {
+      "path": "src/stores/shell-store.ts",
+      "repos": [
+        "safora-reception",
+        "safora-owner",
+        "safora-manager"
+      ],
+      "hashes": {
+        "src/stores/shell-store.ts": "2dc12460dc82a7e2206c9b4142b0925a5fd67c30622c4bfd8dc2bfa1d2484035"
+      }
+    },
+    {
+      "path": "src/stores/calendar-store.ts",
+      "repos": [
+        "safora-reception",
+        "safora-owner",
+        "safora-manager"
+      ],
+      "hashes": {
+        "src/stores/calendar-store.ts": "1f8fab9d92b89f99bb137636eb441c56748a6717726c3fe608aa597b0bf89a3a"
+      }
+    },
+    {
+      "path": "src/stores/notify-store.ts",
+      "repos": [
+        "safora-reception",
+        "safora-owner",
+        "safora-manager"
+      ],
+      "hashes": {
+        "src/stores/notify-store.ts": "5051e34304c033ca9a915b0d2a51fe80abb631ff70c86045f67f5542fdcc88ee"
+      }
+    },
+    {
+      "path": "src/lib/theme.ts",
+      "repos": [
+        "safora-reception",
+        "safora-owner",
+        "safora-manager"
+      ],
+      "hashes": {
+        "src/lib/theme.ts": "2948a870adeca8a51df494f71e6797779a6b7034b1d2a1ff3ad4138119449d8b"
+      }
+    },
+    {
+      "path": "src/lib/ui-prefs.tsx",
+      "repos": [
+        "safora-reception",
+        "safora-owner",
+        "safora-manager"
+      ],
+      "hashes": {
+        "src/lib/ui-prefs.tsx": "e16cb5766c57992f09b15a66e60e033917b9aa7438d184eb1fd16bca23f0eed6"
+      }
+    },
+    {
+      "path": "src/lib/page-header.tsx",
+      "repos": [
+        "safora-reception",
+        "safora-owner",
+        "safora-manager"
+      ],
+      "hashes": {
+        "src/lib/page-header.tsx": "c617f36810fb8e7783cbecbcaa405f0dd3fd636fd6f2fc72ac50cfd81b193118"
+      }
+    },
+    {
+      "path": "src/lib/topbar-search.tsx",
+      "repos": [
+        "safora-reception",
+        "safora-owner",
+        "safora-manager"
+      ],
+      "hashes": {
+        "src/lib/topbar-search.tsx": "68776017cb148baf8a60282ca9864f6f8596f926a32c4c3ad3676f63a4149287"
+      }
+    },
+    {
+      "path": "src/lib/calendar-prefs.ts",
+      "repos": [
+        "safora-reception",
+        "safora-owner",
+        "safora-manager"
+      ],
+      "hashes": {
+        "src/lib/calendar-prefs.ts": "6b5faaf7cb3788740861d6a705ff211798ebf9fd95be238317b8be42d18e3052"
+      }
+    },
+    {
+      "path": "src/lib/calendar-guard.ts",
+      "repos": [
+        "safora-reception",
+        "safora-owner",
+        "safora-manager"
+      ],
+      "hashes": {
+        "src/lib/calendar-guard.ts": "1890debaa30b58af513aa19e6daca5126d17873144fa3f9a4d27c9d4d2f6227f"
+      }
+    },
+    {
+      "path": "src/lib/notify.ts",
+      "repos": [
+        "safora-reception",
+        "safora-owner",
+        "safora-manager"
+      ],
+      "hashes": {
+        "src/lib/notify.ts": "dbee71457e250de1ebd6a3a80336d666f72e8ccec13530f329c5a1a1f8be23ab"
+      }
+    },
+    {
+      "path": "src/lib/i18n/core.tsx",
+      "repos": [
+        "safora-reception",
+        "safora-owner",
+        "safora-manager"
+      ],
+      "hashes": {
+        "src/lib/i18n/core.tsx": "44ad2f25b8f1442c49cb9bef0abc2b509974ca7d254fea72bc0ab8972c5e6d11"
+      }
+    },
+    {
+      "path": "src/lib/permissions.ts",
+      "repos": [
+        "safora-reception",
+        "safora-owner",
+        "safora-manager"
+      ],
+      "hashes": {
+        "src/lib/permissions.ts": "2316a1c498b5df734a4dd55c41af1ab87e5cec1d8139c6bbd8773ac47a2d5a65"
+      }
+    },
+    {
+      "path": "src/lib/push.ts",
+      "repos": [
+        "safora-reception",
+        "safora-owner",
+        "safora-manager"
+      ],
+      "hashes": {
+        "src/lib/push.ts": "cedc45659bd918ce4ffd738ce9017e3c465b807d77131ba726378275055acbe2"
+      }
+    },
+    {
+      "path": "src/lib/invoice-doc.ts",
+      "repos": [
+        "safora-reception",
+        "safora-owner",
+        "safora-manager"
+      ],
+      "hashes": {
+        "src/lib/invoice-doc.ts": "124c61c87f277f9387bb23086658b86f5868eb100c6e7e45de90941988d0f262"
+      }
+    },
+    {
+      "path": "src/components/calendar/",
+      "repos": [
+        "safora-reception",
+        "safora-owner",
+        "safora-manager"
+      ],
+      "hashes": {
+        "src/components/calendar/calendar-bar-tooltip.tsx": "0b907d42f3db492ebbdcb624ba780747d1bb2a6a96fd3bc1e217e799c2bdc51a",
+        "src/components/calendar/calendar-bar.tsx": "ed56bd0a7565a8027ae43391d090e142f256073ad4b1285c0c8c7d5e2b0d2b8b",
+        "src/components/calendar/calendar-create-dialog.tsx": "d2651cfa6f6d7b01a13332c23ee59af7062172fc4de9d250749e96d0c54ed318",
+        "src/components/calendar/calendar-detail-modal.tsx": "24221bce7075aa21e1cb19ccd401f13eae3b5dd763fae2fb5149866e83a930eb",
+        "src/components/calendar/calendar-grid-layer.tsx": "74d8a1bf12574039a48c1375361b339e37fe0cd2975151ea25ea522821e89439",
+        "src/components/calendar/calendar-group-row.tsx": "7798b96aa4c11e72de3d55ee3368efb990afb088799c319f1b5248454f70ae2b",
+        "src/components/calendar/calendar-header.tsx": "a8658ae257c00700bbc53df015f696a81273083a32885392ca8dfc03775d0eff",
+        "src/components/calendar/calendar-move-confirm.tsx": "f5dea5acdfe5cb29a607dea5f3741b848c25e91097d300bf950723066c3523fa",
+        "src/components/calendar/calendar-rail.tsx": "408ab16ad441bb119e1b0050c3562afbb5422630cfba4f20378c3e8f45e08486",
+        "src/components/calendar/calendar-split-dialog.tsx": "fdbe1a0d6638bd032478edf80976d57391375d3e962181f9d327e559a4473fce",
+        "src/components/calendar/calendar-view-settings.tsx": "fbc6e8a2a041b294328ebde11c485bf789a9a612300332792761cc99dd656ea6",
+        "src/components/calendar/corporate-parts.tsx": "89b00482a70a1b5ee07c7b39f53577d3bf7d5c12ec382b0eca8ee60864552c76",
+        "src/components/calendar/folio.ts": "285b6210e4bd9abd2710e82f2967f77e5fbd6dad7b8176963792fe26649ec46b",
+        "src/components/calendar/form-parts.tsx": "b3fc7523b355677ae6a5b24d4f5aa70470d80c5dac032179758f974264c81f9f",
+        "src/components/calendar/geometry.ts": "6438e0134eff7531f3cd4f9e7b0c0b62aeef3007d1bf32454b30c51537567244",
+        "src/components/calendar/index.ts": "79a344cdc89a06e7108333aef06b98d9dc9f33c029dd0093964547a577e0a73f",
+        "src/components/calendar/labels.ts": "6679cd864bccf7e88a70a33cd0002af83909b5f823d97f4d339a4517842006ec",
+        "src/components/calendar/mock.ts": "911d07af5e4b05e2734932bd6d9106bcf7387bdcf2d2675f286cd2ec1644d4f6",
+        "src/components/calendar/modal-parts.tsx": "bc8470da50995a9e0f9e4dcb6c888a042b9246faf9fa649405c545e4bf276a9c",
+        "src/components/calendar/reservation-calendar.tsx": "3b43891e309a196730e26ee84cfeb3ffdfc01903f5a2c92e32f66af0b3e34893",
+        "src/components/calendar/room-picker.tsx": "b1596772e4e56ce8fc8a57fff44d95099d3c522e397624e7438fce416737205a",
+        "src/components/calendar/split-trace.ts": "9476d46d7973686be14ff6980df3f7e9c038adc90bc69937ea90d684af1db936",
+        "src/components/calendar/status-config.ts": "aa50f569df4a48b6b1db59bef519ac004875cb643e7a9e3e44d188432796ccad",
+        "src/components/calendar/types.ts": "7b94430e1267238157b4b134a269c0e083299e056e5444346ee46c13904d95f4",
+        "src/components/calendar/use-calendar-drag.ts": "a28f3c052513552948e3f7ef8062e0b5942eb466b10b1cabf2272692c70840dc",
+        "src/components/calendar/use-calendar-metrics.ts": "aa0f49a9212c0708157815e36874cae0691322ee65d2374b4deaf312765d499d",
+        "src/components/calendar/use-calendar-move.ts": "01d19e13936842673224eb04bf46533ca61763f803fff20e71eee8b99230ff2c",
+        "src/components/calendar/use-calendar-tooltip.ts": "b1f4c7c73ed9d5ae1df58f3448050f377350e0648afbce7a1647deb6378f47c9",
+        "src/components/calendar/use-lanes.ts": "0177e92552724072f34644543573779eaab5285944c511af6517dbe24da18277"
+      }
+    }
+  ]
+}
