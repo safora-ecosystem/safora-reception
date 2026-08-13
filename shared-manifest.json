@@ -169,7 +169,7 @@
         "safora-manager"
       ],
       "hashes": {
-        "src/lib/permissions.ts": "2316a1c498b5df734a4dd55c41af1ab87e5cec1d8139c6bbd8773ac47a2d5a65"
+        "src/lib/permissions.ts": "5d28ca26a08c6032db1ceb4b7c7b98b2337e176d1e2f1f1453c4bdfff3cb7414"
       }
     },
     {
@@ -221,7 +221,7 @@
         "src/components/calendar/labels.ts": "6679cd864bccf7e88a70a33cd0002af83909b5f823d97f4d339a4517842006ec",
         "src/components/calendar/mock.ts": "911d07af5e4b05e2734932bd6d9106bcf7387bdcf2d2675f286cd2ec1644d4f6",
         "src/components/calendar/modal-parts.tsx": "bc8470da50995a9e0f9e4dcb6c888a042b9246faf9fa649405c545e4bf276a9c",
-        "src/components/calendar/reservation-calendar.tsx": "3b43891e309a196730e26ee84cfeb3ffdfc01903f5a2c92e32f66af0b3e34893",
+        "src/components/calendar/reservation-calendar.tsx": "4dceb59c8b83097298ff600e7fd50b1439c78d519e85bf38e74c98524b6f8e26",
         "src/components/calendar/room-picker.tsx": "b1596772e4e56ce8fc8a57fff44d95099d3c522e397624e7438fce416737205a",
         "src/components/calendar/split-trace.ts": "9476d46d7973686be14ff6980df3f7e9c038adc90bc69937ea90d684af1db936",
         "src/components/calendar/status-config.ts": "aa50f569df4a48b6b1db59bef519ac004875cb643e7a9e3e44d188432796ccad",

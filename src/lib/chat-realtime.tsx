@@ -26,6 +26,7 @@ import {
 import { t } from "./i18n"
 import { getSession } from "./auth"
 import { playMessageChime, showDesktopNotification } from "./notify"
+import { keys } from "./query-keys"
 
 export type ChatConnState = "connecting" | "connected" | "disconnected"
 
@@ -159,7 +160,7 @@ function handleServerPublication(qc: QueryClient, raw: unknown): void {
   if (!data?.type) return
 
   if (data.type === "housekeeping" && data.roomId && data.status) {
-    qc.setQueryData<Room[] | undefined>(["rooms"], (rooms) =>
+    qc.setQueryData<Room[] | undefined>(keys.rooms(), (rooms) =>
       rooms?.map((r) =>
         r.id === data.roomId
           ? { ...r, housekeepingStatus: data.status as Room["housekeepingStatus"] }

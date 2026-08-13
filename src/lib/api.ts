@@ -726,13 +726,9 @@ export type ShiftCurrent = {
   lastClosed: ShiftSession | null
 }
 
-/** Query kalitlari bitta fabrikada (chat naqshi) — invalidateQueries({queryKey: shiftKeys.all}) hammasini supuradi. */
-export const shiftKeys = {
-  all: ["shift-session"] as const,
-  current: ["shift-session", "current"] as const,
-  list: (cursor?: string) => ["shift-session", "list", cursor ?? ""] as const,
-  report: (id: string) => ["shift-session", "report", id] as const,
-}
+// Smena kalitlari endi umumiy fabrikada (`query-keys.ts`) — bu yerdan qayta eksport:
+// o'nlab chaqiruv joyi (`import { shiftKeys } from "@/lib/api"`) o'zgarmasin.
+export { shiftKeys } from "./query-keys"
 
 export const getCurrentShift = () => api<ShiftCurrent>("/shift-sessions/current")
 

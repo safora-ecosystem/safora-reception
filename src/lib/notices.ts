@@ -5,6 +5,7 @@ import { listOrganizations, type Organization } from "./api"
 import { useT } from "./i18n"
 import { money, shortDate } from "./format"
 import { playAlertChime, showDesktopNotification } from "./notify"
+import { keys } from "./query-keys"
 
 
 export type Notice =
@@ -19,7 +20,7 @@ const noticeKey = (n: Notice) =>
 
 function useNoticesQuery() {
   return useQuery({
-    queryKey: ["notices", "organizations"],
+    queryKey: keys.noticesOrganizations(),
     // Arxivdagi tashkilotning qarzi ham, shartnomasi ham endi kunlik ish emas —
     // endpoint o'zi faqat faollarni qaytaradi (?status=active ichida hardcode).
     queryFn: () => listOrganizations(),

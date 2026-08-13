@@ -63,7 +63,7 @@ export function ShiftCard() {
   const [openDialog, setOpenDialog] = useState(false)
   const [closeTarget, setCloseTarget] = useState<ShiftSession | null>(null)
   useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 1000)
+    const id = setInterval(() => setNow(new Date()), 30_000)
     return () => clearInterval(id)
   }, [])
 

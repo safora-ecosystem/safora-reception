@@ -60,6 +60,7 @@ import {
 } from "@/lib/api"
 import { getSession } from "@/lib/auth"
 import { localIso } from "@/lib/format"
+import { keys } from "@/lib/query-keys"
 
 const BLOCK_PREFIX = "block:"
 export const isBlockId = (id: string) => id.startsWith(BLOCK_PREFIX)
@@ -575,6 +576,38 @@ function errMessage(e: unknown, fallback: string): string {
   return fallback
 }
 
+// ── Toraytirilgan invalidatsiya ───────────────────────────────────────────────
+//
+// Ilgari HAR mutatsiya to'rt prefiksni butunlay supurardi (`["bookings"]` prefiksi = 600
+// kunlik ~7 bo'lak + statistika oynasi + bugungi taxta) — bitta check-in butun panel bo'ylab
+// refetch portlashi degani edi. Endi mutatsiya o'z bronining [from,to] oralig'ini aytadi va
+// faqat shu oraliq bilan KESISHGAN bo'laklar qayta so'raladi; mehmon/tarix keshlari esa faqat
+// tegilgan bron uchun. Qamrov berilmagan yo'llar (409 dagi "nima o'zgarganini bilmaymiz")
+// avvalgidek keng qoladi.
+//
+// Qaytish yo'li — BITTA qator: `false` qilinsa eski (keng) xulq to'liq tiklanadi.
+const NARROW_INVALIDATION: boolean = true
+
+/** Mutatsiya qamrovi: bron sanalari + (ma'lum bo'lsa) bron id'si. `undefined` = keng yo'l. */
+type InvalidateScope = { from: string; to: string; bookingId?: string }
+
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/
+
+/** `["bookings"|"room-blocks", from, to]` kalitlari uchun predikat: faqat qamrov bilan
+    kesishgan bo'laklar qoladi (server filtri bilan bir xil inclusive kesishma). Shakli
+    NOMA'LUM kalit (masalan rooms-page'dagi `["bookings", "today", …]`) `true` oladi —
+    keng yo'lda qoladi, ya'ni yangi kalit shakli hech qachon jimgina eskirib qolmaydi. */
+function overlapsScope(scope: InvalidateScope) {
+  return (q: { queryKey: readonly unknown[] }): boolean => {
+    const from = q.queryKey[1]
+    const to = q.queryKey[2]
+    if (typeof from !== "string" || typeof to !== "string" || !ISO_DAY.test(from) || !ISO_DAY.test(to)) {
+      return true
+    }
+    return from <= scope.to && to >= scope.from
+  }
+}
+
 /**
  * Real core-api manbasi. `enabled=false` bo'lsa so'rov yubormaydi (mock rejimida ishlatiladi —
  * ikkala hook ham shartsiz chaqiriladi, faqat biri faol). Realizatsiya: mock'ni shunga almashtirish.
@@ -586,13 +619,13 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
   const to = addDays(range.start, range.days) // oynaning exclusive oxiri
 
   // Xonalar kamdan-kam o'zgaradi (owner tahrirlaydi) — uzoq staleTime, poll kerak emas.
-  const roomsQ = useQuery({ queryKey: ["rooms"], queryFn: listRooms, enabled, staleTime: 5 * 60_000 })
+  const roomsQ = useQuery({ queryKey: keys.rooms(), queryFn: listRooms, enabled, staleTime: 5 * 60_000 })
 
   // Shartnomali mijozlar — xonalar kabi kamdan-kam o'zgaradi. Yiqilsa (masalan `organizations.view`
   // ruxsati yo'q) kalendar BUZILMAYDI: ro'yxat bo'sh qoladi va korporativ rejim ko'rinmaydi.
   // Shu sabab bu so'rov `error` hisobiga ham kirmaydi — u kalendarning yashash sharti emas.
   const orgsQ = useQuery({
-    queryKey: ["organizations"],
+    queryKey: keys.organizations(),
     // O'ralgan chaqiruv: `listOrganizations` ni TO'G'RIDAN-TO'G'RI berish mumkin emas —
     // TanStack queryFn'ga kontekst obyektini uzatadi va u panellarda ixtiyoriy filtr
     // argumenti bo'lib tushib qolardi (owner panelida `listOrganizations(params?)`).
@@ -612,14 +645,15 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
   const [openCount, setOpenCount] = useState(1)
   const bookingsQ = useQueries({
     queries: chunks.map((c, i) => ({
-      queryKey: ["bookings", c.from, c.to],
+      queryKey: keys.bookings(c.from, c.to),
       queryFn: () => listBookings(c.from, c.to),
       enabled: enabled && i < openCount,
       // Bugungi bo'lak — UMUMIY ish stoli: bir necha resepshn xodimi bir vaqtda bron ochadi/kirish
       // belgilaydi, shuning uchun global `refetchOnWindowFocus: false` ATAYLAB bekor qilinadi va
       // 30s poll saqlanadi (ilgari butun 600 kun shu tezlikda qayta tortilardi). Uzoq oylarda bron
       // kamdan-kam ochiladi → 5 daqiqa yetarli, `staleTime` esa fokusdagi so'rov portlashini
-      // bo'g'adi. Mutatsiya baribir HAMMA bo'lakni invalidate qiladi (`["bookings"]` prefiksi).
+      // bo'g'adi. Mutatsiya faqat O'Z oralig'i bilan kesishgan bo'laklarni invalidate qiladi
+      // (pastdagi `invalidate` + `overlapsScope`), qamrovsiz yo'llar esa keng supuradi.
       // Fon tab'da poll to'xtaydi (refetchIntervalInBackground default false).
       refetchOnWindowFocus: true,
       refetchInterval: c.hot ? 30_000 : 5 * 60_000,
@@ -639,7 +673,7 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
 
   // Bloklar kamdan-kam o'zgaradi, lekin bandlikning bir qismi — bronlar bilan bir oynada.
   const blocksQ = useQuery({
-    queryKey: ["room-blocks", from, to],
+    queryKey: keys.roomBlocks(from, to),
     queryFn: () => listRoomBlocks(from, to),
     enabled,
     refetchOnWindowFocus: true,
@@ -671,14 +705,45 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
     return seen.size
   }, [bookingsQ.rows])
 
-  const invalidate = useCallback(() => {
-    void qc.invalidateQueries({ queryKey: ["bookings"] })
-    void qc.invalidateQueries({ queryKey: ["room-blocks"] })
-    // Har mutatsiya faoliyat logiga yozadi, tahrir esa ledger'ga ham (adjustment) —
-    // ochiq modal eski tarix/to'lovlarni ko'rsatib qolmasin.
-    void qc.invalidateQueries({ queryKey: ["booking-guests"] })
-    void qc.invalidateQueries({ queryKey: ["booking-activity"] })
-  }, [qc])
+  /** Keshni yangilash. `scope` berilsa faqat bron oralig'i bilan kesishgan bo'laklar qayta
+      so'raladi; berilmasa — keng yo'l ("nima o'zgarganini bilmaymiz": 409 va topilmagan qator). */
+  const invalidate = useCallback(
+    (scope?: InvalidateScope) => {
+      if (!NARROW_INVALIDATION || !scope) {
+        void qc.invalidateQueries({ queryKey: keys.bookingsAll })
+        void qc.invalidateQueries({ queryKey: keys.roomBlocksAll })
+        // Har mutatsiya faoliyat logiga yozadi, tahrir esa ledger'ga ham (adjustment) —
+        // ochiq modal eski tarix/to'lovlarni ko'rsatib qolmasin.
+        void qc.invalidateQueries({ queryKey: keys.bookingGuestsAll })
+        void qc.invalidateQueries({ queryKey: keys.bookingActivityAll })
+        return
+      }
+      const overlaps = overlapsScope(scope)
+      void qc.invalidateQueries({ queryKey: keys.bookingsAll, predicate: overlaps })
+      void qc.invalidateQueries({ queryKey: keys.roomBlocksAll, predicate: overlaps })
+      // Mehmon/tarix keshi bron id bo'yicha; id NOMA'LUM bo'lsa (yangi bron, blok, zanjir)
+      // keng supuriladi — bu ikkalasi faqat ochiq modal uchun yuklanadi, ya'ni arzon.
+      if (scope.bookingId != null) {
+        void qc.invalidateQueries({ queryKey: keys.bookingGuests(scope.bookingId) })
+        void qc.invalidateQueries({ queryKey: keys.bookingActivity(scope.bookingId) })
+      } else {
+        void qc.invalidateQueries({ queryKey: keys.bookingGuestsAll })
+        void qc.invalidateQueries({ queryKey: keys.bookingActivityAll })
+      }
+    },
+    [qc],
+  )
+
+  /** Mutatsiya qamrovi keshdagi qatordan olinadi — topilmasa `undefined` (keng yo'l qoladi). */
+  const scopeOf = useCallback(
+    (id: string): InvalidateScope | undefined => {
+      const b = bookingsQ.rows.find((x) => x.id === id)
+      return b
+        ? { from: b.checkInDate.slice(0, 10), to: b.checkOutDate.slice(0, 10), bookingId: id }
+        : undefined
+    },
+    [bookingsQ.rows],
+  )
 
   const onError = useCallback(
     (e: unknown, fallback: string) => {
@@ -693,6 +758,8 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
   // yopilib ketsa xodim hammasini qaytadan terardi.
   const createBooking = useCallback(
     async (input: CalendarCreateInput) => {
+      // Yangi yozuvning id'si hali yo'q — qamrov faqat sanalardan.
+      const scope: InvalidateScope = { from: input.start, to: input.end }
       try {
         if (input.mode === "block") {
           // Blok endpointi bitta xona oladi — bir necha xona tanlansa ketma-ket yuboriladi.
@@ -708,7 +775,7 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
             })
           }
           toast.success(input.roomIds.length > 1 ? t("calendarToast.roomsBlocked", { count: input.roomIds.length }) : t("calendarToast.roomBlocked"))
-          invalidate()
+          invalidate(scope)
           return
         }
 
@@ -739,13 +806,13 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
           })),
         })
         toast.success(input.rooms.length > 1 ? `${input.rooms.length} ta bron yaratildi` : t("calendarToast.created"))
-        invalidate()
+        invalidate(scope)
       } catch (e) {
         // 409 = oradan boshqa xodim ulgurdi. Kalendarni darrov yangilaymiz, xodim kim band
         // qilganini ko'rib boshqa xona tanlasin (modal ochiq qoladi).
         if (e instanceof ApiError && e.status === 409) {
           toast.error(t("calendarToast.conflict"))
-          invalidate()
+          invalidate(scope)
         } else {
           onError(e, t("calendarToast.createFailed"))
         }
@@ -757,56 +824,67 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
 
   const checkIn = useCallback(
     async (id: string) => {
+      const scope = scopeOf(id)
       try {
         await checkInBooking(id)
         toast.success(t("calendarToast.checkedIn"))
-        invalidate()
+        invalidate(scope)
       } catch (e) {
         onError(e, t("calendarToast.checkInFailed"))
       }
     },
-    [invalidate, onError],
+    [invalidate, onError, scopeOf],
   )
 
   const checkOut = useCallback(
     async (id: string) => {
+      const scope = scopeOf(id)
       try {
         await checkOutBooking(id)
         toast.success(t("calendarToast.checkedOut"))
-        invalidate()
+        invalidate(scope)
       } catch (e) {
         onError(e, t("calendarToast.checkOutFailed"))
       }
     },
-    [invalidate, onError],
+    [invalidate, onError, scopeOf],
   )
 
   const cancel = useCallback(
     async (id: string, reason?: string, payments?: "keep" | "purge") => {
+      const scope = scopeOf(id)
       try {
         await cancelBooking(id, { reason, payments })
         toast.success(t("calendarToast.cancelled"))
-        invalidate()
+        invalidate(scope)
       } catch (e) {
         onError(e, t("calendarToast.cancelFailed"))
       }
     },
-    [invalidate, onError],
+    [invalidate, onError, scopeOf],
   )
 
   const editBooking = useCallback(
     async (id: string, patch: BookingEditPatch) => {
       const body = toUpdateBody(patch)
       if (Object.keys(body).length === 0) return // hech narsa o'zgarmagan — so'rov yubormaymiz
+      // Qamrov — ESKI va YANGI oraliqning birlashmasi: bar qisqarganda bo'shagan bo'lak ham
+      // undan tozalanishi kerak.
+      const prev = scopeOf(id)
+      const scope: InvalidateScope | undefined = prev && {
+        from: patch.start !== undefined && patch.start < prev.from ? patch.start : prev.from,
+        to: patch.end !== undefined && patch.end > prev.to ? patch.end : prev.to,
+        bookingId: id,
+      }
       try {
         await apiUpdateBooking(id, body)
         toast.success(t("calendarToast.updated"))
-        invalidate()
+        invalidate(scope)
       } catch (e) {
         onError(e, t("calendarToast.updateFailed"))
       }
     },
-    [invalidate, onError],
+    [invalidate, onError, scopeOf],
   )
 
   const moveBooking = useCallback(
@@ -815,15 +893,26 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
       // tez-tez bo'ladi (umumiy sichqonchali stol); tasdiqlash oynasi har ko'chirishni
       // sekinlashtirgan bo'lardi, undo esa faqat xatoni to'g'irlaydi.
       const prev = bookingsQ.rows.find((b) => b.id === id)
+      // Qamrov — eski va yangi joyning birlashmasi: undo ham shu oraliq ichida qoladi.
+      const prevRange = prev
+        ? { from: prev.checkInDate.slice(0, 10), to: prev.checkOutDate.slice(0, 10) }
+        : null
+      const scope: InvalidateScope | undefined = prevRange
+        ? {
+            from: next.start < prevRange.from ? next.start : prevRange.from,
+            to: next.end > prevRange.to ? next.end : prevRange.to,
+            bookingId: id,
+          }
+        : undefined
       // OPTIMISTIK: bar YANGI katakka darhol o'tadi — sekin tarmoqda server javobini kutish
       // "drag ishlamadi" bo'lib tuyulardi (prod audit, 2026-08-01). Avval in-flight so'rovlar
       // bekor qilinadi (parallel poll eski holatni ustidan yozib "sakrab qaytish" ko'rsatmasin),
       // snapshot esa XATODA aynan qaytariladi — offline'da ham rollback ishlaydi (invalidate
       // yolg'iz yetmasdi: refetch ham yiqilsa optimistik holat ekranda qolib ketardi).
-      await qc.cancelQueries({ queryKey: ["bookings"] })
-      const snapshots = qc.getQueriesData<Booking[]>({ queryKey: ["bookings"] })
-      const nextRoom = (qc.getQueryData<Room[]>(["rooms"]) ?? []).find((r) => r.id === next.roomId)
-      qc.setQueriesData<Booking[]>({ queryKey: ["bookings"] }, (rows) =>
+      await qc.cancelQueries({ queryKey: keys.bookingsAll })
+      const snapshots = qc.getQueriesData<Booking[]>({ queryKey: keys.bookingsAll })
+      const nextRoom = (qc.getQueryData<Room[]>(keys.rooms()) ?? []).find((r) => r.id === next.roomId)
+      qc.setQueriesData<Booking[]>({ queryKey: keys.bookingsAll }, (rows) =>
         rows?.map((b) =>
           b.id === id
             ? {
@@ -841,7 +930,7 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
           checkInDate: next.start,
           checkOutDate: next.end,
         })
-        invalidate()
+        invalidate(scope)
         toast.success(t("calendarToast.moved"), {
           action: prev
             ? {
@@ -855,7 +944,7 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
                   })
                     .then(() => {
                       toast.success(t("calendarToast.restored"))
-                      invalidate()
+                      invalidate(scope) // birlashma qaytishni ham qamraydi
                     })
                     // Eski katakni oradan boshqa xodim band qilgan bo'lishi mumkin (409).
                     .catch((e) => onError(e, t("calendarToast.restoreFailed")))
@@ -878,6 +967,8 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
   // hech narsa o'zgarmaydi — shu sabab bu yerda "yarim bo'lingan" holatni tozalash kodi yo'q.
   const splitBooking = useCallback(
     async (id: string, input: CalendarSplitInput) => {
+      // Ikkala bo'lak ham asl oraliq ICHIDA qoladi — qamrovga asl bron yetadi.
+      const scope = scopeOf(id)
       try {
         await apiSplitBooking(id, {
           splitDate: input.splitDate,
@@ -889,11 +980,11 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
           ...(input.moveNow ? { moveNow: true } : {}),
         })
         toast.success(t("calendarToast.splitDone"))
-        invalidate()
+        invalidate(scope)
       } catch (e) {
         if (e instanceof ApiError && e.status === 409) {
           toast.error(t("calendarToast.splitBusy"))
-          invalidate()
+          invalidate(scope)
         } else {
           onError(e, t("calendarToast.splitFailed"))
         }
@@ -901,7 +992,7 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
         throw e
       }
     },
-    [invalidate, onError],
+    [invalidate, onError, scopeOf],
   )
 
   // KO'CHIRISHNI YAKUNLASH — chiqarish + kiritish serverda BITTA tranzaksiya, shuning uchun
@@ -909,34 +1000,54 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
   // kirishga tayyor emas: server sababni o'zi yozadi, uni shundayligicha ko'rsatamiz.
   const moveNext = useCallback(
     async (id: string) => {
+      // Qamrov — bo'lak ZANJIRI birlashmasi: chiqarish+kiritish ikki bo'lakni o'zgartiradi,
+      // keyingi bo'lak id'sini esa server tanlaydi — shu sabab `bookingId` ATAYLAB berilmaydi
+      // (mehmon/tarix keshi keng yangilanadi).
+      const b = bookingsQ.rows.find((x) => x.id === id)
+      let scope: InvalidateScope | undefined
+      if (b) {
+        scope = { from: b.checkInDate.slice(0, 10), to: b.checkOutDate.slice(0, 10) }
+        if (b.linkId) {
+          for (const x of bookingsQ.rows) {
+            if (x.linkId !== b.linkId) continue
+            const xFrom = x.checkInDate.slice(0, 10)
+            const xTo = x.checkOutDate.slice(0, 10)
+            if (xFrom < scope.from) scope.from = xFrom
+            if (xTo > scope.to) scope.to = xTo
+          }
+        }
+      }
       try {
         await apiMoveBookingNext(id)
         toast.success(t("calendarToast.moveNextDone"))
-        invalidate()
+        invalidate(scope)
       } catch (e) {
         if (e instanceof ApiError && e.status === 409) {
           toast.error(e.message || t("calendarToast.moveNextFailed"))
-          invalidate()
+          invalidate(scope)
         } else {
           onError(e, t("calendarToast.moveNextFailed"))
         }
         throw e
       }
     },
-    [invalidate, onError],
+    [bookingsQ.rows, invalidate, onError],
   )
 
   const removeBlock = useCallback(
     async (id: string) => {
+      const raw = isBlockId(id) ? blockIdOf(id) : id
+      // Blok qamrovi keshdagi qatordan — blokda mehmon/tarix yo'q, sanalari yetarli.
+      const bl = (blocksQ.data ?? []).find((x) => x.id === raw)
       try {
-        await removeRoomBlock(isBlockId(id) ? blockIdOf(id) : id)
+        await removeRoomBlock(raw)
         toast.success(t("calendarToast.unblocked"))
-        invalidate()
+        invalidate(bl ? { from: bl.startDate.slice(0, 10), to: bl.endDate.slice(0, 10) } : undefined)
       } catch (e) {
         onError(e, t("calendarToast.unblockFailed"))
       }
     },
-    [invalidate, onError],
+    [blocksQ.data, invalidate, onError],
   )
 
   // ── Tanlangan bronning mehmonlari + to'lov ledgeri ───────────────────────
@@ -945,7 +1056,7 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
   // Blok tanlansa umuman so'ralmaydi.
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const guestsQ = useQuery({
-    queryKey: ["booking-guests", selectedId],
+    queryKey: keys.bookingGuests(selectedId),
     queryFn: () => getBooking(selectedId as string),
     enabled: enabled && selectedId != null && !isBlockId(selectedId),
     staleTime: 30_000,
@@ -954,7 +1065,7 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
 
   // Faoliyat tarixi — alohida endpoint (log jadvalidan), modal ochiq turganda yuklanadi.
   const activityQ = useQuery({
-    queryKey: ["booking-activity", selectedId],
+    queryKey: keys.bookingActivity(selectedId),
     queryFn: () => getBookingActivity(selectedId as string),
     enabled: enabled && selectedId != null && !isBlockId(selectedId),
     staleTime: 15_000,
@@ -994,12 +1105,27 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
     }))
   }, [guestsQ.data?.payments, myUserId])
 
-  const refreshGuests = useCallback(() => {
-    void qc.invalidateQueries({ queryKey: ["booking-guests"] })
-    void qc.invalidateQueries({ queryKey: ["booking-activity"] })
-    // Bar'dagi mehmon soni va asosiy mehmon ismi ham o'zgargan bo'lishi mumkin.
-    void qc.invalidateQueries({ queryKey: ["bookings"] })
-  }, [qc])
+  /** Mehmon/to'lov amalidan keyingi yangilash — hammasi bitta bron atrofida, keng supurish shart emas. */
+  const refreshGuests = useCallback(
+    (bookingId: string) => {
+      if (NARROW_INVALIDATION) {
+        void qc.invalidateQueries({ queryKey: keys.bookingGuests(bookingId) })
+        void qc.invalidateQueries({ queryKey: keys.bookingActivity(bookingId) })
+      } else {
+        void qc.invalidateQueries({ queryKey: keys.bookingGuestsAll })
+        void qc.invalidateQueries({ queryKey: keys.bookingActivityAll })
+      }
+      // Bar'dagi mehmon soni va asosiy mehmon ismi ham o'zgargan bo'lishi mumkin — lekin
+      // faqat shu bron turgan bo'laklarda.
+      const scope = scopeOf(bookingId)
+      if (NARROW_INVALIDATION && scope) {
+        void qc.invalidateQueries({ queryKey: keys.bookingsAll, predicate: overlapsScope(scope) })
+      } else {
+        void qc.invalidateQueries({ queryKey: keys.bookingsAll })
+      }
+    },
+    [qc, scopeOf],
+  )
 
   const recordPayment = useCallback(
     async (
@@ -1009,7 +1135,7 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
       try {
         await recordBookingPayment(bookingId, input)
         toast.success(t("calendarToast.paymentTaken"))
-        refreshGuests()
+        refreshGuests(bookingId)
       } catch (e) {
         // Server guard'i: naqd uchun faol smena kerak (gate fail-open'dan o'tilgan yoki smena
         // hozirgina yopilgan holat). Aniq yo'l ko'rsatamiz — ShiftCard'dagi "Boshlash".
@@ -1030,7 +1156,7 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
       try {
         await voidBookingPayment(bookingId, paymentId, input)
         toast.success(t("calendarToast.paymentVoided"))
-        refreshGuests()
+        refreshGuests(bookingId)
       } catch (e) {
         onError(e, t("calendarToast.voidFailed"))
         throw e
@@ -1041,11 +1167,11 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
 
   /** Mehmon amallari bir xil qolipda: bajarish → xabar → ikkala keshni yangilash. */
   const guestAction = useCallback(
-    async (run: () => Promise<unknown>, ok: string, fail: string) => {
+    async (bookingId: string, run: () => Promise<unknown>, ok: string, fail: string) => {
       try {
         await run()
         toast.success(ok)
-        refreshGuests()
+        refreshGuests(bookingId)
       } catch (e) {
         onError(e, fail)
       }
@@ -1056,6 +1182,7 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
   const addGuest = useCallback(
     (bookingId: string, guest: LooseGuestInput) =>
       guestAction(
+        bookingId,
         () => addBookingGuest(bookingId, toGuestInput(guest)),
         t("calendarToast.guestAdded"),
         t("calendarToast.guestAddFailed"),
@@ -1065,6 +1192,7 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
   const updateGuest = useCallback(
     (bookingId: string, guestId: string, patch: Partial<LooseGuestInput>) =>
       guestAction(
+        bookingId,
         () => updateBookingGuest(bookingId, guestId, toGuestPatch(patch)),
         t("calendarToast.saved"),
         t("calendarToast.saveFailed"),
@@ -1073,12 +1201,12 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
   )
   const removeGuest = useCallback(
     (bookingId: string, guestId: string) =>
-      guestAction(() => removeBookingGuest(bookingId, guestId), t("calendarToast.guestRemoved"), t("calendarToast.removeFailed")),
+      guestAction(bookingId, () => removeBookingGuest(bookingId, guestId), t("calendarToast.guestRemoved"), t("calendarToast.removeFailed")),
     [guestAction],
   )
   const makeGuestPrimary = useCallback(
     (bookingId: string, guestId: string) =>
-      guestAction(() => apiSetPrimaryGuest(bookingId, guestId), t("calendarToast.primaryChanged"), t("calendarToast.primaryFailed")),
+      guestAction(bookingId, () => apiSetPrimaryGuest(bookingId, guestId), t("calendarToast.primaryChanged"), t("calendarToast.primaryFailed")),
     [guestAction],
   )
 

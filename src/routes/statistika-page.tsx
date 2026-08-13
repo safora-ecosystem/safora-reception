@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { listBookings, listRooms, type Booking } from "@/lib/api"
 import { localIso, weekdaysFull, weekdaysShort } from "@/lib/format"
+import { keys } from "@/lib/query-keys"
 import { useT } from "@/lib/i18n"
 
 const MONDAY_FIRST = [1, 2, 3, 4, 5, 6, 0] as const
@@ -74,9 +75,9 @@ export function StatistikaPage() {
   const weekEnd = addDays(weekStart, 6)
   const windowFrom = addDays(weekStart, -14)
 
-  const rooms = useQuery({ queryKey: ["rooms"], queryFn: listRooms })
+  const rooms = useQuery({ queryKey: keys.rooms(), queryFn: listRooms })
   const bookings = useQuery({
-    queryKey: ["bookings", windowFrom, weekEnd],
+    queryKey: keys.bookings(windowFrom, weekEnd),
     queryFn: () => listBookings(windowFrom, weekEnd),
   })
 

@@ -295,11 +295,19 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
     const markChromeSettled = useCallback(() => setChromeSettled(true), [])
 
     const revealedRef = useRef<Set<string>>(new Set())
-    const renderedIds: string[] = []
     useEffect(() => {
-      const seen = revealedRef.current
-      for (const id of renderedIds) seen.add(id)
-    })
+      const next = new Set<string>()
+      for (const lane of lanes) {
+        if (lane.kind !== "room") continue
+        const bars = bookingIndex.get(lane.room.id)
+        if (!bars) continue
+        for (const pb of bars) {
+          if (pb.rect.left >= xHi || pb.rect.left + pb.rect.width <= xLo) continue
+          next.add(pb.booking.id)
+        }
+      }
+      revealedRef.current = next
+    }, [xLo, xHi, bookingIndex, lanes])
     let enterIndex = 0
 
     const focusDateRef = useRef(today)
@@ -681,7 +689,6 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
                           o'z boshi ortda qolsa ham ko'rinadi. */}
                       {bars?.map((pb) => {
                         if (pb.rect.left >= xHi || pb.rect.left + pb.rect.width <= xLo) return null
-                        renderedIds.push(pb.booking.id)
                         // Birinchi marta chizilyapti → navbatdagi kechikish bilan blur'dan chiqadi.
                         const fresh = motionOn && !revealedRef.current.has(pb.booking.id)
                         // Ochilishda karkas navbatni oladi (`BAR_BASE_DELAY`); u tinchigach

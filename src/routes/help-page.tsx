@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { getHotelBranding } from "@/lib/api"
 import { useT, type TKey } from "@/lib/i18n"
+import { keys } from "@/lib/query-keys"
 
 
 const SUPPORT_TELEGRAM = "https://t.me/safora_support"
@@ -68,7 +69,7 @@ const FAQ: Array<{ q: TKey; a: TKey }> = [
 
 export function HelpPage() {
   const t = useT()
-  const hotel = useQuery({ queryKey: ["hotel-branding"], queryFn: getHotelBranding })
+  const hotel = useQuery({ queryKey: keys.branding(), queryFn: getHotelBranding })
 
   return (
     <PageLayout title={t("nav.help")}>

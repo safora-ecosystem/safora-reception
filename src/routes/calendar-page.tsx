@@ -37,6 +37,7 @@ import { useTopbarSearch } from "@/lib/topbar-search"
 import { useT, type TKey } from "@/lib/i18n"
 import { cn } from "@/lib/utils"
 import { localIso } from "@/lib/format"
+import { keys } from "@/lib/query-keys"
 
 
 const VIEW_MODES = [
@@ -158,7 +159,7 @@ export function CalendarPage() {
   }, [data.bookings])
 
   const { data: hotel } = useQuery({
-    queryKey: ["hotel-branding"],
+    queryKey: keys.branding(),
     queryFn: getHotelBranding,
     staleTime: 1000 * 60 * 10,
     retry: 1,
