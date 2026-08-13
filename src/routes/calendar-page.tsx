@@ -72,12 +72,13 @@ function useMockParams(): { mock: boolean; rooms: number } {
 export function CalendarPage() {
   const t = useT()
   const { mock: mockMode, rooms: mockRooms } = useMockParams()
-  const { can, backdateDays } = usePermissions()
+  const { can, backdateDays, role } = usePermissions()
   const minStart = backdateDays == null ? null : addDays(todayIso(), -backdateDays)
   const [selfReadOnly] = useReadOnlyCalendar()
   const canEdit = can("calendar.edit") && !selfReadOnly
   const canCancel = can("booking.cancel") && !selfReadOnly
   const canCancelCheckedIn = canCancel && can("booking.cancel_checked_in")
+  const canCancelCheckedOut = role === "owner" && !selfReadOnly
   const navigate = useNavigate()
   const calRef = useRef<ReservationCalendarHandle>(null)
   const { hostRef, panelRef, expanded, toggle } = useFullscreenPanel()
@@ -350,8 +351,9 @@ export function CalendarPage() {
               onCreateBooking={data.createBooking}
               onCheckIn={data.checkIn}
               onCheckOut={data.checkOut}
-              onCancel={canCancel ? data.cancel : undefined}
+              onCancel={canCancel || canCancelCheckedOut ? data.cancel : undefined}
               canCancelCheckedIn={canCancelCheckedIn}
+              canCancelCheckedOut={canCancelCheckedOut}
               onEditBooking={data.editBooking}
               onMoveBooking={canEdit ? data.moveBooking : undefined}
               onMoveConflict={onMoveConflict}

@@ -107,8 +107,9 @@ interface CalendarDetailModalProps {
   onClose: () => void;
   onCheckIn?: (id: string) => void | Promise<void>;
   onCheckOut?: (id: string) => void | Promise<void>;
-  onCancel?: (id: string, reason?: string) => void | Promise<void>;
+  onCancel?: (id: string, reason?: string, payments?: "keep" | "purge") => void | Promise<void>;
   canCancelCheckedIn?: boolean;
+  canCancelCheckedOut?: boolean;
   onEdit?: (id: string, patch: BookingEditPatch) => void | Promise<void>;
   onAddGuest?: (
     bookingId: string,
@@ -393,6 +394,7 @@ function DetailBody({
   onCheckOut,
   onCancel,
   canCancelCheckedIn,
+  canCancelCheckedOut,
   onEdit,
   onAddGuest,
   onUpdateGuest,
@@ -411,7 +413,14 @@ function DetailBody({
   // Harakat guard'lari: qarz bilan chiqish / to'lovli bronni bekor qilish / erta kirish —
   // bitta bosishda EMAS, ogohlantirish + aniq tasdiq bilan. null = oddiy tugmalar.
   const [confirming, setConfirming] = useState<
-    null | "checkout" | "cancel" | "checkin" | "force-cancel" | "move-next"
+    | null
+    | "checkout"
+    | "cancel"
+    | "checkin"
+    | "force-cancel"
+    | "cancel-out"
+    | "cancel-out-pay"
+    | "move-next"
   >(null);
   const [payFormOpen, setPayFormOpen] = useState(false);
   // Joylashgan mehmon bronini bekor qilish sababi — MAJBURIY (server ham shuni talab qiladi
@@ -1470,6 +1479,64 @@ function DetailBody({
                       {labels.cancel}
                     </Button>
                   ))}
+
+                {/* CHIQIB KETGAN mehmonning bronini bekor qilish — FAQAT RAHBAR (server rolni
+                    o'zi tekshiradi; ruxsat katalogida kalit yo'q, xodimga berilmaydi). Ikki
+                    bosqich: avval "tarixdan chiqadi" ogohlantirishi, so'ng to'lov yozuvi bor
+                    bronda pul tarixi savoli — tanlov bilan birga BITTA so'rov ketadi.
+                    `keep` (pul hujjatlarda qolsin) xavfsiz yo'l sifatida birinchi turadi,
+                    `purge` esa ConfirmBox'ning "ongli chetlab o'tish" tugmasi. */}
+                {onCancel &&
+                  canCancelCheckedOut &&
+                  b.status === "checked_out" &&
+                  (confirming === "cancel-out" ? (
+                    <ConfirmBox
+                      tone="destructive"
+                      text={labels.cancelCheckedOutWarning}
+                      confirmLabel={
+                        (payments?.length ?? 0) > 0 || (payment?.paid ?? 0) > 0
+                          ? labels.cancelCheckedOutContinue
+                          : labels.cancelAnyway
+                      }
+                      backLabel={labels.back}
+                      busy={busy}
+                      onConfirm={() =>
+                        (payments?.length ?? 0) > 0 || (payment?.paid ?? 0) > 0
+                          ? setConfirming("cancel-out-pay")
+                          : run((id) => onCancel(id))
+                      }
+                      onBack={() => setConfirming(null)}
+                    />
+                  ) : confirming === "cancel-out-pay" ? (
+                    <ConfirmBox
+                      tone="destructive"
+                      text={labels.cancelCheckedOutPaidQuestion(
+                        payment?.paid ?? 0,
+                      )}
+                      confirmLabel={labels.cancelPurgePayments}
+                      backLabel={labels.back}
+                      busy={busy}
+                      extra={{
+                        label: labels.cancelKeepPayments,
+                        onClick: () =>
+                          run((id) => onCancel(id, undefined, "keep")),
+                      }}
+                      onConfirm={() =>
+                        run((id) => onCancel(id, undefined, "purge"))
+                      }
+                      onBack={() => setConfirming("cancel-out")}
+                    />
+                  ) : (
+                    <Button
+                      size="lg"
+                      variant="ghost"
+                      className="rounded-control text-destructive hover:text-destructive"
+                      disabled={busy}
+                      onClick={() => setConfirming("cancel-out")}
+                    >
+                      {labels.cancel}
+                    </Button>
+                  ))}
               </div>
             </Section>
         </aside>
@@ -2115,6 +2182,19 @@ function activityDetails(
         out.push({ text: `${labels.paid}: ${money(d.paid)}`, warn: true });
       return out;
     }
+    // Chiqib ketgan bron rahbar tomonidan bekor qilingan — pul taqdiri ham shu satrda:
+    // tarix o'chirildimi yoki hujjatlarda qoldimi, jurnal o'quvchisi qo'shimcha so'rovsiz ko'radi.
+    case "booking.cancelled_after_checkout": {
+      const out: Array<{ text: string; warn?: boolean }> = [];
+      if (typeof d.reason === "string") out.push({ text: d.reason, warn: true });
+      if (d.paid != null && Number(d.paid) > 0)
+        out.push({ text: `${labels.paid}: ${money(d.paid)}`, warn: true });
+      if (d.payments === "purge")
+        out.push({ text: labels.cancelPurgePayments, warn: true });
+      else if (d.payments === "keep")
+        out.push({ text: labels.cancelKeepPayments });
+      return out;
+    }
     case "payment.recorded":
       return [
         {
@@ -2151,6 +2231,10 @@ const ACTIVITY_VISUAL: Record<string, { icon: IconData; tone?: string }> = {
     tone: "bg-destructive-surface text-destructive-surface-foreground",
   },
   "booking.force_cancelled": {
+    icon: CancelCircleIcon,
+    tone: "bg-destructive-surface text-destructive-surface-foreground",
+  },
+  "booking.cancelled_after_checkout": {
     icon: CancelCircleIcon,
     tone: "bg-destructive-surface text-destructive-surface-foreground",
   },

@@ -92,6 +92,7 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
       onCheckOut,
       onCancel,
       canCancelCheckedIn = false,
+      canCancelCheckedOut = false,
       onEditBooking,
       onMoveBooking,
       onMoveConflict,
@@ -791,6 +792,7 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
           onCheckOut={onCheckOut}
           onCancel={onCancel}
           canCancelCheckedIn={canCancelCheckedIn}
+          canCancelCheckedOut={canCancelCheckedOut}
           onEdit={onEditBooking}
           onAddGuest={onAddGuest}
           onUpdateGuest={onUpdateGuest}

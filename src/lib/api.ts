@@ -642,13 +642,24 @@ export const issueInvoice = (bookingId: string) =>
 export const checkInBooking = (id: string) => api<Booking>(`/bookings/${id}/check-in`, { method: "PATCH" })
 export const checkOutBooking = (id: string) => api<Booking>(`/bookings/${id}/check-out`, { method: "PATCH" })
 // Sabab JOYLASHGAN mehmon bronida majburiy (`booking.cancel_checked_in` ruxsati bilan) —
-// sababsiz so'rovni server 400 bilan rad etadi. Kelmagan mehmonda body umuman yuborilmaydi
-// (Fastify bo'sh-body gotcha'si: `api()` faqat body bo'lsa content-type qo'yadi).
-export const cancelBooking = (id: string, reason?: string) =>
-  api<Booking>(`/bookings/${id}/cancel`, {
+// sababsiz so'rovni server 400 bilan rad etadi. CHIQIB KETGAN bronni faqat rahbar bekor qila
+// oladi va to'lov yozuvi bor bronda `payments` majburiy: "keep" — pul hujjatlarda qoladi,
+// "purge" — to'lov tarixi ham o'chadi (server PAYMENTS_DECISION_REQUIRED bilan so'raydi).
+// Kelmagan mehmonda body umuman yuborilmaydi (Fastify bo'sh-body gotcha'si: `api()` faqat
+// body bo'lsa content-type qo'yadi).
+export const cancelBooking = (
+  id: string,
+  opts?: { reason?: string; payments?: "keep" | "purge" },
+) => {
+  const body = {
+    ...(opts?.reason ? { reason: opts.reason } : {}),
+    ...(opts?.payments ? { payments: opts.payments } : {}),
+  }
+  return api<Booking>(`/bookings/${id}/cancel`, {
     method: "PATCH",
-    ...(reason ? { body: { reason } } : {}),
+    ...(Object.keys(body).length > 0 ? { body } : {}),
   })
+}
 
 // ── To'lov ledgeri ───────────────────────────────────────────────────────────
 // `payments.record` ruxsati bilan. Yozuvlar o'chirilmaydi — faqat storno (sabab majburiy);

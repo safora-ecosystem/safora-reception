@@ -782,9 +782,9 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
   )
 
   const cancel = useCallback(
-    async (id: string, reason?: string) => {
+    async (id: string, reason?: string, payments?: "keep" | "purge") => {
       try {
-        await cancelBooking(id, reason)
+        await cancelBooking(id, { reason, payments })
         toast.success(t("calendarToast.cancelled"))
         invalidate()
       } catch (e) {
