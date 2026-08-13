@@ -202,6 +202,29 @@ function endSession(): void {
   window.location.assign("/login")
 }
 
+/**
+ * ErrorState'dagi "seans tugadi" ekrani uchun hakam. 401 UI'gacha redirect'siz yetib kelishi
+ * ikki holatda bo'ladi: lokal seans allaqachon yo'q (masalan, boshqa tab chiqib ketgan —
+ * quyidagi 401→refresh yo'li umuman ishga tushmaydi) yoki refresh o'tkinchi nosozlik ortida
+ * qolgan. Seans CHINDAN o'lik bo'lsa /login'ga olib chiqadi va true qaytaradi; hukmni server
+ * tasdiqlamasa false — ishlayotgan odam ish o'rtasida tizimdan chiqarib yuborilmaydi.
+ */
+export async function redirectIfSessionDead(): Promise<boolean> {
+  if (!getSession()) {
+    endSession()
+    return true
+  }
+  try {
+    await refreshSession(null)
+  } catch (err) {
+    if (err instanceof SessionExpiredError) {
+      endSession()
+      return true
+    }
+  }
+  return false
+}
+
 /** Seans cookie'sini brauzer o'zi qo'shadi; access eskirgan bo'lsa (401) bir marta refresh qilib
     qayta urinadi (single-flight), refresh ham o'lgan bo'lsa sessiyani tozalab /login'ga qaytaradi. */
 export async function api<T>(path: string, options: ApiOptions = {}): Promise<T> {

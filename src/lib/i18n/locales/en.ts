@@ -225,6 +225,7 @@ export const en: Dictionary<"en"> = {
     sessionExpired: {
       title: "Session expired",
       description: "Sign in again — you'll be taken to the login page.",
+      redirecting: "Redirecting to the sign-in page…",
     },
     forbidden: {
       title: "No access",

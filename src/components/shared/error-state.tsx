@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react"
+import { redirectIfSessionDead } from "@/lib/api"
 import { classifyApiError, describeApiError } from "@/lib/api-error"
 import { Button } from "@/components/ui/button"
 import { useT } from "@/lib/i18n"
@@ -53,6 +54,26 @@ export function ErrorState({ error, onRetry, variant = "section", className }: E
   const runRetryRef = useRef(runRetry)
   runRetryRef.current = runRetry
 
+  const [sessionAlive, setSessionAlive] = useState(false)
+  const authRetriedRef = useRef(false)
+  useEffect(() => {
+    if (info.kind !== "auth") return
+    let cancelled = false
+    void redirectIfSessionDead().then((redirecting) => {
+      if (cancelled || redirecting) return
+      setSessionAlive(true)
+      if (!authRetriedRef.current) {
+        authRetriedRef.current = true
+        void runRetryRef.current()
+      }
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [info.kind])
+
+  const redirectingAuth = info.kind === "auth" && !sessionAlive
+
   const autoArmed =
     onRetry != null &&
     info.retryable &&
@@ -99,8 +120,10 @@ export function ErrorState({ error, onRetry, variant = "section", className }: E
   if (variant === "inline") {
     return (
       <div role="alert" className={cn("flex flex-wrap items-center gap-x-3 gap-y-1.5 py-1.5", className)}>
-        <span className="min-w-0 flex-1 truncate text-sm text-neutral-600">{text.title}</span>
-        {retryButton}
+        <span className="min-w-0 flex-1 truncate text-sm text-neutral-600">
+          {redirectingAuth ? t("errors.sessionExpired.redirecting") : text.title}
+        </span>
+        {redirectingAuth ? <Spinner className="text-neutral-400" /> : retryButton}
       </div>
     )
   }
@@ -122,8 +145,14 @@ export function ErrorState({ error, onRetry, variant = "section", className }: E
       >
         {text.title}
       </p>
-      <p className="mt-1.5 max-w-xs text-xs leading-relaxed text-neutral-500">{text.description}</p>
-      {retryButton && <div className="mt-4">{retryButton}</div>}
+      <p className="mt-1.5 max-w-xs text-xs leading-relaxed text-neutral-500">
+        {redirectingAuth ? t("errors.sessionExpired.redirecting") : text.description}
+      </p>
+      {redirectingAuth ? (
+        <Spinner className="mt-4 text-neutral-400" />
+      ) : (
+        retryButton && <div className="mt-4">{retryButton}</div>
+      )}
     </div>
   )
 }

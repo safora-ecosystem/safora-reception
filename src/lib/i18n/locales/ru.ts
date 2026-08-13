@@ -225,6 +225,7 @@ export const ru: Dictionary<"ru"> = {
     sessionExpired: {
       title: "Сеанс истёк",
       description: "Войдите снова — система откроет страницу входа.",
+      redirecting: "Перенаправляем на страницу входа…",
     },
     forbidden: {
       title: "Нет доступа",

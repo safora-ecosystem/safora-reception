@@ -226,6 +226,7 @@ export const uz = {
     sessionExpired: {
       title: "Seans muddati tugadi",
       description: "Qayta kiring — tizim login sahifasiga olib o'tadi.",
+      redirecting: "Kirish sahifasiga yo'naltirmoqdamiz…",
     },
     forbidden: {
       title: "Ruxsat yo'q",
