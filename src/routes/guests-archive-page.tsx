@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useState } from "react"
 import { keepPreviousData, useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 import { ArrowLeft02Icon, Search01Icon, UserCircleIcon } from "@hugeicons/core-free-icons"
@@ -6,7 +6,7 @@ import { Icon } from "@/components/ui/icon"
 import { PageLayout } from "@/components/layout/page-layout"
 import { EmptyState } from "@/components/shared/empty-state"
 import { GuestDialog, GuestTable } from "@/components/shared/guest-table"
-import { TruncationNotice } from "@/components/shared/load-more"
+import { LoadMore } from "@/components/shared/load-more"
 import { QueryState } from "@/components/shared/query-state"
 import { SkeletonStatBar, SkeletonTable } from "@/components/shared/skeletons"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -14,15 +14,14 @@ import { StatBar, StatBarItem } from "@/components/shared/stat-card"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { listGuests, type DirectoryGuest } from "@/lib/api"
+import { getGuestsSummary, listGuestsPage, type DirectoryGuest } from "@/lib/api"
 import { currencyUnit, moneyShort, nightsLabel } from "@/lib/format"
 import { useT } from "@/lib/i18n"
+import { usePagedList } from "@/lib/paged"
 import { cn } from "@/lib/utils"
 
 
 const DEBOUNCE_MS = 350
-
-const ARCHIVE_CAP = 400
 
 export function GuestsArchivePage() {
   const t = useT()
@@ -35,23 +34,22 @@ export function GuestsArchivePage() {
     return () => clearTimeout(id)
   }, [term])
 
-  const guestsQ = useQuery({
-    queryKey: ["guests", "archive", search],
-    queryFn: () => listGuests("archive", search || undefined),
+  const guestsQ = usePagedList<DirectoryGuest>(
+    ["guests", "archive", search],
+    (cursor) => listGuestsPage(cursor, search || undefined),
+    { staleTime: 5 * 60_000 },
+  )
+
+  const summaryQ = useQuery({
+    queryKey: ["guests", "archive", "summary", search],
+    queryFn: () => getGuestsSummary("archive", search || undefined),
     staleTime: 5 * 60_000,
     refetchOnWindowFocus: false,
     placeholderData: keepPreviousData,
   })
 
-  const rows = useMemo(() => guestsQ.data ?? [], [guestsQ.data])
-  const capped = rows.length === ARCHIVE_CAP
-
-  const totals = useMemo(() => {
-    const returning = rows.filter((g) => g.stays > 1).length
-    const nights = rows.reduce((s, g) => s + g.nights, 0)
-    const paid = rows.reduce((s, g) => s + g.totalPaid, 0)
-    return { returning, nights, paid }
-  }, [rows])
+  const rows = guestsQ.items
+  const summary = summaryQ.data
 
   return (
     <PageLayout
@@ -84,26 +82,26 @@ export function GuestsArchivePage() {
       >
       <div className="flex flex-col gap-4">
         {}
-        {rows.length > 0 && (
+        {summary && summary.total > 0 && (
           <StatBar>
             <StatBarItem
               label={t("archive.count")}
-              value={capped ? `${ARCHIVE_CAP}+` : String(rows.length)}
+              value={String(summary.total)}
               hint={search ? t("archive.countHintSearch") : t("archive.countHintDefault")}
             />
             <StatBarItem
               label={t("guests.returning")}
-              value={String(totals.returning)}
+              value={String(summary.returning)}
               hint={t("archive.returningHint")}
             />
             <StatBarItem
               label={t("archive.nightsTotal")}
-              value={nightsLabel(totals.nights)}
+              value={nightsLabel(summary.nights)}
               hint={t("archive.nightsHint")}
             />
             <StatBarItem
               label={t("guests.totalPaid")}
-              value={moneyShort(totals.paid, { unit: false })}
+              value={moneyShort(summary.totalPaid, { unit: false })}
               unit={currencyUnit()}
               hint={t("archive.nightsHint")}
             />
@@ -133,8 +131,7 @@ export function GuestsArchivePage() {
           <CardContent
             className={cn(
               "p-0 transition-opacity",
-              // Qidiruv javobi yo'lda — eski jadval xira turadi (bo'sh ekranga almashmaydi).
-              guestsQ.isPlaceholderData && "opacity-60",
+              guestsQ.isFetching && !guestsQ.isFetchingNextPage && "opacity-60",
             )}
           >
             {rows.length === 0 ? (
@@ -147,9 +144,11 @@ export function GuestsArchivePage() {
             ) : (
               <>
                 <GuestTable rows={rows} onSelect={setSelected} archive />
-                {capped && (
-                  <TruncationNotice shown={rows.length}>{t("archive.capped")}</TruncationNotice>
-                )}
+                <LoadMore
+                  hasNext={guestsQ.hasNextPage}
+                  isFetching={guestsQ.isFetchingNextPage}
+                  onMore={() => void guestsQ.fetchNextPage()}
+                />
               </>
             )}
           </CardContent>

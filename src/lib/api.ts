@@ -937,6 +937,26 @@ export const listGuests = (scope: "active" | "archive" = "active", search?: stri
   return api<DirectoryGuest[]>(`/guests?${q}`)
 }
 
+/** Arxivning KURSORLI yo'li — `{items, nextCursor}`. Kursorsiz chaqiruv (yuqoridagi
+    `listGuests`) server shiftida qoladi; bu yerda ro'yxat oxirigacha varaqlanadi. */
+export const listGuestsPage = (cursor: string | null, search?: string) => {
+  const q = new URLSearchParams({ scope: "archive", limit: "50" })
+  if (search) q.set("search", search)
+  if (cursor) q.set("cursor", cursor)
+  return api<{ items: DirectoryGuest[]; nextCursor: string | null }>(`/guests?${q}`)
+}
+
+/** Plitkalar uchun BUTUN oyna yig'masi — sahifadan mustaqil. Ilgari panel ko'rgan
+    qatorlarini o'zi sanardi, ya'ni serverning 400 kishilik shifti "jami" bo'lib
+    ko'rinardi (lokal bazada haqiqiy son 889 edi). */
+export type GuestsSummary = { total: number; returning: number; nights: number; totalPaid: number }
+
+export const getGuestsSummary = (scope: "active" | "archive", search?: string) => {
+  const q = new URLSearchParams({ scope })
+  if (search) q.set("search", search)
+  return api<GuestsSummary>(`/guests/summary?${q}`)
+}
+
 // ── Xizmat so'rovlari (GET/POST/PATCH /service-requests) ─────────────────────
 
 export type ServiceType = "taxi" | "cleaning" | "food" | "amenity" | "other"
