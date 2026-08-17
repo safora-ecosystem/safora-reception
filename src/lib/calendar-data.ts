@@ -94,6 +94,7 @@ export interface CalendarData {
   makeGuestPrimary: (bookingId: string, guestId: string) => Promise<void>
 
   payments: CalendarPaymentEntry[] | null
+  extrasTotal: number | null
   recordPayment?: (
     bookingId: string,
     input: { amount: number; method: "cash" | "card" | "transfer"; note?: string; eventId: string },
@@ -398,6 +399,7 @@ export function useMockCalendarData(roomCount = 24): CalendarData {
     makeGuestPrimary,
     // Mock'da ledger/tarix yo'q — modal eski yig'ma to'lov kartasi + statik timeline'ga tushadi.
     payments: null,
+    extrasTotal: null,
     activity: null,
     activityLoading: false,
   }
@@ -413,6 +415,11 @@ function mapRoom(r: Room): CalendarRoom {
     sublabel: r.type || undefined,
     order: Number.parseInt(r.number, 10) || undefined,
     rate: r.rate != null ? Number(r.rate) : undefined,
+    // Server `rooms.price` ruxsati yo'q xodimga `rate` KALITINI butunlay yubormaydi (null emas —
+    // `rooms.service.shape`), ataylab: "narx belgilanmagan" bilan "narxni ko'rolmaysiz" bir xil
+    // ko'rinmasin. Panel shu farqni shu yerda ushlaydi — aks holda kalendar har xonani tarifsiz
+    // deb o'qib, "Xonalar bo'limida tarif kiriting" degan bajarib bo'lmas maslahat berardi.
+    rateHidden: "rate" in r ? undefined : true,
     capacity: r.capacity ?? undefined,
     housekeeping: r.housekeepingStatus,
   }
@@ -1091,6 +1098,10 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
     const now = Date.now()
     return rows.map((p: BookingPayment) => ({
       id: p.id,
+      // Bo'lingan yashashda ledger BUTUN zanjir bo'yicha keladi va qator ochiq bo'lakniki
+      // bo'lmasligi mumkin. Storno serverda `{id, bookingId}` juftligi bilan qidiriladi, ya'ni
+      // bu maydonni tashlab yuborish boshqa xonada olingan avansni "Payment not found" qilardi.
+      bookingId: p.bookingId,
       amount: Number(p.amount),
       method: p.method,
       note: p.note,
@@ -1104,6 +1115,17 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
         now - new Date(p.createdAt).getTime() <= 15 * 60_000,
     }))
   }, [guestsQ.data?.payments, myUserId])
+
+  // QO'SHIMCHA XARAJATLAR (oshxona, xizmat) — storno qilinmaganlarining yig'indisi. Qarzning
+  // ta'rifi serverda `due = xona haqi + xarajat` (`booking/folio.ts`), panel esa faqat xona
+  // haqini sanardi: ovqat qilib xona pulini to'lagan mehmonda "To'lov qabul qilish" tugmasi
+  // umuman chiqmasdi va chiqishdagi qarz ogohlantirishi 0 so'm bo'lib jim qolardi.
+  // `null` = hali yuklanmadi (0 emas — yolg'on nol chiqmasin).
+  const extrasTotal = useMemo<number | null>(() => {
+    const rows = guestsQ.data?.charges
+    if (!rows) return null
+    return rows.reduce((sum, c) => (c.voidedAt == null ? sum + Number(c.amount) : sum), 0)
+  }, [guestsQ.data?.charges])
 
   /** Mehmon/to'lov amalidan keyingi yangilash — hammasi bitta bron atrofida, keng supurish shart emas. */
   const refreshGuests = useCallback(
@@ -1157,12 +1179,16 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
         await voidBookingPayment(bookingId, paymentId, input)
         toast.success(t("calendarToast.paymentVoided"))
         refreshGuests(bookingId)
+        // Bo'lingan yashashda storno BOSHQA bo'lakning yozuviga ketishi mumkin (ledger butun
+        // zanjir bo'yicha ko'rsatiladi). Ochiq oynadagi bo'lak ham yangilanmasa, bekor qilingan
+        // qator ekranda o'zgarmay qolardi va xodim uni ikkinchi marta bosardi.
+        if (selectedId && selectedId !== bookingId) refreshGuests(selectedId)
       } catch (e) {
         onError(e, t("calendarToast.voidFailed"))
         throw e
       }
     },
-    [refreshGuests, onError],
+    [refreshGuests, onError, selectedId],
   )
 
   /** Mehmon amallari bir xil qolipda: bajarish → xabar → ikkala keshni yangilash. */
@@ -1257,6 +1283,7 @@ export function useApiCalendarData(range: CalendarRange, options?: { enabled?: b
     removeGuest,
     makeGuestPrimary,
     payments,
+    extrasTotal,
     recordPayment,
     voidPayment,
     activity,

@@ -1,6 +1,7 @@
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
 import { DEFAULT_CALENDAR_VIEW_PREFS, type CalendarViewPrefs } from "@/components/calendar"
+import { readKey } from "@/lib/safe-storage"
 import { onSessionReset } from "./reset-bus"
 
 
@@ -35,7 +36,7 @@ function readLegacy(): CalendarViewPrefs & { readOnly: boolean } {
     if (s) prefs = sanitize(JSON.parse(s))
   } catch {
   }
-  return { ...prefs, readOnly: localStorage.getItem("safora_calendar_readonly") === "1" }
+  return { ...prefs, readOnly: readKey("local", "safora_calendar_readonly") === "1" }
 }
 
 export const useCalendarStore = create<CalendarState>()(

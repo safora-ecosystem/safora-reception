@@ -62,7 +62,7 @@ import { cn } from "@/lib/utils";
 import { DocFields, Segmented } from "./form-parts";
 import { MoneyInput } from "@/components/shared/money-input";
 import { addDays, hasConflict, nightsBetween } from "./geometry";
-import { displayPayment, folioElsewhere } from "./folio";
+import { displayPayment, folioDue, folioElsewhere } from "./folio";
 import { Field, ReadValue, Section, StayCard } from "./modal-parts";
 import type {
   BookingEditPatch,
@@ -88,6 +88,7 @@ interface CalendarDetailModalProps {
   guests?: CalendarGuest[] | null;
   guestsLoading?: boolean;
   payments?: CalendarPaymentEntry[] | null;
+  extrasTotal?: number | null;
   onRecordPayment?: (
     bookingId: string,
     input: {
@@ -167,7 +168,9 @@ function fmtMoment(
 }
 
 function paymentRatio(p: CalendarPayment): number {
-  if (p.total > 0) return Math.max(0, Math.min(1, p.paid / p.total));
+  // Maxraj — QARZ (xona + xarajat): bar, tooltip va detal bitta raqamni ko'rsatishi SHART.
+  const due = folioDue(p);
+  if (due > 0) return Math.max(0, Math.min(1, p.paid / due));
   return p.paid > 0 ? 1 : 0;
 }
 
@@ -385,6 +388,7 @@ function DetailBody({
   guests,
   guestsLoading,
   payments,
+  extrasTotal,
   onRecordPayment,
   onVoidPayment,
   activity,
@@ -484,13 +488,33 @@ function DetailBody({
   const oldNights = Math.max(nightsBetween(b.start, b.end), 1);
   const roomChanged = editing && roomId !== b.roomId;
   const datesChanged = editing && (start !== b.start || end !== b.end);
-  const rateMissing = roomChanged && editRoom?.rate == null;
+  // Narx YASHIRIN (`rooms.price` ruxsati yo'q) — bu boshqa hodisa: xona almashtirish TO'SILMAYDI.
+  // Summa eski bronnikidan qoladi (`computedTotal` fallback'i), xodim xohlasa uni qo'lda yozadi.
+  // Aks holda konditsioneri buzuq xonadagi mehmonni ko'chirish mumkin bo'lmasdi, holbuki
+  // gridda SUDRAB xuddi shu amal tarif tekshiruvisiz o'tib ketardi.
+  const rateHidden = roomChanged && editRoom?.rate == null && editRoom?.rateHidden === true;
+  // Tarif haqiqatan kiritilmagan bo'lsa blok qoladi (0 so'mlik bron teshigi), lekin xodim
+  // summani O'ZI yozgan bo'lsa u ham tushadi: yozilgan raqam formuladan ustun turadi.
+  //
+  // BO'SH maydon "yozilgan raqam" EMAS: `totalEdit === ""` da `newTotal` 0 ga tushadi, ya'ni
+  // maydonni tozalash to'siqni aylanib o'tib aynan o'sha 0 so'mlik bronni ochib berardi.
+  const rateMissing =
+    roomChanged &&
+    editRoom?.rate == null &&
+    !rateHidden &&
+    (totalEdit == null || totalEdit === "");
+  // Tarif ma'lum bo'lmagan shoxda ham KECHALAR SONI hisobga olinadi. Ilgari bu yerda `oldTotal`
+  // turardi va u `nights` ga umuman bog'liq emas edi: narxi yashirin xodim xonani ko'chirib,
+  // ayni paytda chiqishni uzaytirsa, 5 kecha 3 kecha narxiga sotilib ketardi — ekranda esa
+  // "eski → yangi" farq qatori ham chizilmasdi (summa o'zgarmagani uchun). Formula sanalar
+  // shoxi bilan BIR XIL — bronning o'z kechalik narxi; kechalar o'zgarmasa natija `oldTotal`.
+  const perNight = oldTotal / oldNights;
   const computedTotal = roomChanged
     ? editRoom?.rate != null
       ? Math.round(editRoom.rate * nights)
-      : oldTotal
+      : Math.round(perNight * nights)
     : datesChanged
-      ? Math.round((oldTotal / oldNights) * nights)
+      ? Math.round(perNight * nights)
       : oldTotal;
   // Qo'lda yozilgan raqam formuladan USTUN turadi — aks holda sanani bir kun surish
   // kelishilgan narxni jimgina qaytarib yuborardi.
@@ -525,8 +549,20 @@ function DetailBody({
   // shundan qayta hisoblaydi). Ekranga chiqadigan hisob esa boshqa savolga javob beradi:
   // "mehmon qancha qarzdor?" — va u bo'lingan yashashda zanjir bo'yicha (`folio.ts`).
   const payment = displayPayment(b);
-  const ratio = payment ? paymentRatio(payment) : 0;
-  const remaining = payment ? Math.max(0, payment.total - payment.paid) : 0;
+  // QARZ = xona haqi + qo'shimcha xarajatlar. Ta'rif serverniki (`booking/folio.ts`:
+  // `due = room + extras`) va to'lov ham aynan shunga qarab qabul qilinadi. Panel faqat xona
+  // haqini sanaganda ovqat qilib xona pulini to'lagan mehmon "qarzsiz" ko'rinardi: "To'lov
+  // qabul qilish" tugmasi umuman chiqmasdi, chiqishdagi qarz ogohlantirishi 0 so'm bo'lardi —
+  // pul kassaga jismonan olinsa ham panelga yozilmasdi.
+  //
+  // Bo'lingan yashashda summa `folio.extras` dan (butun zanjir), bo'linmaganda esa detal
+  // so'rovidan keladi. Ikkalasi ham yo'q bo'lsa xarajat NOMA'LUM — 0 deb to'ldirmaymiz,
+  // shunchaki eski (xona haqi) hisobida qolamiz.
+  const extras = payment?.extras ?? extrasTotal ?? 0;
+  const withExtras = payment ? { ...payment, extras } : undefined;
+  const due = withExtras ? folioDue(withExtras) : 0;
+  const ratio = withExtras ? paymentRatio(withExtras) : 0;
+  const remaining = withExtras ? Math.max(0, due - withExtras.paid) : 0;
   // Hisob boshqa bo'lakda ochiq: bu yerda pul amali YO'Q — na to'lov, na qarz ogohlantirishi.
   const elsewhere = folioElsewhere(b);
   // Mehmon shu bo'lakdan keyingi xonaga ko'chadimi va bu BUGUN mumkinmi. Kelajakdagi bo'lakka
@@ -1081,6 +1117,14 @@ function DetailBody({
                         {labels.rateNotSetError}
                       </span>
                     )}
+                    {/* Yashirin tarifda xabar BOSHQACHA: "Xonalar bo'limida tarif kiriting"
+                        bu yerda yolg'on maslahat bo'lardi (xodim u bo'limda ham narxni
+                        ko'rmaydi). Bu to'siq emas — summa eski bronnikidan qoladi. */}
+                    {rateHidden && (
+                      <span className="text-xs text-neutral-400">
+                        {labels.rateHiddenError}
+                      </span>
+                    )}
                     {totalBelowPaid && (
                       <span className="text-xs font-medium text-destructive">
                         {labels.totalBelowPaid}
@@ -1179,7 +1223,7 @@ function DetailBody({
                         {labels.corporateBilling}
                       </span>
                       <span className="text-base font-semibold text-neutral-900 tabular-nums">
-                        {labels.money(payment.total)}
+                        {labels.money(due)}
                       </span>
                     </div>
                     <p className="mt-1 text-sm font-medium text-neutral-900">
@@ -1193,6 +1237,14 @@ function DetailBody({
                     <p className="mt-1.5 text-xs leading-relaxed text-brand-ink">
                       {labels.corporateNoCash}
                     </p>
+                    {/* Xarajat kompaniya hisobiga ham kiradi — pastdagi "tarif × kechalar"
+                        jami bilan to'g'ri kelmay qolmasin. */}
+                    {extras > 0 && (
+                      <p className="mt-2.5 flex items-baseline justify-between text-xs text-neutral-500 tabular-nums">
+                        <span>{labels.extrasLine}</span>
+                        <span>{labels.money(extras)}</span>
+                      </p>
+                    )}
                     {viewRoom?.rate != null && (
                       <p className="mt-2.5 text-xs text-neutral-500 tabular-nums">
                         {labels.nightlyRate} {labels.money(viewRoom.rate)} ×{" "}
@@ -1210,10 +1262,22 @@ function DetailBody({
                         {labels.money(payment.paid)}
                         <span className="text-sm font-normal text-neutral-400">
                           {" "}
-                          / {labels.money(payment.total)}
+                          / {labels.money(due)}
                         </span>
                       </span>
                     </div>
+                    {/* Xarajat qatori AYNAN shu sabab ko'rinadi: maxraj xona haqidan katta
+                        bo'lib qolganda "bu qayerdan chiqdi?" degan savol qolmasin. */}
+                    {extras > 0 && (
+                      <div className="mt-2 flex items-baseline justify-between">
+                        <span className="text-xs text-neutral-500">
+                          {labels.extrasLine}
+                        </span>
+                        <span className="text-xs text-neutral-500 tabular-nums">
+                          {labels.money(extras)}
+                        </span>
+                      </div>
+                    )}
                     <div className="mt-2.5 h-2 overflow-hidden rounded-full bg-neutral-200">
                       <div
                         className={cn(
@@ -1252,7 +1316,12 @@ function DetailBody({
                         labels={labels}
                         onVoid={
                           onVoidPayment && p.canVoid
-                            ? (input) => onVoidPayment(b.id, p.id, input)
+                            ? // Storno yozuv TURGAN bronga ketadi: bo'lingan yashashda ledger
+                              // butun zanjirniki va qator ochiq bo'lakniki bo'lmasligi mumkin —
+                              // server esa `{id, bookingId}` juftligi bilan qidiradi va aks
+                              // holda "Payment not found" qaytarardi. `?? b.id` — bron
+                              // bo'linmagan (backend bu maydonni yubormaydi).
+                              (input) => onVoidPayment(p.bookingId ?? b.id, p.id, input)
                             : undefined
                         }
                       />

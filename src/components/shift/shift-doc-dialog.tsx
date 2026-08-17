@@ -12,8 +12,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { DocPreview } from "@/components/shared/doc-preview"
+import { ErrorState } from "@/components/shared/error-state"
 import { useT } from "@/lib/i18n"
 import { getHotelBranding, getShiftReport, getShiftTimeline } from "@/lib/api"
+import { keys, shiftKeys } from "@/lib/query-keys"
 import {
   DEFAULT_DOC_OPTIONS,
   SHIFT_DOC_TITLE,
@@ -45,24 +47,25 @@ export function ShiftDocDialog({
   const [opts, setOpts] = useState<ShiftDocOptions>(DEFAULT_DOC_OPTIONS)
 
   const report = useQuery({
-    queryKey: ["shift-sessions", "report", sessionId],
+    queryKey: shiftKeys.report(sessionId!),
     queryFn: () => getShiftReport(sessionId!),
     enabled: open && sessionId != null,
     retry: false,
   })
   const branding = useQuery({
-    queryKey: ["hotel-branding"],
+    queryKey: keys.branding(),
     queryFn: getHotelBranding,
     staleTime: 1000 * 60 * 10,
   })
   const timeline = useQuery({
-    queryKey: ["shift-sessions", "timeline", sessionId],
+    queryKey: shiftKeys.timeline(sessionId!),
     queryFn: () => getShiftTimeline(sessionId!),
     enabled: open && sessionId != null && opts.log,
     retry: false,
   })
 
   const r = report.data
+  const failed = report.isError && r === undefined
   const html = useMemo(
     () =>
       r ? buildShiftDocHtml(r, branding.data?.name ?? "Safora", opts, timeline.data?.items ?? []) : null,
@@ -76,13 +79,23 @@ export function ShiftDocDialog({
         <DialogHeader>
           <DialogTitle>{SHIFT_DOC_TITLE}</DialogTitle>
           <DialogDescription>
-            {r ? `${r.session.user.name} · kassa topshiruvi` : "Hujjat tayyorlanmoqda…"}
+            {r
+              ? `${r.session.user.name} · kassa topshiruvi`
+              : failed
+                ? t("errors.generic")
+                : "Hujjat tayyorlanmoqda…"}
           </DialogDescription>
         </DialogHeader>
 
         {/* Ko'rinish va bosma nusxa BITTA HTML'dan chiqadi — "chiroyli oldindan ko'rish" va
             "haqiqiy hujjat" degan ikki xil narsa bo'lmasin. */}
-        <DocPreview html={html} title={SHIFT_DOC_TITLE} frameRef={frame} minHeight="24rem" />
+        {failed ? (
+          <div className="flex min-h-0 flex-1 items-center justify-center">
+            <ErrorState variant="section" error={report.error} onRetry={() => report.refetch()} />
+          </div>
+        ) : (
+          <DocPreview html={html} title={SHIFT_DOC_TITLE} frameRef={frame} minHeight="24rem" />
+        )}
 
         <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-border pt-3">
           <span className="text-xs font-medium text-neutral-500">Hujjatga kirsin:</span>

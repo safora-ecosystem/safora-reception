@@ -5,6 +5,7 @@ import { RouterProvider } from "@tanstack/react-router"
 import { Toaster } from "@/components/ui/sonner"
 import "./index.css"
 import { router } from "./app/router"
+import { initConnectionWatch } from "./lib/connection"
 import { initI18n } from "./lib/i18n"
 import { queryClient } from "./lib/query-client"
 import { initScrollbarAutohide } from "./lib/scrollbar"
@@ -14,6 +15,7 @@ import { onSessionReset } from "./stores/reset-bus"
 initScrollbarAutohide()
 initPrefs()
 onSessionReset(() => queryClient.clear())
+initConnectionWatch()
 
 void initI18n().then(() => {
   createRoot(document.getElementById("root")!).render(

@@ -4,7 +4,6 @@ import { NoticeBanner } from "@/components/layout/notice-banner"
 import { ShiftGate, ShiftNoteReminder } from "@/components/shift/shift-dialogs"
 import { Sidebar } from "@/components/layout/sidebar"
 import { Topbar } from "@/components/layout/topbar"
-import { OfflineBanner } from "@/components/shared/offline-banner"
 import { ChatRealtimeProvider } from "@/lib/chat-realtime"
 import { LocaleBoundary } from "@/lib/i18n"
 import { NoticesEffects } from "@/lib/notices"
@@ -36,7 +35,6 @@ export function RootLayout() {
             <Topbar />
             {}
             {}
-            <OfflineBanner />
             <NoticeBanner />
             {}
             <main

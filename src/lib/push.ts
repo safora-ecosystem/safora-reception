@@ -1,4 +1,5 @@
 import { registerPushToken, removePushToken } from "./api"
+import { readKey, removeKey, writeKey } from "./safe-storage"
 
 
 const FB = {
@@ -31,7 +32,7 @@ export async function enableWebPush(): Promise<boolean> {
     })
     if (!token) return false
     await registerPushToken(token)
-    localStorage.setItem(TOKEN_KEY, token)
+    writeKey("local", TOKEN_KEY, token)
     return true
   } catch (err) {
     console.warn("web push yoqilmadi:", err)
@@ -40,8 +41,8 @@ export async function enableWebPush(): Promise<boolean> {
 }
 
 export async function disableWebPush(): Promise<void> {
-  const token = localStorage.getItem(TOKEN_KEY)
-  localStorage.removeItem(TOKEN_KEY)
+  const token = readKey("local", TOKEN_KEY)
+  removeKey("local", TOKEN_KEY)
   if (token) {
     try {
       await removePushToken(token)

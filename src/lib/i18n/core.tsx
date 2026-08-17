@@ -1,4 +1,5 @@
 import { useSyncExternalStore, type ReactNode } from "react"
+import { readKey, writeKey } from "../safe-storage"
 import { uz } from "./locales/uz"
 import type { Dictionary, TFunc } from "./schema"
 import type { Dict, Leaf, Locale, PluralCategory, PluralForms } from "./types"
@@ -132,8 +133,10 @@ function commit(locale: Locale, dictionary: Dictionary): void {
   emit()
 }
 
+// Til boot yo'lida — render'dan OLDIN — o'qiladi (pastdagi `bootLocale` izohiga qarang), ya'ni
+// bu yerdagi xom `localStorage` yopiq storage'li brauzerda panelni umuman ochtirmasdi.
 function readStored(): Locale | null {
-  const raw = localStorage.getItem(KEY)
+  const raw = readKey("local", KEY)
   return LOCALES.includes(raw as Locale) ? (raw as Locale) : null
 }
 
@@ -157,7 +160,7 @@ export async function setLocale(next: Locale): Promise<void> {
   if (next === state.locale && state.pending === null) return
   requested = next
   // Tanlov DARHOL saqlanadi: chunk yuklanmay tursa ham keyingi ochilishda to'g'ri til chiqadi.
-  localStorage.setItem(KEY, next)
+  writeKey("local", KEY, next)
   state = { ...state, pending: next === state.locale ? null : next }
   emit()
   try {

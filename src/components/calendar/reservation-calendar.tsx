@@ -106,6 +106,7 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
       onRemoveGuest,
       onSetPrimaryGuest,
       payments = null,
+      extrasTotal = null,
       onRecordPayment,
       onVoidPayment,
       activity = null,
@@ -790,6 +791,7 @@ export const ReservationCalendar = forwardRef<ReservationCalendarHandle, Reserva
           guests={guests}
           guestsLoading={guestsLoading}
           payments={payments}
+          extrasTotal={extrasTotal}
           onRecordPayment={onRecordPayment}
           onVoidPayment={onVoidPayment}
           activity={activity}

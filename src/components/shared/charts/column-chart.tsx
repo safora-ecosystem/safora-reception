@@ -75,14 +75,16 @@ export function ColumnChart({
 
   if (data.length === 0) return <ChartEmpty label={emptyLabel} className={className} />
 
-  const peak = Math.max(
-    0,
-    ...data.flatMap((d) => series.map((s) => d.values[s.key] ?? 0)),
-    maxValue ?? 0,
-  )
+  const peak = Math.max(0, ...data.flatMap((d) => series.map((s) => d.values[s.key] ?? 0)), maxValue ?? 0)
+  const drop = Math.max(0, ...data.flatMap((d) => series.map((s) => -(d.values[s.key] ?? 0))))
   const { top, ticks } = niceScale(maxValue ?? Math.max(peak, reference?.value ?? 0), TICKS)
+  const { top: floor, ticks: floorTicks } = drop > 0 ? niceScale(drop, 2) : { top: 0, ticks: [] }
+  const span = top + floor
+  const zeroPct = span > 0 ? (floor / span) * 100 : 0
+  const posOf = (value: number) => zeroPct + (span > 0 ? (value / span) * 100 : 0)
   const tickLabels = ticks.map(tickFormat)
-  const axisWidth = axisWidthFor(tickLabels)
+  const floorLabels = floorTicks.filter((v) => v > 0).map((v) => tickFormat(-v))
+  const axisWidth = axisWidthFor([...tickLabels, ...floorLabels])
 
   const every = labelEvery ?? Math.max(1, Math.ceil(data.length / 12))
 
@@ -95,11 +97,22 @@ export function ColumnChart({
             <span
               key={tick}
               className="absolute right-1.5 translate-y-1/2 text-[0.625rem] whitespace-nowrap tabular-nums text-neutral-400"
-              style={{ bottom: `${(tick / top) * 100}%` }}
+              style={{ bottom: `${posOf(tick)}%` }}
             >
               {tickLabels[i]}
             </span>
           ))}
+          {floorTicks
+            .filter((v) => v > 0)
+            .map((tick) => (
+              <span
+                key={`-${tick}`}
+                className="absolute right-1.5 translate-y-1/2 text-[0.625rem] whitespace-nowrap tabular-nums text-neutral-400"
+                style={{ bottom: `${posOf(-tick)}%` }}
+              >
+                {tickFormat(-tick)}
+              </span>
+            ))}
         </div>
 
         <div
@@ -116,15 +129,36 @@ export function ColumnChart({
               key={tick}
               aria-hidden
               className="absolute inset-x-0 border-t"
-              style={{ bottom: `${(tick / top) * 100}%`, borderColor: CHART_GRID }}
+              style={{ bottom: `${posOf(tick)}%`, borderColor: CHART_GRID }}
             />
           ))}
+          {floorTicks
+            .filter((v) => v > 0)
+            .map((tick) => (
+              <div
+                key={`-${tick}`}
+                aria-hidden
+                className="absolute inset-x-0 border-t"
+                style={{ bottom: `${posOf(-tick)}%`, borderColor: CHART_GRID }}
+              />
+            ))}
+          {/* NOL chizig'i — ustunlar unga tayanadi, ya'ni u setkaning bir qadam quyuqrog'i.
+              Faqat pastki yarim BOR bo'lganda chiziladi: bir tomonlama grafikda nol chizig'i
+              plotning pastki chekkasi bilan ustma-ust tushadi va ikkinchi chiziq bo'lib
+              ko'rinardi. */}
+          {floor > 0 && (
+            <div
+              aria-hidden
+              className="absolute inset-x-0 border-t"
+              style={{ bottom: `${zeroPct}%`, borderColor: "var(--color-neutral-300)" }}
+            />
+          )}
 
           {reference && reference.value > 0 && (
             <div
               aria-hidden
               className="pointer-events-none absolute inset-x-0 flex items-center"
-              style={{ bottom: `${(reference.value / top) * 100}%` }}
+              style={{ bottom: `${posOf(reference.value)}%` }}
             >
               <div
                 className="h-0 flex-1 border-t border-dashed"
@@ -141,9 +175,57 @@ export function ColumnChart({
           <div className="absolute inset-0 flex">
             {data.map((datum, index) => {
               const isActive = active === index
-              const barPercents = series.map((s) => ((datum.values[s.key] ?? 0) / top) * 100)
-              const tallest = Math.max(0, ...barPercents)
+              // Belgi eng baland MUSBAT ustunning tepasida turadi (manfiy ustun nol chizig'idan
+              // pastda, ya'ni belgi u yerda ma'lumotni yopmaydi).
+              const tallest = posOf(Math.max(0, ...series.map((s) => datum.values[s.key] ?? 0)))
               const align = index / Math.max(1, data.length - 1)
+
+              /** Bir yarim — musbat (nol chizig'idan yuqoriga) yoki manfiy (pastga).
+                  Ikkalasi ham HAMMA seriyani chizadi: ishorasi mos kelmagani 0 balandlik oladi,
+                  shu sababli ustunlarning gorizontal tekislanishi ikki yarimda ham bir xil. */
+              const half = (sign: 1 | -1, extent: number) => (
+                <div
+                  className={cn(
+                    "absolute inset-x-0 flex justify-center gap-0.5 px-[6%]",
+                    sign === 1 ? "items-end" : "items-start",
+                  )}
+                  style={
+                    sign === 1
+                      ? { top: 0, bottom: `${zeroPct}%` }
+                      : { top: `${100 - zeroPct}%`, bottom: 0 }
+                  }
+                >
+                  {series.map((s, si) => {
+                    const value = datum.values[s.key] ?? 0
+                    const shown = sign === 1 ? value > 0 : value < 0
+                    const pct = shown && extent > 0 ? (Math.abs(value) / extent) * 100 : 0
+                    return (
+                      <div
+                        key={s.key}
+                        className={cn(
+                          "min-w-0 flex-1 rounded-full transition-[filter]",
+                          datum.planned && "bar-hatch",
+                          isActive && "brightness-95",
+                        )}
+                        style={{
+                          maxWidth: maxBarFor(data.length),
+                          height: `${shown ? Math.max(pct, 1.5) : 0}%`,
+                          // Nolga teng bo'lmagan qiymat KO'RINISHI shart: pill'ning eng kichik
+                          // o'qiladigan shakli — doira. Undan pastda ustun chiziqqa aylanib,
+                          // "bor" va "yo'q" farqi yo'qolardi.
+                          minHeight: shown ? MIN_BAR_HEIGHT : 0,
+                          // Rejadagi ustun SHTRIX bilan chiziladi (`bar-hatch`) — unga gradient
+                          // berilmaydi, aks holda tekstura yuvilib, "amalda"dan farqi yo'qoladi.
+                          // Rang IKKALA yarimda ham seriyaniki: ishorani joy aytadi, rang emas.
+                          backgroundImage: datum.planned
+                            ? undefined
+                            : barFill(datum.color ?? s.color ?? seriesColor(si)),
+                        }}
+                      />
+                    )
+                  })}
+                </div>
+              )
 
               return (
                 <div
@@ -163,36 +245,10 @@ export function ColumnChart({
                   />
 
                   {/* Uyaning ~12% i havo bo'lib qoladi (qo'shnilar yopishmasin), qolganini
-                      ustun oladi — `MAX_BAR` gacha. */}
-                  <div className="absolute inset-0 flex items-end justify-center gap-0.5 px-[6%]">
-                    {series.map((s, si) => {
-                      const value = datum.values[s.key] ?? 0
-                      const pct = barPercents[si]
-                      return (
-                        <div
-                          key={s.key}
-                          className={cn(
-                            "min-w-0 flex-1 rounded-full transition-[filter]",
-                            datum.planned && "bar-hatch",
-                            isActive && "brightness-95",
-                          )}
-                          style={{
-                            maxWidth: maxBarFor(data.length),
-                            height: `${value > 0 ? Math.max(pct, 1.5) : 0}%`,
-                            // Nolga teng bo'lmagan qiymat KO'RINISHI shart: pill'ning eng kichik
-                            // o'qiladigan shakli — doira. Undan pastda ustun chiziqqa aylanib,
-                            // "bor" va "yo'q" farqi yo'qolardi.
-                            minHeight: value > 0 ? MIN_BAR_HEIGHT : 0,
-                            // Rejadagi ustun SHTRIX bilan chiziladi (`bar-hatch`) — unga gradient
-                            // berilmaydi, aks holda tekstura yuvilib, "amalda"dan farqi yo'qoladi.
-                            backgroundImage: datum.planned
-                              ? undefined
-                              : barFill(datum.color ?? s.color ?? seriesColor(si)),
-                          }}
-                        />
-                      )
-                    })}
-                  </div>
+                      ustun oladi — `MAX_BAR` gacha. Pastki yarim FAQAT manfiy qiymat bo'lganda
+                      chiziladi: usiz geometriya avvalgi bir tomonlama grafikning aynan o'zi. */}
+                  {half(1, top)}
+                  {floor > 0 && half(-1, floor)}
 
                   {/* To'g'ridan-to'g'ri belgi — tanlab: faqat "bugun" yoki hover'dagi ustun. */}
                   {showEmphasisValue && datum.emphasis && !isActive && series.length === 1 && (

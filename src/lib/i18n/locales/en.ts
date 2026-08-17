@@ -170,7 +170,14 @@ export const en: Dictionary<"en"> = {
     warning: "Warning",
     maintenance: "Maintenance",
     offline: "No internet connection",
-    offlineWaiting: "No connection — waiting for the network to come back",
+  },
+
+  connection: {
+    lost: "Can't reach the server",
+    lostHint: "Reconnecting — your data will load as soon as the connection is back",
+    offline: "No internet connection",
+    offlineHint: "The panel will reconnect on its own once the network returns",
+    restored: "Connection restored",
   },
 
   roles: {
@@ -792,6 +799,9 @@ export const en: Dictionary<"en"> = {
     guestsWord: { one: "{count} guest", other: "{count} guests" },
     rateNotSet: "No rate set",
     rateNotSetError: "This room has no rate — set one in the Rooms section",
+    rateHidden: "Price hidden from you",
+    rateHiddenError: "You don't have access to prices — enter the amount yourself",
+    extrasLine: "Additional charges",
     totalBelowPaid: "The new total is below what's been paid — refund the payment first",
     extraGuests: "Extra bed",
     extraGuestsBreakdown: "{guests} × {nights}",

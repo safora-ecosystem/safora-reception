@@ -89,5 +89,9 @@ export function describeApiError(
 
 export const isRetryableApiError = (err: unknown): boolean => classifyApiError(err).retryable
 
+const OUTAGE_KINDS: ReadonlySet<ApiErrorKind> = new Set(["offline", "network", "timeout"])
+export const isConnectionError = (err: unknown): boolean =>
+  err != null && OUTAGE_KINDS.has(classifyApiError(err).kind)
+
 export const isRateLimitError = (err: unknown): boolean =>
   err instanceof ApiError && err.status === 429

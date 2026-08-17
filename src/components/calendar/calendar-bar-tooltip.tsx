@@ -5,7 +5,7 @@ import { Calendar03Icon, Note01Icon, User02Icon } from "@hugeicons/core-free-ico
 import { Icon } from "@/components/ui/icon"
 import { cn } from "@/lib/utils"
 import { nightsBetween } from "./geometry"
-import { displayPayment } from "./folio"
+import { displayPayment, folioDue } from "./folio"
 import type { CalendarTooltipState } from "./use-calendar-tooltip"
 import type { CalendarLabels, CalendarPayment, StatusConfig } from "./types"
 
@@ -29,7 +29,8 @@ function fmtDay(iso: string, labels: CalendarLabels): string {
 }
 
 function paymentRatio(p: CalendarPayment): number {
-  if (p.total > 0) return Math.max(0, Math.min(1, p.paid / p.total))
+  const due = folioDue(p)
+  if (due > 0) return Math.max(0, Math.min(1, p.paid / due))
   return p.paid > 0 ? 1 : 0
 }
 
@@ -171,7 +172,7 @@ export function CalendarBarTooltip({ state, labels, statusConfig }: CalendarBarT
               <div className="flex items-baseline justify-between gap-2 text-xs">
                 <span className="text-muted-foreground">{labels.corporateBilling}</span>
                 {pay && (
-                  <span className="tabular-nums text-foreground/80">{labels.money(pay.total)}</span>
+                  <span className="tabular-nums text-foreground/80">{labels.money(folioDue(pay))}</span>
                 )}
               </div>
               <p className="mt-1 truncate text-xs font-medium text-foreground">
@@ -186,7 +187,7 @@ export function CalendarBarTooltip({ state, labels, statusConfig }: CalendarBarT
                   <span className={cn("font-semibold", paidFull ? "text-success" : "text-warning")}>
                     {labels.money(pay.paid)}
                   </span>
-                  <span className="text-muted-foreground"> / {labels.money(pay.total)}</span>
+                  <span className="text-muted-foreground"> / {labels.money(folioDue(pay))}</span>
                 </span>
               </div>
               <div className="mt-1.5 flex items-center gap-2">

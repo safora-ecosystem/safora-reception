@@ -10,7 +10,7 @@ import {
   nightsBetween,
   type BarRect,
 } from "./geometry"
-import { displayPayment } from "./folio"
+import { displayPayment, folioDue } from "./folio"
 import type { CalendarMoveHandlers } from "./use-calendar-move"
 import type { CalendarTooltipHandlers } from "./use-calendar-tooltip"
 import type {
@@ -93,7 +93,8 @@ function fmtDay(iso: string, labels: CalendarLabels): string {
 }
 
 function paymentRatio(p: CalendarPayment): number {
-  if (p.total > 0) return Math.max(0, Math.min(1, p.paid / p.total))
+  const due = folioDue(p)
+  if (due > 0) return Math.max(0, Math.min(1, p.paid / due))
   return p.paid > 0 ? 1 : 0
 }
 
@@ -136,7 +137,10 @@ function PaymentText({
   labels: CalendarLabels
 }) {
   const ratio = paymentRatio(payment)
-  const value = mode === "remaining" ? Math.max(0, payment.total - payment.paid) : payment.total
+  // "Jami" ham, "Qoldiq" ham QARZDAN (xona + xarajat) o'qiladi — detal oynasidagi raqam
+  // bilan bitta bo'lsin.
+  const value =
+    mode === "remaining" ? Math.max(0, folioDue(payment) - payment.paid) : folioDue(payment)
   const tone =
     mode === "remaining"
       ? "text-warning"
@@ -212,7 +216,7 @@ function CalendarBarImpl({
   // `remaining` rejimida qoldiqsiz bron yashil glifga QAYTADI: bo'sh joy "ma'lumot yo'q" deb
   // o'qilardi, to'liq yashil `$` esa "qarz yo'q" tasdig'i — xodim pul so'ramaydigan bar'ni
   // bir qarashda ajratadi.
-  const remaining = payment ? Math.max(0, payment.total - payment.paid) : 0
+  const remaining = payment ? Math.max(0, folioDue(payment) - payment.paid) : 0
   const paymentAsText =
     barMoney === "total" || (barMoney === "remaining" && remaining > 0)
 
@@ -230,7 +234,7 @@ function CalendarBarImpl({
 
   const title =
     `${booking.label} · ${fmtDay(booking.start, labels)} – ${fmtDay(booking.end, labels)} · ${labels.nights(nights)}` +
-    (payment ? ` · ${labels.money(payment.paid)} / ${labels.money(payment.total)}` : "")
+    (payment ? ` · ${labels.money(payment.paid)} / ${labels.money(folioDue(payment))}` : "")
 
   return (
     <motion.button

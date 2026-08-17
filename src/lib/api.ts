@@ -7,6 +7,7 @@ const DEFAULT_TIMEOUT_MS = 15_000
 const MAX_RETRIES = 2
 const RETRY_BASE_MS = 400
 const RETRYABLE_STATUS = new Set([502, 503, 504])
+const PING_TIMEOUT_MS = 6_000
 
 export const SHIFT_REQUIRED_EVENT = "safora:shift-required"
 
@@ -125,6 +126,24 @@ async function sendWithRetry(path: string, options: ApiOptions): Promise<Respons
       throw new NetworkError(err)
     }
   }
+}
+
+/** ALOQA ZONDI — "backend tirikmi?" degan YAGONA savol; javobi ham shu, boshqa hech nima.
+    `lib/connection.ts` uzilish paytida shuni takrorlaydi: sahifadagi o'nlab so'rovni qayta
+    urish o'rniga bitta arzon so'rov ketadi, server javob bergach esa hammasi BIR martada
+    yangilanadi.
+
+    `/health` — core-api'ning ataylab sayoz liveness yo'li: rate-limit'dan ozod (`main.ts`
+    allowList) va `@Public()`, ya'ni seans ham, cookie ham kerak emas. Shuning uchun bu yerda
+    `credentials` ham, `x-panel` ham YO'Q: preflight'siz oddiy so'rov — uzilish paytida OPTIONS
+    javobini kutib o'tirmaymiz. Bu yo'l `sendWithRetry` dan ham CHETDA: qayta urinish jadvali
+    zondning o'zida (umumiy backoff), ikki qavat retry kerak emas. */
+export async function pingApi(): Promise<void> {
+  const res = await fetch(`${BASE_URL}/health`, {
+    cache: "no-store",
+    signal: AbortSignal.timeout(PING_TIMEOUT_MS),
+  })
+  if (!res.ok) throw new ApiError(res.status, { message: `/health ${res.status}` })
 }
 
 // Refresh — TABLAR ARASIDA ham bitta. Ilgari navbat faqat shu tab ichida edi va aynan shu
@@ -378,6 +397,13 @@ export type BookingPayment = {
   voidedBy: { id: string; name: string } | null
   voidReason: string | null
   createdAt: string
+  /** Qator QAYSI bo'lakda yozilgan — FAQAT bo'lingan yashashda keladi (zanjir ledgeri,
+      `booking.service.chainLedger`). Storno aynan shu juftlik bilan qidiriladi
+      (`payments.void`: `{id, bookingId}`), shuning uchun uni tashlab yuborib bo'lmaydi:
+      ochiq bo'lakning id'si bilan yuborilgan storno "Payment not found" oladi. */
+  bookingId?: string
+  /** Qator qaysi xonada olingani (bo'lingan yashashda). Bo'linmaganda kelmaydi. */
+  room?: string | null
 }
 
 export type Booking = {
@@ -1239,7 +1265,13 @@ export type ChatMessage = {
 /** Keyset sahifa: items yangi→eski tartibda; nextCursor = eskiroq sahifa uchun (yoki null). */
 export type ChatPage<T> = { items: T[]; nextCursor: string | null }
 
-export const listConversations = () => api<ChatPage<ChatConversation>>("/chat/conversations")
+/** Inbox keyset sahifalanadi (server 30 tada kesadi va `nextCursor` bilan davomi borligini
+    aytadi). Kursorsiz chaqirilsa panel BIRINCHI sahifada qotib qolardi: 31-suhbat na ro'yxatda,
+    na "Arxiv" bo'limida ko'rinardi — arxiv o'sha yuklangan qatorlardan filtrlanadi. */
+export const listConversations = (cursor?: string) => {
+  const qs = cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""
+  return api<ChatPage<ChatConversation>>(`/chat/conversations${qs}`)
+}
 
 export const listChatMessages = (bookingId: string, cursor?: string) => {
   const qs = cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""
@@ -1355,9 +1387,12 @@ export type TeamMessage = {
 }
 
 export const listTeamThreads = () => api<TeamThread[]>("/chat/team/threads")
+/** `messages` eski→yangi; `nextCursor` — ESKIROQ sahifaning `before` qiymati (null — tarix
+    tugadi). Tipda `nextCursor` YO'Q edi va shu sabab lenta jimgina 50 xabarda tugardi:
+    server "davomi bor" deb aytib turardi, panel esa uni o'qimasdi. */
 export const listTeamMessages = (userId: string, before?: string) =>
-  api<{ messages: TeamMessage[] }>(
-    `/chat/team/threads/${userId}/messages${before ? `?before=${before}` : ""}`,
+  api<{ messages: TeamMessage[]; nextCursor: string | null }>(
+    `/chat/team/threads/${userId}/messages${before ? `?before=${encodeURIComponent(before)}` : ""}`,
   )
 export const sendTeamMessage = (userId: string, text: string, replyToId?: string) =>
   api<TeamMessage>(`/chat/team/threads/${userId}/messages`, {
@@ -1406,8 +1441,11 @@ export type GroupMessage = {
   reactions?: ReactionView[]
 }
 
+/** Shakl `listTeamMessages` bilan bir xil: `messages` eski→yangi, `nextCursor` eskiroq sahifaga. */
 export const listGroupMessages = (before?: string) =>
-  api<{ messages: GroupMessage[] }>(`/chat/group/messages${before ? `?before=${before}` : ""}`)
+  api<{ messages: GroupMessage[]; nextCursor: string | null }>(
+    `/chat/group/messages${before ? `?before=${encodeURIComponent(before)}` : ""}`,
+  )
 export const sendGroupMessage = (text: string, replyToId?: string) =>
   api<GroupMessage>("/chat/group/messages", {
     method: "POST",
@@ -1439,10 +1477,11 @@ export type HkChatMessage = {
   createdAt: string
 }
 
-/** Javob eskidan yangiga. `before` — eski sahifani yuklash uchun `messages[0].id`. */
+/** Javob eskidan yangiga; `nextCursor` — eskiroq sahifaning `before` qiymati (null — tarix tugadi).
+    Kursorni SERVER aytadi: ilgari panel "kelgani 50 tadan kam bo'lsa tugagan" deb taxmin qilardi. */
 export const listHkMessages = (before?: string) =>
-  api<{ messages: HkChatMessage[] }>(
-    `/chat/housekeeping/messages${before ? `?before=${before}` : ""}`,
+  api<{ messages: HkChatMessage[]; nextCursor: string | null }>(
+    `/chat/housekeeping/messages${before ? `?before=${encodeURIComponent(before)}` : ""}`,
   )
 export const sendHkMessage = (text: string) =>
   api<HkChatMessage>("/chat/housekeeping/messages", { method: "POST", body: { text } })

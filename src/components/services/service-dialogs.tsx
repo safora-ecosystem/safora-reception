@@ -21,7 +21,7 @@ import {
   type ServiceRequest,
   type ServiceType,
 } from "@/lib/api"
-import { money } from "@/lib/format"
+import { localIso, money } from "@/lib/format"
 import { useT } from "@/lib/i18n"
 import { cn } from "@/lib/utils"
 import { CREATABLE_TYPES, TYPE_META } from "./service-meta"
@@ -147,9 +147,10 @@ export function CreateRequestDialog({
   const t = useT()
   const qc = useQueryClient()
   const roomsQ = useQuery({ queryKey: ["rooms"], queryFn: listRooms, enabled: open })
+  const today = localIso()
   const bookingsQ = useQuery({
-    queryKey: ["bookings"],
-    queryFn: () => listBookings(),
+    queryKey: ["bookings", "today", today],
+    queryFn: () => listBookings(today, today),
     enabled: open,
   })
   const [roomId, setRoomId] = useState("")

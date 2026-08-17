@@ -255,6 +255,10 @@ function CreateForm({
   // Tarifi kiritilmagan xonaga bron OCHILMAYDI: 0 so'mlik bron xuddi o'sha teshikning
   // boshqa eshigi bo'lardi (xodim ataylab shunday xonaga joylashtirib naqd oladi).
   const missingRate = !isBlock && lines.some((l) => !l.hasRate)
+  // Tarifsiz qolgan qatorlarning HAMMASI "narx yashirin" bo'lsa xabar boshqacha bo'ladi:
+  // tarif bor, xodimda uni ko'rish ruxsati yo'q (`rooms.price`) — u summani qo'lda yozadi.
+  const rateHiddenOnly =
+    missingRate && lines.every((l) => l.hasRate || l.room.rateHidden === true)
   const roomsTotal = lines.reduce((sum, l) => sum + l.total, 0)
   const rackTotal = lines.reduce((sum, l) => sum + l.rack, 0)
   const discountTotal = rackTotal - roomsTotal
@@ -499,7 +503,12 @@ function CreateForm({
     : selectedBusy
       ? labels.selectedBusy
       : missingRate
-        ? labels.rateNotSetError
+        ? // Narx YASHIRIN bo'lsa (ruxsat yo'q) "Xonalar bo'limida tarif kiritilsin" bajarib
+          // bo'lmas maslahat: xodim u bo'limda ham narxni ko'rmaydi. Qilinadigan ish boshqa —
+          // kechalik summani shu yerdagi maydonga yozish, shuning uchun matn ham boshqa.
+          rateHiddenOnly
+          ? labels.rateHiddenError
+          : labels.rateNotSetError
         : paidTooBig
           ? labels.prepaymentTooBig
           : null
@@ -1153,7 +1162,11 @@ const MoneyPanel = memo(function MoneyPanel({
                   >
                     {l.hasRate && nights >= 1
                       ? `${nights} ${labels.nightsWord} · ${groupThousands(l.total)}`
-                      : labels.rateNotSet}
+                      : // Narx bor-u ko'rsatilmaydi: "Narx belgilanmagan" bu yerda yolg'on
+                        // bo'lardi va xodim tarif kiritilmagan deb hisobot yozardi.
+                        l.room.rateHidden
+                        ? labels.rateHidden
+                        : labels.rateNotSet}
                   </p>
                 </div>
                 <MoneyInput

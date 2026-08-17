@@ -54,8 +54,6 @@ import {
   REACTION_ORDER,
   aggregateReactions,
   appendToInfinite,
-  appendGroupMessage,
-  appendHkMessage,
   conversationsKey,
   groupMessagesKey,
   groupUnreadKey,
@@ -65,8 +63,10 @@ import {
   teamMessagesKey,
   teamThreadsKey,
   teamUnreadKey,
+  toMessagePage,
   updateGroupReactions,
   updateGuestReactions,
+  updateTeamReactions,
   useChat,
 } from "@/lib/chat-realtime"
 import { shortDate } from "@/lib/format"
@@ -78,6 +78,7 @@ import { useRealtimeStore } from "@/stores/realtime-store"
 import { EmptyState } from "@/components/shared/empty-state"
 import { ErrorState, Spinner } from "@/components/shared/error-state"
 import { PersonAvatar } from "@/components/shared/person-avatar"
+import { LoadMore } from "@/components/shared/load-more"
 import { SegmentedTabs } from "@/components/shared/segmented-tabs"
 import { SkeletonList, SkeletonThread } from "@/components/shared/skeletons"
 import { Button } from "@/components/ui/button"
@@ -146,11 +147,14 @@ export function ChatPage() {
     user?: string
     booking?: string
   }
-  const initialTab: Tab =
-    search.tab ??
-    (search.user ? "team" : search.booking ? "guests" : canGuest ? "guests" : "team")
-
-  const [tab, setTab] = useState<Tab>(initialTab)
+  // Sukut tab RUXSAT KELGANDA hisoblanadi, birinchi renderda MUHRLANMAYDI: `can()` shubhada
+  // yopiq va ruxsat keshi sessionStorage'da (ya'ni YANGI TABDA bo'sh) — ilgari shu sovuq
+  // kadrdagi `canGuest === false` "Jamoa" bo'lib qotib qolardi. Xodim qo'lda tanlagani yoki
+  // havoladan kelgani (`tabOverride`) esa har doim ustun.
+  const [tabOverride, setTab] = useState<Tab | null>(
+    search.tab ?? (search.user ? "team" : search.booking ? "guests" : null),
+  )
+  const tab: Tab = tabOverride ?? (canGuest ? "guests" : "team")
   const [guestSel, setGuestSel] = useState<string | null>(search.booking ?? null)
   const [teamSel, setTeamSel] = useState<string | null>(search.user ?? null)
   // "Guruhlar" tabida ikki xona bor: umumiy jamoa guruhi va housekeeping yozishmasi.
@@ -161,18 +165,24 @@ export function ChatPage() {
   const [showArchive, setShowArchive] = useState(false)
   const qc = useQueryClient()
 
-  const conversations = useQuery({
-    queryKey: conversationsKey,
-    queryFn: listConversations,
-    enabled: canGuest,
-  })
+  // Suhbatlar keyset sahifalanadi: server bir sahifada 30 ta beradi va `nextCursor` bilan
+  // davomi borligini AYTADI. Ilgari faqat birinchi sahifa o'qilardi — 31-suhbat na ro'yxatda,
+  // na "Arxiv" bo'limida ko'rinardi (arxiv o'sha yuklangan qatorlardan filtrlanadi), ya'ni
+  // bo'lim "arxivda hech narsa yo'q" deb yolg'on gapirardi. Endi ro'yxat oxirida "Yana yuklash".
+  const conversations = usePagedList<ChatConversation>(
+    conversationsKey,
+    (cursor) => listConversations(cursor ?? undefined),
+    { enabled: canGuest },
+  )
   const threads = useQuery({
     queryKey: teamThreadsKey,
     queryFn: listTeamThreads,
     enabled: canTeam,
   })
 
-  const convItems = conversations.data?.items ?? []
+  // `usePagedList` sahifalarni O'ZI yassilaydi va natijani memolaydi — quyidagi avto-tanlash
+  // effekti shu barqaror massivni deps'da ushlaydi.
+  const convItems = conversations.items
   // Yozishgani bor odamlar tepada (oxirgi xabar bo'yicha), qolganlari alifboda.
   const teamItems = useMemo(() => {
     const list = threads.data ?? []
@@ -229,12 +239,31 @@ export function ChatPage() {
 
   // Keng ekranda o'ng panel bo'sh turmasin — birinchi qator o'z-o'zidan ochiladi
   // (mobileOpen'ga tegilmaydi, ya'ni telefonda ro'yxat ko'rinaverdi).
+  //
+  // Shart ATAYLAB faqat "tanlov bo'sh": ro'yxat har jonli xabarda qayta yuklanadi va faqat
+  // BIRINCHI sahifa keladi. "Tanlangan yozuv ro'yxatda yo'qmi" deb tekshirsak, xodim matn
+  // yozib turgan payt ochiq suhbat jimgina almashib, Enter matnni BOSHQA mehmonga yuborishi
+  // mumkin edi — bo'sh panelda qotib qolish bundan ko'ra zararsiz.
   useEffect(() => {
     if (!guestSel && activeConv.length > 0) setGuestSel(activeConv[0]!.bookingId)
   }, [guestSel, activeConv])
   useEffect(() => {
     if (!teamSel && activeTeam.length > 0) setTeamSel(activeTeam[0]!.user.id)
   }, [teamSel, activeTeam])
+
+  // Chuqur havola (`?booking=…`) ro'yxatda topilmasa — BIR MARTA birinchi qatorga tushamiz.
+  // Ilgari bunday havola o'ng panelni abadiy "Suhbatni tanlang" da qoldirardi (suhbat
+  // serverning birinchi sahifasidan tushib qolgan bo'lsa). Bir martaligi shart: keyingi
+  // yangilanishlar xodim O'ZI tanlagan suhbatga tegmasin.
+  const deepLinkChecked = useRef(false)
+  useEffect(() => {
+    if (deepLinkChecked.current || conversations.isPending) return
+    if (!search.booking || activeConv.length === 0) return
+    deepLinkChecked.current = true
+    if (!convItems.some((c) => c.bookingId === search.booking)) {
+      setGuestSel(activeConv[0]!.bookingId)
+    }
+  }, [search.booking, convItems, activeConv, conversations.isPending])
 
   // Sahifa OCHIQ turganda havola yana o'zgarishi mumkin (masalan yon paneldan boshqa
   // odam bosildi) — shuning uchun URL ni kuzatamiz. Deps faqat qidiruv qiymatlari:
@@ -349,7 +378,16 @@ export function ChatPage() {
                 }}
               />
             ) : tab === "guests" ? (
-              conversations.isPending ? (
+              // `enabled: canGuest` o'chiq query TanStack v5 da DOIM `isPending` — ruxsati
+              // yo'q xodim `?tab=guests` havolasi bilan kelsa skelet abadiy aylanardi.
+              !canGuest ? (
+                <EmptyState
+                  icon={Message02Icon}
+                  title={t("errors.forbidden.title")}
+                  hint={t("errors.forbidden.description")}
+                  className="py-10"
+                />
+              ) : conversations.isPending ? (
                 <SkeletonList rows={6} className="p-2" />
               ) : conversations.isError && conversations.data === undefined ? (
                 <ErrorState
@@ -458,6 +496,21 @@ export function ChatPage() {
                 )}
               </div>
             )}
+
+            {/* Faqat mehmonlar lentasi sahifalanadi (jamoa ro'yxati bitta so'rovda to'liq
+                keladi). Boshqaruv arxiv bo'limidan KEYIN turadi va shuning uchun kerak:
+                arxiv YUKLANGAN qatorlardan filtrlanadi, ya'ni "Yana yuklash" bosilmaguncha
+                eski suhbat na ro'yxatda, na arxivda bo'ladi — ro'yxat buni jimgina
+                yashirmasin. Bitta sahifadan oshmagan ro'yxatda esa hech nima chizilmaydi. */}
+            {tab === "guests" &&
+              convItems.length > 0 &&
+              (conversations.hasNextPage || (conversations.data?.pages.length ?? 0) > 1) && (
+                <LoadMore
+                  hasNext={conversations.hasNextPage}
+                  isFetching={conversations.isFetchingNextPage}
+                  onMore={() => void conversations.fetchNextPage()}
+                />
+              )}
           </div>
         </aside>
 
@@ -475,14 +528,25 @@ export function ChatPage() {
             )
           ) : tab === "guests" ? (
             selectedConv ? (
-              <GuestThread conv={selectedConv} onBack={() => setMobileOpen(false)} />
+              // `key` — suhbat almashganda kompozitor TOZALANADI: yozib qo'yilgan matn va
+              // "javob berish" tanlovi lokal state'da yashaydi, usiz ular keyingi mehmonga
+              // ergashib borardi va tasodifan o'shanga yuborilishi mumkin edi.
+              <GuestThread
+                key={selectedConv.bookingId}
+                conv={selectedConv}
+                onBack={() => setMobileOpen(false)}
+              />
             ) : (
-              <EmptyPane text={t("chat.pickConversation")} />
+              <EmptyPane text={t("chat.pickConversation")} onBack={() => setMobileOpen(false)} />
             )
           ) : selectedMate ? (
-            <TeamThread thread={selectedMate} onBack={() => setMobileOpen(false)} />
+            <TeamThread
+              key={selectedMate.user.id}
+              thread={selectedMate}
+              onBack={() => setMobileOpen(false)}
+            />
           ) : (
-            <EmptyPane text={t("chat.pickStaff")} />
+            <EmptyPane text={t("chat.pickStaff")} onBack={() => setMobileOpen(false)} />
           )}
         </section>
       </div>
@@ -578,14 +642,6 @@ function GuestThread({ conv, onBack }: { conv: ChatConversation; onBack: () => v
     onError: () => toast.error(t("chat.reactionFailed")),
   })
 
-  // Qo'lda setQueryData merge YO'Q — sahifa zanjirini useInfiniteQuery yuritadi.
-  // fetchNextPage xatoni reject qilmay natijada qaytaradi, shuning uchun toast shu yerda.
-  async function loadOlder() {
-    if (messages.isFetchingNextPage) return
-    const res = await messages.fetchNextPage()
-    if (res.isError) toast.error(t("chat.olderFailed"))
-  }
-
   return (
     <ThreadShell
       threadKey={bookingId}
@@ -595,20 +651,7 @@ function GuestThread({ conv, onBack }: { conv: ChatConversation; onBack: () => v
       loading={messages.isLoading}
       error={messages.data === undefined && messages.isError ? messages.error : null}
       onRetry={() => messages.refetch()}
-      olderSlot={
-        messages.hasNextPage ? (
-          <div className="flex justify-center pb-3">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => void loadOlder()}
-              disabled={messages.isFetchingNextPage}
-            >
-              {messages.isFetchingNextPage ? t("common.loading") : t("chat.older")}
-            </Button>
-          </div>
-        ) : null
-      }
+      olderSlot={<OlderSlot q={messages} />}
       items={thread.map((m) => ({
         id: m.id,
         mine: m.senderType === "staff",
@@ -651,11 +694,10 @@ function TeamThread({ thread, onBack }: { thread: TeamThread; onBack: () => void
   const [draft, setDraft] = useState("")
   const [replyTo, setReplyTo] = useState<ThreadItem | null>(null)
 
-  const messages = useQuery({
-    queryKey: teamMessagesKey(otherId),
-    queryFn: () => listTeamMessages(otherId),
-  })
-  const items = messages.data?.messages ?? []
+  const messages = usePagedList<TeamMessage>(teamMessagesKey(otherId), (cursor) =>
+    listTeamMessages(otherId, cursor ?? undefined).then(toMessagePage),
+  )
+  const items = useMemo(() => [...messages.items].reverse(), [messages.items])
   const last = items.length ? items[items.length - 1]! : null
 
   useEffect(() => {
@@ -672,11 +714,7 @@ function TeamThread({ thread, onBack }: { thread: TeamThread; onBack: () => void
     mutationFn: (input: { text: string; replyToId?: string }) =>
       sendTeamMessage(otherId, input.text, input.replyToId),
     onSuccess: (msg) => {
-      qc.setQueryData<{ messages: TeamMessage[] }>(teamMessagesKey(otherId), (old) =>
-        !old || old.messages.some((m) => m.id === msg.id)
-          ? old
-          : { messages: [...old.messages, msg] },
-      )
+      appendToInfinite(qc, teamMessagesKey(otherId), msg)
       void qc.invalidateQueries({ queryKey: teamThreadsKey })
     },
     onError: (_err, input) => {
@@ -688,17 +726,7 @@ function TeamThread({ thread, onBack }: { thread: TeamThread; onBack: () => void
   const react = useMutation({
     mutationFn: (input: { messageId: string; emoji: string | null }) =>
       reactTeamMessage(input.messageId, input.emoji),
-    onSuccess: (res) => {
-      qc.setQueryData<{ messages: TeamMessage[] }>(teamMessagesKey(otherId), (old) =>
-        old
-          ? {
-              messages: old.messages.map((m) =>
-                m.id === res.messageId ? { ...m, reactions: res.reactions } : m,
-              ),
-            }
-          : old,
-      )
-    },
+    onSuccess: (res) => updateTeamReactions(qc, otherId, res.messageId, res.reactions),
     onError: () => toast.error(t("chat.reactionFailed")),
   })
 
@@ -712,6 +740,7 @@ function TeamThread({ thread, onBack }: { thread: TeamThread; onBack: () => void
       loading={messages.isLoading}
       error={messages.data === undefined && messages.isError ? messages.error : null}
       onRetry={() => messages.refetch()}
+      olderSlot={<OlderSlot q={messages} />}
       emptyText={t("chat.emptyThread")}
       items={items.map((m) => ({
         id: m.id,
@@ -754,8 +783,10 @@ function GroupThread({ onBack }: { onBack: () => void }) {
   const [draft, setDraft] = useState("")
   const [replyTo, setReplyTo] = useState<ThreadItem | null>(null)
 
-  const messages = useQuery({ queryKey: groupMessagesKey, queryFn: () => listGroupMessages() })
-  const list = messages.data?.messages ?? []
+  const messages = usePagedList<GroupMessage>(groupMessagesKey, (cursor) =>
+    listGroupMessages(cursor ?? undefined).then(toMessagePage),
+  )
+  const list = useMemo(() => [...messages.items].reverse(), [messages.items])
   const last = list.length ? list[list.length - 1]! : null
 
   useEffect(() => {
@@ -768,7 +799,7 @@ function GroupThread({ onBack }: { onBack: () => void }) {
   const send = useMutation({
     mutationFn: (input: { text: string; replyToId?: string }) =>
       sendGroupMessage(input.text, input.replyToId),
-    onSuccess: (msg) => appendGroupMessage(qc, msg),
+    onSuccess: (msg) => appendToInfinite(qc, groupMessagesKey, msg),
     onError: (_err, input) => {
       toast.error(t("chat.sendFailed"))
       setDraft((d) => (d ? d : input.text))
@@ -803,6 +834,7 @@ function GroupThread({ onBack }: { onBack: () => void }) {
       loading={messages.isLoading}
       error={messages.data === undefined && messages.isError ? messages.error : null}
       onRetry={() => messages.refetch()}
+      olderSlot={<OlderSlot q={messages} />}
       emptyText={t("chat.emptyGroup")}
       items={items}
       showAuthors
@@ -831,8 +863,10 @@ function HkThread({ onBack }: { onBack: () => void }) {
   const meId = getSession()?.user.id ?? ""
   const [draft, setDraft] = useState("")
 
-  const messages = useQuery({ queryKey: hkMessagesKey, queryFn: () => listHkMessages() })
-  const list = messages.data?.messages ?? []
+  const messages = usePagedList<HkChatMessage>(hkMessagesKey, (cursor) =>
+    listHkMessages(cursor ?? undefined).then(toMessagePage),
+  )
+  const list = useMemo(() => [...messages.items].reverse(), [messages.items])
   const last = list.length ? list[list.length - 1]! : null
 
   useEffect(() => {
@@ -844,7 +878,7 @@ function HkThread({ onBack }: { onBack: () => void }) {
 
   const send = useMutation({
     mutationFn: (input: { text: string }) => sendHkMessage(input.text),
-    onSuccess: (msg) => appendHkMessage(qc, msg),
+    onSuccess: (msg) => appendToInfinite(qc, hkMessagesKey, msg),
     onError: (_err, input) => {
       toast.error(tr("chat.sendFailed"))
       setDraft((d) => (d ? d : input.text))
@@ -870,6 +904,7 @@ function HkThread({ onBack }: { onBack: () => void }) {
       loading={messages.isLoading}
       error={messages.data === undefined && messages.isError ? messages.error : null}
       onRetry={() => messages.refetch()}
+      olderSlot={<OlderSlot q={messages} />}
       emptyText={t("chat.emptyHk")}
       items={items}
       showAuthors
@@ -890,6 +925,36 @@ function HkThread({ onBack }: { onBack: () => void }) {
   )
 }
 
+
+function OlderSlot({
+  q,
+}: {
+  q: {
+    hasNextPage: boolean
+    isFetchingNextPage: boolean
+    fetchNextPage: () => Promise<{ isError: boolean }>
+  }
+}) {
+  const t = useT()
+  if (!q.hasNextPage) return null
+  return (
+    <div className="flex justify-center pb-3">
+      <Button
+        variant="ghost"
+        size="sm"
+        disabled={q.isFetchingNextPage}
+        onClick={() => {
+          if (q.isFetchingNextPage) return
+          void q.fetchNextPage().then((res) => {
+            if (res.isError) toast.error(t("chat.olderFailed"))
+          })
+        }}
+      >
+        {q.isFetchingNextPage ? t("common.loading") : t("chat.older")}
+      </Button>
+    </div>
+  )
+}
 
 type ThreadItem = {
   id: string
@@ -1431,10 +1496,20 @@ function Bubble({
   )
 }
 
-function EmptyPane({ text }: { text: string }) {
+function EmptyPane({ text, onBack }: { text: string; onBack?: () => void }) {
+  const t = useT()
   return (
-    <div className="flex flex-1 items-center justify-center">
+    <div className="flex flex-1 flex-col items-center justify-center gap-3">
       <p className="text-sm text-neutral-400">{text}</p>
+      {/* Tor ekranda bu panel butun sahifani egallaydi va ro'yxat `hidden` bo'ladi — havola
+          bilan kelingan suhbat topilmasa qaytish yo'li YO'Q edi. Tugma ThreadShell'dagi
+          `onBack` bilan bir xil naqsh (md+ da ro'yxat yonida turgani uchun kerak emas). */}
+      {onBack && (
+        <Button variant="outline" size="sm" className="md:hidden" onClick={onBack}>
+          <Icon icon={ArrowLeft01Icon} className="size-4" />
+          {t("common.back")}
+        </Button>
+      )}
     </div>
   )
 }

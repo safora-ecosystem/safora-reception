@@ -2,6 +2,7 @@ import type { ReactNode } from "react"
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion"
 import { EmptyState } from "@/components/shared/empty-state"
 import { ErrorState } from "@/components/shared/error-state"
+import { isConnectionError } from "@/lib/api-error"
 import { useT } from "@/lib/i18n"
 import { fadeIn, fadeInUp } from "@/lib/motion-presets"
 
@@ -43,8 +44,9 @@ export function QueryState({
   const errorSize = errorVariant ?? variant ?? "section"
 
   const failed = list.filter((q) => q.isError && q.data === undefined)
-  const pending = failed.length === 0 && list.some((q) => q.isPending)
-  const phase = failed.length > 0 ? "error" : pending ? "pending" : isEmpty ? "empty" : "content"
+  const broken = failed.filter((q) => !isConnectionError(q.error))
+  const pending = broken.length === 0 && (failed.length > 0 || list.some((q) => q.isPending))
+  const phase = broken.length > 0 ? "error" : pending ? "pending" : isEmpty ? "empty" : "content"
 
   const retry = () => Promise.allSettled(failed.map((q) => Promise.resolve(q.refetch())))
 
@@ -63,7 +65,7 @@ export function QueryState({
               <ErrorState
                 variant="section"
                 className={errorClassName}
-                error={failed[0]?.error}
+                error={broken[0]?.error}
                 onRetry={retry}
               />
             </div>
@@ -73,7 +75,7 @@ export function QueryState({
         <ErrorState
           variant={errorSize}
           className={errorClassName}
-          error={failed[0]?.error}
+          error={broken[0]?.error}
           onRetry={retry}
         />
       )

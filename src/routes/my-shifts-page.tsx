@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
 import { EmptyState } from "@/components/shared/empty-state"
+import { ErrorState } from "@/components/shared/error-state"
 import { LoadMore } from "@/components/shared/load-more"
 import { QueryState } from "@/components/shared/query-state"
 import { SkeletonList } from "@/components/shared/skeletons"
@@ -66,7 +67,12 @@ function ReportDialog({ sessionId, onClose }: { sessionId: string; onClose: () =
       <DialogContent className="max-h-[85vh] max-w-md overflow-y-auto">
         <DialogTitle>{t("shiftSession.myShiftsTitle")}</DialogTitle>
         <DialogDescription />
-        {r == null ? (
+        {/* Uchinchi holat (skelet/xato/hisobot): ilgari so'rov yiqilsa `r` abadiy `null`
+            qolib, oynada tugamaydigan skelet turardi — sabab ham, qayta urinish ham yo'q
+            edi (query-client refetchOnWindowFocus'ni o'chirgani uchun o'zi ham tuzalmasdi). */}
+        {q.isError && r == null ? (
+          <ErrorState variant="section" error={q.error} onRetry={() => q.refetch()} />
+        ) : r == null ? (
           <SkeletonList rows={4} />
         ) : (
           <div className="flex flex-col gap-4 text-sm">
@@ -147,12 +153,13 @@ function ReportDialog({ sessionId, onClose }: { sessionId: string; onClose: () =
                 </ul>
               </section>
             )}
-
-            <Button variant="outline" onClick={onClose}>
-              {t("common.close")}
-            </Button>
           </div>
         )}
+        {/* "Yopish" UCHALA holatda ham turadi — ilgari u faqat muvaffaqiyat shoxida edi va
+            xato/yuklanishda oynadan chiqishning yagona yo'li burchakdagi X bo'lib qolardi. */}
+        <Button variant="outline" onClick={onClose}>
+          {t("common.close")}
+        </Button>
       </DialogContent>
     </Dialog>
   )

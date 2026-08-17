@@ -1,5 +1,6 @@
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
+import { readKey } from "@/lib/safe-storage"
 import { PREFS_KEY } from "./panel"
 
 
@@ -56,10 +57,10 @@ function sanitizePersisted(raw: unknown): PersistedPrefs {
 
 function readLegacy(): PersistedPrefs {
   const out = { ...DEFAULTS }
-  const theme = localStorage.getItem("safora_theme")
+  const theme = readKey("local", "safora_theme")
   if (theme === "light" || theme === "dark" || theme === "auto") out.theme = theme
   try {
-    const ui = JSON.parse(localStorage.getItem("safora_ui") ?? "{}") as {
+    const ui = JSON.parse(readKey("local", "safora_ui") ?? "{}") as {
       nav?: unknown
       density?: unknown
     }

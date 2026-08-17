@@ -1,13 +1,44 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { redirectIfSessionDead } from "@/lib/api"
-import { classifyApiError, describeApiError } from "@/lib/api-error"
+import { classifyApiError, describeApiError, isConnectionError } from "@/lib/api-error"
 import { Button } from "@/components/ui/button"
+import { Skeleton } from "@/components/ui/skeleton"
 import { useT } from "@/lib/i18n"
 import { cn } from "@/lib/utils"
 
 
 const AUTO_DELAYS = [5, 10, 20] as const
 const MAX_AUTO_CYCLES = 3
+
+function ConnectionPending({
+  variant,
+  className,
+}: {
+  variant: "page" | "section" | "inline"
+  className?: string
+}) {
+  if (variant === "inline") {
+    return (
+      <div aria-busy="true" className={cn("flex items-center py-1.5", className)}>
+        <Skeleton className="h-4 w-48 max-w-full" />
+      </div>
+    )
+  }
+  return (
+    <div
+      aria-busy="true"
+      className={cn(
+        "flex w-full flex-col justify-center gap-2.5",
+        variant === "page" ? "min-h-64 flex-1 p-8" : "px-6 py-8",
+        className,
+      )}
+    >
+      <Skeleton className="h-4 w-2/5" />
+      <Skeleton className="h-4 w-full" />
+      <Skeleton className="h-4 w-3/5" />
+    </div>
+  )
+}
 
 export function Spinner({ className }: { className?: string }) {
   return (
@@ -32,6 +63,7 @@ export function ErrorState({ error, onRetry, variant = "section", className }: E
   const t = useT()
   const info = classifyApiError(error)
   const text = describeApiError(info, t)
+  const outage = isConnectionError(error)
   const [retrying, setRetrying] = useState(false)
   const [autoCycle, setAutoCycle] = useState(0)
   const mountedRef = useRef(true)
@@ -77,7 +109,7 @@ export function ErrorState({ error, onRetry, variant = "section", className }: E
   const autoArmed =
     onRetry != null &&
     info.retryable &&
-    info.kind !== "offline" &&
+    !outage &&
     !retrying &&
     autoCycle < MAX_AUTO_CYCLES
 
@@ -95,12 +127,6 @@ export function ErrorState({ error, onRetry, variant = "section", className }: E
     return () => window.clearInterval(id)
   }, [autoArmed, autoCycle])
 
-  useEffect(() => {
-    if (info.kind !== "offline" || onRetry == null) return
-    const onOnline = () => void runRetryRef.current()
-    window.addEventListener("online", onOnline)
-    return () => window.removeEventListener("online", onOnline)
-  }, [info.kind, onRetry])
 
   const connecting = retrying || autoArmed
 
@@ -116,6 +142,8 @@ export function ErrorState({ error, onRetry, variant = "section", className }: E
       {connecting ? t("common.retrying") : t("common.retry")}
     </Button>
   )
+
+  if (outage) return <ConnectionPending variant={variant} className={className} />
 
   if (variant === "inline") {
     return (

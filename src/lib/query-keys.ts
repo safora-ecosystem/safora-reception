@@ -4,6 +4,7 @@ export const shiftKeys = {
   current: ["shift-session", "current"] as const,
   list: (cursor?: string) => ["shift-session", "list", cursor ?? ""] as const,
   report: (id: string) => ["shift-session", "report", id] as const,
+  timeline: (id: string) => ["shift-session", "timeline", id] as const,
 }
 
 export const keys = {

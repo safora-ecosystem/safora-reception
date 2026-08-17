@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from "react"
 import {
+  useInfiniteQuery,
   useQuery,
   useQueryClient,
   type InfiniteData,
@@ -30,6 +31,7 @@ import {
 } from "./api"
 import { t } from "./i18n"
 import { getSession } from "./auth"
+import type { Page } from "./paged"
 import { playMessageChime, showDesktopNotification } from "./notify"
 import { keys } from "./query-keys"
 import { useRealtimeStore } from "@/stores/realtime-store"
@@ -43,8 +45,6 @@ export const groupMessagesKey = ["chat", "group-messages"] as const
 export const groupUnreadKey = ["chat", "group-unread"] as const
 export const hkMessagesKey = ["chat", "hk-messages"] as const
 export const hkUnreadKey = ["chat", "hk-unread"] as const
-
-type MessagePage = { items: ChatMessage[]; nextCursor: string | null }
 
 export const REACTION_ORDER = ["like", "dislike", "heart", "zap"] as const
 export const REACTION_CHAR: Record<string, string> = {
@@ -70,13 +70,13 @@ export function aggregateReactions(rows: ReactionRow[], viewerId: string | null)
   return out
 }
 
-export function updateGuestReactions(
+function updateInfiniteReactions<T extends { id: string; reactions?: ReactionView[] }>(
   qc: QueryClient,
-  bookingId: string,
+  key: QueryKey,
   messageId: string,
   reactions: ReactionView[],
 ): void {
-  qc.setQueryData<InfiniteData<MessagePage>>(messagesKey(bookingId), (old) =>
+  qc.setQueryData<InfiniteData<Page<T>>>(key, (old) =>
     old
       ? {
           ...old,
@@ -89,17 +89,30 @@ export function updateGuestReactions(
   )
 }
 
+export function updateGuestReactions(
+  qc: QueryClient,
+  bookingId: string,
+  messageId: string,
+  reactions: ReactionView[],
+): void {
+  updateInfiniteReactions<ChatMessage>(qc, messagesKey(bookingId), messageId, reactions)
+}
+
 export function updateTeamReactions(
   qc: QueryClient,
   otherId: string,
   messageId: string,
   reactions: ReactionView[],
 ): void {
-  qc.setQueryData<{ messages: TeamMessage[] }>(teamMessagesKey(otherId), (old) =>
-    old
-      ? { messages: old.messages.map((m) => (m.id === messageId ? { ...m, reactions } : m)) }
-      : old,
-  )
+  updateInfiniteReactions<TeamMessage>(qc, teamMessagesKey(otherId), messageId, reactions)
+}
+
+export function updateGroupReactions(
+  qc: QueryClient,
+  messageId: string,
+  reactions: ReactionView[],
+): void {
+  updateInfiniteReactions<GroupMessage>(qc, groupMessagesKey, messageId, reactions)
 }
 
 export function appendToInfinite<T extends { id: string }>(
@@ -115,40 +128,8 @@ export function appendToInfinite<T extends { id: string }>(
   })
 }
 
-export function appendGroupMessage(qc: QueryClient, message: GroupMessage): void {
-  qc.setQueryData<{ messages: GroupMessage[] }>(groupMessagesKey, (old) => {
-    if (!old) return old
-    if (old.messages.some((m) => m.id === message.id)) return old
-    return { messages: [...old.messages, message] }
-  })
-}
-
-export function appendHkMessage(qc: QueryClient, message: HkChatMessage): void {
-  qc.setQueryData<{ messages: HkChatMessage[] }>(hkMessagesKey, (old) => {
-    if (!old) return old
-    if (old.messages.some((m) => m.id === message.id)) return old
-    return { messages: [...old.messages, message] }
-  })
-}
-
-export function updateGroupReactions(
-  qc: QueryClient,
-  messageId: string,
-  reactions: ReactionView[],
-): void {
-  qc.setQueryData<{ messages: GroupMessage[] }>(groupMessagesKey, (old) =>
-    old
-      ? { messages: old.messages.map((m) => (m.id === messageId ? { ...m, reactions } : m)) }
-      : old,
-  )
-}
-
-export function appendTeamMessage(qc: QueryClient, otherId: string, message: TeamMessage): void {
-  qc.setQueryData<{ messages: TeamMessage[] }>(teamMessagesKey(otherId), (old) => {
-    if (!old) return old
-    if (old.messages.some((m) => m.id === message.id)) return old
-    return { messages: [...old.messages, message] }
-  })
+export function toMessagePage<T>(res: { messages: T[]; nextCursor: string | null }): Page<T> {
+  return { items: [...res.messages].reverse(), nextCursor: res.nextCursor }
 }
 
 function handleServerPublication(qc: QueryClient, raw: unknown): void {
@@ -215,7 +196,7 @@ function handleServerPublication(qc: QueryClient, raw: unknown): void {
   if (data.type === "group-message" && data.message) {
     const gm = data.message as unknown as GroupMessage
     const meId = getSession()?.user.id
-    appendGroupMessage(qc, gm)
+    appendToInfinite(qc, groupMessagesKey, gm)
     void qc.invalidateQueries({ queryKey: groupUnreadKey })
     if (gm.senderId !== meId) {
       playMessageChime()
@@ -227,7 +208,7 @@ function handleServerPublication(qc: QueryClient, raw: unknown): void {
   if (data.type === "hk-chat-message" && data.message) {
     const hm = data.message as unknown as HkChatMessage
     const meId = getSession()?.user.id
-    appendHkMessage(qc, hm)
+    appendToInfinite(qc, hkMessagesKey, hm)
     void qc.invalidateQueries({ queryKey: hkUnreadKey })
     if (hm.senderId !== meId) {
       playMessageChime()
@@ -249,7 +230,7 @@ function handleServerPublication(qc: QueryClient, raw: unknown): void {
     const meId = getSession()?.user.id
     const mine = data.message.senderId === meId
     const other = mine ? data.threadWith?.to : data.message.senderId
-    if (other) appendTeamMessage(qc, other, data.message)
+    if (other) appendToInfinite(qc, teamMessagesKey(other), data.message)
     void qc.invalidateQueries({ queryKey: teamThreadsKey })
     void qc.invalidateQueries({ queryKey: teamUnreadKey })
     if (!mine) {
@@ -391,9 +372,11 @@ export function useChat(): ChatCtxValue {
 
 export function useChatBadge(): string | undefined {
   const live = useRealtimeStore((s) => s.status === "connected")
-  const conv = useQuery({
+  const conv = useInfiniteQuery({
     queryKey: conversationsKey,
-    queryFn: listConversations,
+    queryFn: ({ pageParam }) => listConversations(pageParam ?? undefined),
+    initialPageParam: null as string | null,
+    getNextPageParam: (last) => last.nextCursor,
     staleTime: 15_000,
     refetchInterval: live ? false : 30_000,
     retry: false,
@@ -420,7 +403,10 @@ export function useChatBadge(): string | undefined {
     retry: false,
   })
   const total =
-    (conv.data?.items.reduce((sum, c) => sum + (c.archived ? 0 : c.unread), 0) ?? 0) +
+    (conv.data?.pages.reduce(
+      (sum, p) => sum + p.items.reduce((n, c) => n + (c.archived ? 0 : c.unread), 0),
+      0,
+    ) ?? 0) +
     (team.data?.unread ?? 0) +
     (group.data?.unread ?? 0) +
     (hk.data?.unread ?? 0)

@@ -153,6 +153,9 @@ function build(t: TFunc): CalendarLabels {
 
     rateNotSet: t("calendar.rateNotSet"),
     rateNotSetError: t("calendar.rateNotSetError"),
+    rateHidden: t("calendar.rateHidden"),
+    rateHiddenError: t("calendar.rateHiddenError"),
+    extrasLine: t("calendar.extrasLine"),
     totalBelowPaid: t("calendar.totalBelowPaid"),
 
     extraGuestRate: t("units.perNight"),

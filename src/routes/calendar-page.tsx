@@ -370,6 +370,7 @@ export function CalendarPage() {
               onRemoveGuest={data.removeGuest}
               onSetPrimaryGuest={data.makeGuestPrimary}
               payments={data.payments}
+              extrasTotal={data.extrasTotal}
               onRecordPayment={can("payments.record") ? data.recordPayment : undefined}
               onVoidPayment={can("payments.record") ? data.voidPayment : undefined}
               activity={data.activity}

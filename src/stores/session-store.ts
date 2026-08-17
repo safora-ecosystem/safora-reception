@@ -1,26 +1,27 @@
 import { create } from "zustand"
 import type { Session } from "@/lib/auth"
+import { readKey, removeKey, writeKey } from "@/lib/safe-storage"
 import { LEFTOVER_KEYS, SESSION_KEY } from "./panel"
 import { fireSessionReset } from "./reset-bus"
 
 
 function readStorage(): Session | null {
-  const raw = sessionStorage.getItem(SESSION_KEY) ?? localStorage.getItem(SESSION_KEY)
+  const raw = readKey("session", SESSION_KEY) ?? readKey("local", SESSION_KEY)
   if (!raw) return null
   try {
     return JSON.parse(raw) as Session
   } catch {
-    sessionStorage.removeItem(SESSION_KEY)
-    localStorage.removeItem(SESSION_KEY)
+    removeKey("session", SESSION_KEY)
+    removeKey("local", SESSION_KEY)
     return null
   }
 }
 
 function writeThrough(session: Session): void {
-  if (sessionStorage.getItem(SESSION_KEY) !== null) {
-    sessionStorage.setItem(SESSION_KEY, JSON.stringify(session))
-  } else if (localStorage.getItem(SESSION_KEY) !== null) {
-    localStorage.setItem(SESSION_KEY, JSON.stringify(session))
+  if (readKey("session", SESSION_KEY) !== null) {
+    writeKey("session", SESSION_KEY, JSON.stringify(session))
+  } else if (readKey("local", SESSION_KEY) !== null) {
+    writeKey("local", SESSION_KEY, JSON.stringify(session))
   }
 }
 
@@ -37,10 +38,10 @@ export const useSessionStore = create<SessionState>()((set, get) => ({
   session: readStorage(),
 
   save: (session, temporary) => {
-    const target = temporary ? sessionStorage : localStorage
-    const other = temporary ? localStorage : sessionStorage
-    other.removeItem(SESSION_KEY)
-    target.setItem(SESSION_KEY, JSON.stringify(session))
+    const target = temporary ? "session" : "local"
+    const other = temporary ? "local" : "session"
+    removeKey(other, SESSION_KEY)
+    writeKey(target, SESSION_KEY, JSON.stringify(session))
     set({ session })
   },
 
@@ -61,14 +62,14 @@ export const useSessionStore = create<SessionState>()((set, get) => ({
   },
 
   clearOnly: () => {
-    sessionStorage.removeItem(SESSION_KEY)
-    localStorage.removeItem(SESSION_KEY)
+    removeKey("session", SESSION_KEY)
+    removeKey("local", SESSION_KEY)
     set({ session: null })
   },
 
   reset: () => {
     get().clearOnly()
-    for (const key of LEFTOVER_KEYS) localStorage.removeItem(key)
+    for (const key of LEFTOVER_KEYS) removeKey("local", key)
     fireSessionReset()
   },
 }))

@@ -170,7 +170,14 @@ export const uz = {
     warning: "Ogohlantirish",
     maintenance: "Texnik ishlar",
     offline: "Internet aloqasi yo'q",
-    offlineWaiting: "Aloqa yo'q — ulanish tiklanishi kutilmoqda",
+  },
+
+  connection: {
+    lost: "Server bilan bog'lanib bo'lmadi",
+    lostHint: "Qayta ulanmoqda — ma'lumot aloqa tiklangach o'zi yuklanadi",
+    offline: "Internet aloqasi yo'q",
+    offlineHint: "Tarmoq qaytishi bilan panel o'zi ulanadi",
+    restored: "Aloqa tiklandi",
   },
 
   roles: {
@@ -790,6 +797,9 @@ export const uz = {
     guestsWord: { one: "{count} mehmon", other: "{count} mehmon" },
     rateNotSet: "Narx belgilanmagan",
     rateNotSetError: "Xona narxi belgilanmagan — Xonalar bo'limida tarif kiritilsin",
+    rateHidden: "Narx sizga ko'rinmaydi",
+    rateHiddenError: "Narxni ko'rish ruxsatingiz yo'q — summani o'zingiz kiriting",
+    extrasLine: "Qo'shimcha xarajatlar",
     totalBelowPaid: "Yangi summa to'langan puldan kam — avval to'lovni storno qiling",
     extraGuests: "Qo'shimcha o'rin",
     extraGuestsBreakdown: "{guests} × {nights}",

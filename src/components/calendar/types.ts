@@ -10,6 +10,7 @@ export type CalendarBookingSource = "reception" | "channel" | "web"
 export interface CalendarPayment {
   total: number
   paid: number
+  extras?: number
 }
 
 export interface CalendarFolio {
@@ -32,6 +33,7 @@ export interface CalendarRoom {
   sublabel?: string
   order?: number
   rate?: number
+  rateHidden?: boolean
   capacity?: number
   housekeeping?: "clean" | "dirty" | "in_progress"
 }
@@ -214,6 +216,9 @@ export interface CalendarLabels {
 
   rateNotSet: string
   rateNotSetError: string
+  rateHidden: string
+  rateHiddenError: string
+  extrasLine: string
   totalBelowPaid: string
 
   extraGuestRate: string
@@ -366,6 +371,7 @@ export interface CalendarCreateRoom {
 
 export interface CalendarPaymentEntry {
   id: string
+  bookingId?: string
   amount: number
   method: string
   note?: string | null
@@ -489,6 +495,7 @@ export interface ReservationCalendarProps {
   onSetPrimaryGuest?: (bookingId: string, guestId: string) => void | Promise<void>
 
   payments?: CalendarPaymentEntry[] | null
+  extrasTotal?: number | null
   onRecordPayment?: (
     bookingId: string,
     input: {

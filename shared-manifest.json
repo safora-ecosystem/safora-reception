@@ -25,7 +25,7 @@
         "safora-kitchen"
       ],
       "hashes": {
-        "src/stores/session-store.ts": "701cff7dfb95d561522e70d7b0807c24059dd1141b53ea8255b054dccac3cdb2"
+        "src/stores/session-store.ts": "e4c35c496482f9177fc6e793eb993c5b68ed53b08a55ea00425d2f7b83c22655"
       }
     },
     {
@@ -37,7 +37,7 @@
         "safora-admin"
       ],
       "hashes": {
-        "src/stores/prefs-store.ts": "9b5ed4e0abbaae8307b60c90231e0e3d042e9002af16572fc054cfd06ac98ac8"
+        "src/stores/prefs-store.ts": "ac112242a58356243c8ea0801b29c7bfe4ab540b25a7d49b53632d2626b8c41f"
       }
     },
     {
@@ -59,7 +59,7 @@
         "safora-manager"
       ],
       "hashes": {
-        "src/stores/calendar-store.ts": "1f8fab9d92b89f99bb137636eb441c56748a6717726c3fe608aa597b0bf89a3a"
+        "src/stores/calendar-store.ts": "d22fe3572374897ebc09690c91f3f7121da696d65b46a3668572d059c0400ef1"
       }
     },
     {
@@ -170,7 +170,7 @@
         "safora-manager"
       ],
       "hashes": {
-        "src/lib/i18n/core.tsx": "44ad2f25b8f1442c49cb9bef0abc2b509974ca7d254fea72bc0ab8972c5e6d11"
+        "src/lib/i18n/core.tsx": "f0c155e2e27f4f58d82dbed834f5cc0783faed4f9dc5d964af60b41808e77e8d"
       }
     },
     {
@@ -192,7 +192,7 @@
         "safora-manager"
       ],
       "hashes": {
-        "src/lib/push.ts": "cedc45659bd918ce4ffd738ce9017e3c465b807d77131ba726378275055acbe2"
+        "src/lib/push.ts": "f5969f38e72e7a460f47e720229015af02a7ed3f26a1e1a56040c967a92f1f14"
       }
     },
     {
@@ -214,10 +214,10 @@
         "safora-manager"
       ],
       "hashes": {
-        "src/components/calendar/calendar-bar-tooltip.tsx": "0b907d42f3db492ebbdcb624ba780747d1bb2a6a96fd3bc1e217e799c2bdc51a",
-        "src/components/calendar/calendar-bar.tsx": "ed56bd0a7565a8027ae43391d090e142f256073ad4b1285c0c8c7d5e2b0d2b8b",
-        "src/components/calendar/calendar-create-dialog.tsx": "d2651cfa6f6d7b01a13332c23ee59af7062172fc4de9d250749e96d0c54ed318",
-        "src/components/calendar/calendar-detail-modal.tsx": "24221bce7075aa21e1cb19ccd401f13eae3b5dd763fae2fb5149866e83a930eb",
+        "src/components/calendar/calendar-bar-tooltip.tsx": "11b55df907f0c7f9148117ddc60406b28594593de0dcd5f571b738fd43a27009",
+        "src/components/calendar/calendar-bar.tsx": "42a06456c4e6d12be6937700a38093555f315fad3c41c03effabdf6a8725aa95",
+        "src/components/calendar/calendar-create-dialog.tsx": "db55de54abe77609e84d7b16e860abae45d6ff9af13c36888495d9648601ed1e",
+        "src/components/calendar/calendar-detail-modal.tsx": "e4e6dfd9c6bb3c2f8fce262c346516c810ebaf4fd3decf9c18d24a24ad6795b9",
         "src/components/calendar/calendar-grid-layer.tsx": "74d8a1bf12574039a48c1375361b339e37fe0cd2975151ea25ea522821e89439",
         "src/components/calendar/calendar-group-row.tsx": "7798b96aa4c11e72de3d55ee3368efb990afb088799c319f1b5248454f70ae2b",
         "src/components/calendar/calendar-header.tsx": "a8658ae257c00700bbc53df015f696a81273083a32885392ca8dfc03775d0eff",
@@ -226,18 +226,18 @@
         "src/components/calendar/calendar-split-dialog.tsx": "fdbe1a0d6638bd032478edf80976d57391375d3e962181f9d327e559a4473fce",
         "src/components/calendar/calendar-view-settings.tsx": "fbc6e8a2a041b294328ebde11c485bf789a9a612300332792761cc99dd656ea6",
         "src/components/calendar/corporate-parts.tsx": "89b00482a70a1b5ee07c7b39f53577d3bf7d5c12ec382b0eca8ee60864552c76",
-        "src/components/calendar/folio.ts": "285b6210e4bd9abd2710e82f2967f77e5fbd6dad7b8176963792fe26649ec46b",
+        "src/components/calendar/folio.ts": "03f0978ae0bfa2f26f2d0eb52e96e820a71bac64cf3bd3595a19948af6688bf0",
         "src/components/calendar/form-parts.tsx": "b3fc7523b355677ae6a5b24d4f5aa70470d80c5dac032179758f974264c81f9f",
         "src/components/calendar/geometry.ts": "6438e0134eff7531f3cd4f9e7b0c0b62aeef3007d1bf32454b30c51537567244",
         "src/components/calendar/index.ts": "79a344cdc89a06e7108333aef06b98d9dc9f33c029dd0093964547a577e0a73f",
-        "src/components/calendar/labels.ts": "6679cd864bccf7e88a70a33cd0002af83909b5f823d97f4d339a4517842006ec",
+        "src/components/calendar/labels.ts": "c4d5049e23c2fb259a6059fba0f724002a01221c15ed03f143ecf22e2a3a3803",
         "src/components/calendar/mock.ts": "911d07af5e4b05e2734932bd6d9106bcf7387bdcf2d2675f286cd2ec1644d4f6",
         "src/components/calendar/modal-parts.tsx": "bc8470da50995a9e0f9e4dcb6c888a042b9246faf9fa649405c545e4bf276a9c",
-        "src/components/calendar/reservation-calendar.tsx": "4dceb59c8b83097298ff600e7fd50b1439c78d519e85bf38e74c98524b6f8e26",
+        "src/components/calendar/reservation-calendar.tsx": "f4da211ca11813d98cc184bb06c6285442674f7e0e7bbf25535ce22f32426dea",
         "src/components/calendar/room-picker.tsx": "b1596772e4e56ce8fc8a57fff44d95099d3c522e397624e7438fce416737205a",
         "src/components/calendar/split-trace.ts": "9476d46d7973686be14ff6980df3f7e9c038adc90bc69937ea90d684af1db936",
         "src/components/calendar/status-config.ts": "aa50f569df4a48b6b1db59bef519ac004875cb643e7a9e3e44d188432796ccad",
-        "src/components/calendar/types.ts": "7b94430e1267238157b4b134a269c0e083299e056e5444346ee46c13904d95f4",
+        "src/components/calendar/types.ts": "10f917ca4d05a3a5cdbf408b17054f756e8f3c335bf9dcba54b219e60c5e15b5",
         "src/components/calendar/use-calendar-drag.ts": "a28f3c052513552948e3f7ef8062e0b5942eb466b10b1cabf2272692c70840dc",
         "src/components/calendar/use-calendar-metrics.ts": "aa0f49a9212c0708157815e36874cae0691322ee65d2374b4deaf312765d499d",
         "src/components/calendar/use-calendar-move.ts": "01d19e13936842673224eb04bf46533ca61763f803fff20e71eee8b99230ff2c",
@@ -258,6 +258,18 @@
       }
     },
     {
+      "path": "src/lib/connection.ts",
+      "repos": [
+        "safora-reception",
+        "safora-owner",
+        "safora-manager",
+        "safora-admin"
+      ],
+      "hashes": {
+        "src/lib/connection.ts": "c8f1f8cd6b0b5b80773f72c04607d15aff216defec46f391bbdb9795683aa051"
+      }
+    },
+    {
       "path": "src/components/shared/load-more.tsx",
       "repos": [
         "safora-reception",
@@ -266,6 +278,19 @@
       ],
       "hashes": {
         "src/components/shared/load-more.tsx": "8fbb1bd57e6cad44a30bddfc560391c27072daee97b30fd7396fa97cc3e057a8"
+      }
+    },
+    {
+      "path": "src/lib/safe-storage.ts",
+      "repos": [
+        "safora-reception",
+        "safora-owner",
+        "safora-manager",
+        "safora-admin",
+        "safora-kitchen"
+      ],
+      "hashes": {
+        "src/lib/safe-storage.ts": "702d5b0b9c14171b6ebdc3a16005aa2d5b63faf298800e055d270d25f005c7f2"
       }
     }
   ]

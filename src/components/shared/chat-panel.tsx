@@ -1,20 +1,29 @@
 import { Link } from "@tanstack/react-router"
-import { useQuery } from "@tanstack/react-query"
 import { Message02Icon } from "@hugeicons/core-free-icons"
 import { Icon } from "@/components/ui/icon"
-import { listConversations } from "@/lib/api"
+import { listConversations, type ChatConversation } from "@/lib/api"
 import { conversationsKey } from "@/lib/chat-realtime"
+import { usePagedList } from "@/lib/paged"
 import { ErrorState } from "@/components/shared/error-state"
 import { SkeletonList } from "@/components/shared/skeletons"
 import { PersonAvatar } from "@/components/shared/person-avatar"
 import { useT } from "@/lib/i18n"
+import { usePermissions } from "@/lib/permissions"
 import { Button } from "@/components/ui/button"
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
 export function ChatPanel() {
   const t = useT()
-  const conversations = useQuery({ queryKey: conversationsKey, queryFn: listConversations })
-  const items = (conversations.data?.items ?? []).slice(0, 5)
+  const { can, loading: permLoading } = usePermissions()
+  const allowed = can("chat.guest")
+  const conversations = usePagedList<ChatConversation>(
+    conversationsKey,
+    (cursor) => listConversations(cursor ?? undefined),
+    { enabled: allowed },
+  )
+  const items = conversations.items.slice(0, 5)
+
+  if (!allowed && !permLoading) return null
 
   return (
     <Card>
@@ -29,7 +38,8 @@ export function ChatPanel() {
       </CardHeader>
 
       {}
-      {conversations.isPending ? (
+      {}
+      {conversations.isPending || (permLoading && conversations.data === undefined) ? (
         <CardContent aria-busy="true" className="flex-1 p-0">
           <SkeletonList rows={4} className="px-1" />
         </CardContent>
